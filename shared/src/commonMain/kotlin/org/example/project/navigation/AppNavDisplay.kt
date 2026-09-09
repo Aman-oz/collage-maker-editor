@@ -17,6 +17,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import org.example.project.ui.adjust.AdjustScreen
 import org.example.project.ui.blur.BlurScreen
+import org.example.project.ui.collage.CollageEditorScreen
 import org.example.project.ui.crop.CropScreen
 import org.example.project.ui.draw.DrawScreen
 import org.example.project.ui.editor.EditorScreen
@@ -91,6 +92,16 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     onImagePicked = { imagePath ->
                         backStack.add(Destination.Editor(imagePath))
                     },
+                    onCollageImagesPicked = { imagePaths ->
+                        backStack.add(Destination.CollageEditor(imagePaths))
+                    },
+                )
+            }
+
+            entry<Destination.CollageEditor> { key ->
+                CollageEditorScreen(
+                    imagePaths = key.imagePaths,
+                    onBack = { backStack.removeLastOrNull() },
                 )
             }
 

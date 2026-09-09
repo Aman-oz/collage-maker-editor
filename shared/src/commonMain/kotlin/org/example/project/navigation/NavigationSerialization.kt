@@ -17,6 +17,7 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.Splash::class, Destination.Splash.serializer())
         subclass(Destination.Home::class, Destination.Home.serializer())
         subclass(Destination.Editor::class, Destination.Editor.serializer())
+        subclass(Destination.CollageEditor::class, Destination.CollageEditor.serializer())
     }
 }
 

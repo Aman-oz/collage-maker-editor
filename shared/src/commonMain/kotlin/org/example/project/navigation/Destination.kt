@@ -29,6 +29,15 @@ sealed interface Destination : NavKey {
     @Serializable
     data class Editor(val imagePath: String) : Destination
 
+    /**
+     * Collage editor.
+     *
+     * @param imagePaths platform paths of the picked images, in selection order. Each round-trips
+     * through `PlatformFile(path)` the same way [Editor.imagePath] does.
+     */
+    @Serializable
+    data class CollageEditor(val imagePaths: List<String>) : Destination
+
     /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Crop : Destination

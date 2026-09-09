@@ -5,6 +5,7 @@ import org.example.project.data.ImageEditSession
 import org.example.project.getPlatform
 import org.example.project.ui.adjust.AdjustViewModel
 import org.example.project.ui.blur.BlurViewModel
+import org.example.project.ui.collage.CollageEditorViewModel
 import org.example.project.ui.crop.CropViewModel
 import org.example.project.ui.draw.DrawViewModel
 import org.example.project.ui.editor.EditorViewModel
@@ -36,6 +37,8 @@ val viewModelModule: Module = module {
     viewModelOf(::HomeViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String) -> EditorViewModel(imagePath, get()) }
+    // The image paths come from the navigation key, so they are passed in as a runtime parameter.
+    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths) }
     viewModelOf(::CropViewModel)
     viewModelOf(::FilterViewModel)
     viewModelOf(::AdjustViewModel)
