@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
 
 /**
  * Returns a fresh raster copy of [source]. Some platform-decoded [ImageBitmap]s (e.g. a photo
@@ -44,6 +45,40 @@ internal fun DrawScope.drawImageScaled(image: ImageBitmap, dstOffset: IntOffset,
             image = image,
             srcOffset = IntOffset.Zero,
             srcSize = IntSize(image.width, image.height),
+            dstOffset = dstOffset,
+            dstSize = dstSize,
+            paint = Paint().apply { filterQuality = FilterQuality.High },
+        )
+    }
+}
+
+/**
+ * Draws [image] center-cropped to fill [dstSize] exactly (the `ContentScale.Crop` a `DrawScope`
+ * gets for free from the `Image` composable, but not from a raw `Canvas.drawImageRect` call) —
+ * same [image]-must-be-a-bitmap-this-app-created caveat as [drawImageScaled].
+ */
+internal fun DrawScope.drawImageCropped(image: ImageBitmap, dstOffset: IntOffset, dstSize: IntSize) {
+    val sourceWidth = image.width.toFloat()
+    val sourceHeight = image.height.toFloat()
+    val destAspect = dstSize.width.toFloat() / dstSize.height.toFloat()
+    val sourceAspect = sourceWidth / sourceHeight
+    val cropWidth: Float
+    val cropHeight: Float
+    if (sourceAspect > destAspect) {
+        cropHeight = sourceHeight
+        cropWidth = sourceHeight * destAspect
+    } else {
+        cropWidth = sourceWidth
+        cropHeight = sourceWidth / destAspect
+    }
+    val cropX = ((sourceWidth - cropWidth) / 2f).roundToInt()
+    val cropY = ((sourceHeight - cropHeight) / 2f).roundToInt()
+
+    drawIntoCanvas { canvas ->
+        canvas.drawImageRect(
+            image = image,
+            srcOffset = IntOffset(cropX, cropY),
+            srcSize = IntSize(cropWidth.roundToInt().coerceAtLeast(1), cropHeight.roundToInt().coerceAtLeast(1)),
             dstOffset = dstOffset,
             dstSize = dstSize,
             paint = Paint().apply { filterQuality = FilterQuality.High },

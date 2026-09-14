@@ -16,8 +16,10 @@ private val navKeySerializersModule = SerializersModule {
     polymorphic(NavKey::class) {
         subclass(Destination.Splash::class, Destination.Splash.serializer())
         subclass(Destination.Home::class, Destination.Home.serializer())
+        subclass(Destination.Gallery::class, Destination.Gallery.serializer())
         subclass(Destination.Editor::class, Destination.Editor.serializer())
         subclass(Destination.CollageEditor::class, Destination.CollageEditor.serializer())
+        subclass(Destination.FreestyleEditor::class, Destination.FreestyleEditor.serializer())
     }
 }
 

@@ -24,6 +24,8 @@ import org.example.project.ui.editor.EditorScreen
 import org.example.project.ui.emoji.EmojiScreen
 import org.example.project.ui.filter.FilterScreen
 import org.example.project.ui.frame.FrameScreen
+import org.example.project.ui.freestyle.FreestyleEditorScreen
+import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.overlay.OverlayScreen
 import org.example.project.ui.ratio.RatioScreen
@@ -89,17 +91,36 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
             entry<Destination.Home> {
                 HomeScreen(
-                    onImagePicked = { imagePath ->
-                        backStack.add(Destination.Editor(imagePath))
+                    onOpenGallery = { maxSelection, target ->
+                        backStack.add(Destination.Gallery(maxSelection, target))
                     },
-                    onCollageImagesPicked = { imagePaths ->
-                        backStack.add(Destination.CollageEditor(imagePaths))
+                )
+            }
+
+            entry<Destination.Gallery>(metadata = slideUpMetadata()) { key ->
+                GalleryScreen(
+                    maxSelection = key.maxSelection,
+                    onBack = { backStack.removeLastOrNull() },
+                    onImagesSelected = { imagePaths ->
+                        when (key.target) {
+                            GalleryTarget.Editor -> backStack.add(Destination.Editor(imagePaths.first()))
+                            GalleryTarget.Collage -> backStack.add(Destination.CollageEditor(imagePaths))
+                            GalleryTarget.Freestyle -> backStack.add(Destination.FreestyleEditor(imagePaths))
+                        }
+                        backStack.remove(key)
                     },
                 )
             }
 
             entry<Destination.CollageEditor> { key ->
                 CollageEditorScreen(
+                    imagePaths = key.imagePaths,
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Destination.FreestyleEditor> { key ->
+                FreestyleEditorScreen(
                     imagePaths = key.imagePaths,
                     onBack = { backStack.removeLastOrNull() },
                 )

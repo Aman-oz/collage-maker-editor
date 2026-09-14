@@ -12,6 +12,8 @@ import org.example.project.ui.editor.EditorViewModel
 import org.example.project.ui.emoji.EmojiViewModel
 import org.example.project.ui.filter.FilterViewModel
 import org.example.project.ui.frame.FrameViewModel
+import org.example.project.ui.freestyle.FreestyleEditorViewModel
+import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.home.HomeViewModel
 import org.example.project.ui.overlay.OverlayViewModel
 import org.example.project.ui.ratio.RatioViewModel
@@ -35,10 +37,12 @@ val coreModule: Module = module {
 val viewModelModule: Module = module {
     viewModelOf(::SplashViewModel)
     viewModelOf(::HomeViewModel)
+    viewModelOf(::GalleryViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String) -> EditorViewModel(imagePath, get()) }
     // The image paths come from the navigation key, so they are passed in as a runtime parameter.
-    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths) }
+    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get()) }
+    viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get()) }
     viewModelOf(::CropViewModel)
     viewModelOf(::FilterViewModel)
     viewModelOf(::AdjustViewModel)

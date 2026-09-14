@@ -3,6 +3,10 @@ package org.example.project.navigation
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
+/** Which editor a [Destination.Gallery] pick should be routed to once images are selected. */
+@Serializable
+enum class GalleryTarget { Editor, Collage, Freestyle }
+
 /**
  * Every screen the app can navigate to.
  *
@@ -21,6 +25,15 @@ sealed interface Destination : NavKey {
     data object Home : Destination
 
     /**
+     * In-app photo library picker, gated behind an explicit permission request.
+     *
+     * @param maxSelection how many photos the user may pick.
+     * @param target which editor destination the picked images are routed to.
+     */
+    @Serializable
+    data class Gallery(val maxSelection: Int, val target: GalleryTarget) : Destination
+
+    /**
      * Photo editor.
      *
      * @param imagePath platform path of the picked image. On Android this is a `content://` uri,
@@ -37,6 +50,16 @@ sealed interface Destination : NavKey {
      */
     @Serializable
     data class CollageEditor(val imagePaths: List<String>) : Destination
+
+    /**
+     * Freestyle editor — every picked image starts as a freely draggable/rotatable/scalable layer
+     * on one open canvas, alongside stickers and text the user adds there.
+     *
+     * @param imagePaths platform paths of the picked images, in selection order. Each round-trips
+     * through `PlatformFile(path)` the same way [Editor.imagePath] does.
+     */
+    @Serializable
+    data class FreestyleEditor(val imagePaths: List<String>) : Destination
 
     /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable

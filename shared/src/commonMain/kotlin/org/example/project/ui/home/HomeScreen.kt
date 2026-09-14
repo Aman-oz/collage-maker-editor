@@ -14,37 +14,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.vinceglb.filekit.dialogs.FileKitMode
-import io.github.vinceglb.filekit.dialogs.FileKitType
-import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
-import io.github.vinceglb.filekit.path
+import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.preview.ThemePreviews
 import androidx.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun HomeScreen(
-    onImagePicked: (imagePath: String) -> Unit,
-    onCollageImagesPicked: (imagePaths: List<String>) -> Unit,
+    onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
-    // Opens the system gallery: Android photo picker / iOS PHPickerViewController.
-    // Neither needs a runtime storage permission.
-    val imagePicker = rememberFilePickerLauncher(type = FileKitType.Image) { file ->
-        file?.let { onImagePicked(it.path) }
-    }
-    val collagePicker = rememberFilePickerLauncher(
-        type = FileKitType.Image,
-        mode = FileKitMode.Multiple(),
-    ) { files ->
-        files?.let { onCollageImagesPicked(it.map { file -> file.path }) }
-    }
-
     HomeContent(
         platformName = viewModel.platformName,
-        onPickImage = { imagePicker.launch() },
-        onPickCollageImages = { collagePicker.launch() },
+        onPickImage = { onOpenGallery(1, GalleryTarget.Editor) },
+        onPickCollageImages = { onOpenGallery(8, GalleryTarget.Collage) },
+        onPickFreestyleImages = { onOpenGallery(12, GalleryTarget.Freestyle) },
         modifier = modifier,
     )
 }
@@ -54,6 +39,7 @@ private fun HomeContent(
     platformName: String,
     onPickImage: () -> Unit,
     onPickCollageImages: () -> Unit,
+    onPickFreestyleImages: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -103,11 +89,33 @@ private fun HomeContent(
                 style = MaterialTheme.typography.titleMedium,
             )
         }
+        Button(
+            onClick = onPickFreestyleImages,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+            ),
+        ) {
+            Text(
+                text = "Freestyle",
+                modifier = Modifier.padding(vertical = 8.dp),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
     }
 }
 
 @Preview
 @Composable
 private fun HomeScreenPreview() {
-    ThemePreviews { HomeContent(platformName = "Android", onPickImage = {}, onPickCollageImages = {}) }
+    ThemePreviews {
+        HomeContent(
+            platformName = "Android",
+            onPickImage = {},
+            onPickCollageImages = {},
+            onPickFreestyleImages = {},
+        )
+    }
 }

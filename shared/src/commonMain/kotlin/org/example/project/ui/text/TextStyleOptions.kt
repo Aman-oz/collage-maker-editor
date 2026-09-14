@@ -10,7 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
  * assets), differentiated further by weight/style so each option reads distinctly even on
  * platforms where the generic families resolve to similar glyphs.
  */
-internal data class TextFontStyleOption(
+data class TextFontStyleOption(
     val label: String,
     val fontFamily: FontFamily,
     val fontWeight: FontWeight = FontWeight.Normal,
