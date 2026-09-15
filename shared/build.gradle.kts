@@ -45,6 +45,12 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.activity.compose)
+            // Ktor engine backing the shared HttpClient on Android.
+            implementation(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            // Ktor engine backing the shared HttpClient on iOS.
+            implementation(libs.ktor.client.darwin)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -79,6 +85,13 @@ kotlin {
             implementation(libs.haze.materials)
 
             implementation(libs.kotlinx.coroutines.core)
+
+            // Networking — fetch collage layouts (and their frame/thumbnail images) from the server.
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.ktor.serialization.kotlinxJson)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

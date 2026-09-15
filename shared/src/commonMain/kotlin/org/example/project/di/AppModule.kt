@@ -2,7 +2,10 @@ package org.example.project.di
 
 import org.example.project.Platform
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
+import org.example.project.data.network.createHttpClient
 import org.example.project.getPlatform
+import org.example.project.ui.collage.CollageCatalog
 import org.example.project.ui.adjust.AdjustViewModel
 import org.example.project.ui.blur.BlurViewModel
 import org.example.project.ui.collage.CollageEditorViewModel
@@ -31,6 +34,11 @@ val coreModule: Module = module {
     // Shared working copy of the photo being edited, so the editor and its tool screens (crop,
     // filter, ...) stay in sync without passing image data through navigation arguments.
     single { ImageEditSession() }
+    // Ktor client + loader for the remote collage layout thumbnails (collages.json preview URLs).
+    single { createHttpClient() }
+    single { NetworkImageLoader(get()) }
+    // Loads the bundled collages.json layout catalog.
+    single { CollageCatalog() }
 }
 
 /** ViewModels, scoped to their Navigation 3 entry. */
@@ -41,7 +49,7 @@ val viewModelModule: Module = module {
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String) -> EditorViewModel(imagePath, get()) }
     // The image paths come from the navigation key, so they are passed in as a runtime parameter.
-    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get()) }
+    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get()) }
     viewModelOf(::CropViewModel)
     viewModelOf(::FilterViewModel)
