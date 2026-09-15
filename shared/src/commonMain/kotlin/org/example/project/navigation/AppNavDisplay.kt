@@ -28,6 +28,7 @@ import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.overlay.OverlayScreen
+import org.example.project.ui.proeditor.ProEditorScreen
 import org.example.project.ui.ratio.RatioScreen
 import org.example.project.ui.rotate.RotateScreen
 import org.example.project.ui.splash.SplashScreen
@@ -94,7 +95,12 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     onOpenGallery = { maxSelection, target ->
                         backStack.add(Destination.Gallery(maxSelection, target))
                     },
+                    onOpenProEditor = { backStack.add(Destination.ProEditor) },
                 )
+            }
+
+            entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
+                ProEditorScreen(onBack = { backStack.removeLastOrNull() })
             }
 
             entry<Destination.Gallery>(metadata = slideUpMetadata()) { key ->

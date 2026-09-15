@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.preview.ThemePreviews
@@ -22,6 +23,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
+    onOpenProEditor: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -30,6 +32,7 @@ fun HomeScreen(
         onPickImage = { onOpenGallery(1, GalleryTarget.Editor) },
         onPickCollageImages = { onOpenGallery(8, GalleryTarget.Collage) },
         onPickFreestyleImages = { onOpenGallery(12, GalleryTarget.Freestyle) },
+        onOpenProEditor = onOpenProEditor,
         modifier = modifier,
     )
 }
@@ -40,6 +43,7 @@ private fun HomeContent(
     onPickImage: () -> Unit,
     onPickCollageImages: () -> Unit,
     onPickFreestyleImages: () -> Unit,
+    onOpenProEditor: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -104,6 +108,21 @@ private fun HomeContent(
                 style = MaterialTheme.typography.titleMedium,
             )
         }
+        Button(
+            onClick = onOpenProEditor,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2C2C2E),
+            ),
+        ) {
+            Text(
+                text = "Pro Editor",
+                modifier = Modifier.padding(vertical = 8.dp),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
     }
 }
 
@@ -116,6 +135,7 @@ private fun HomeScreenPreview() {
             onPickImage = {},
             onPickCollageImages = {},
             onPickFreestyleImages = {},
+            onOpenProEditor = {},
         )
     }
 }

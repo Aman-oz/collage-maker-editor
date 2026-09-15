@@ -61,6 +61,13 @@ sealed interface Destination : NavKey {
     @Serializable
     data class FreestyleEditor(val imagePaths: List<String>) : Destination
 
+    /**
+     * Showcase screen for the reusable [org.example.project.ui.glassnav.GlassBottomNav] module: a
+     * scrollable grid of cards behind a floating, frosted-glass bottom navigation bar.
+     */
+    @Serializable
+    data object ProEditor : Destination
+
     /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Crop : Destination
