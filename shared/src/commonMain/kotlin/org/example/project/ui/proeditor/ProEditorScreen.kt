@@ -40,8 +40,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.EditorCircleIconButton
 import org.example.project.ui.glassnav.GlassBottomNav
 import org.example.project.ui.glassnav.GlassNavItem
@@ -74,7 +74,7 @@ private val ProEditorNavItems = listOf(
  */
 @Composable
 fun ProEditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    val hazeState = remember { HazeState() }
+    val liquidState = rememberLiquidState()
     var selectedIndex by remember { mutableIntStateOf(0) }
 
     Box(
@@ -90,7 +90,7 @@ fun ProEditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(hazeState),
+                .liquefiable(liquidState),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 ProEditorHeader(onBack = onBack)
@@ -105,7 +105,7 @@ fun ProEditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             items = ProEditorNavItems,
             selectedIndex = selectedIndex,
             onItemSelected = { selectedIndex = it },
-            hazeState = hazeState,
+            liquidState = liquidState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
