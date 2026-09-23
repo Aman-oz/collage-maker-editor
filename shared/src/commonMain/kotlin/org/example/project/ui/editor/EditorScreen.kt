@@ -102,6 +102,9 @@ fun EditorScreen(
     onOpenText: () -> Unit,
     onOpenEmoji: () -> Unit,
     onOpenBlur: () -> Unit,
+    onOpenSplash: () -> Unit,
+    onOpenSelectiveBlur: () -> Unit,
+    onOpenSelectiveSplash: () -> Unit,
     onOpenFrame: () -> Unit,
     onOpenDraw: () -> Unit,
     onOpenRotate: () -> Unit,
@@ -122,6 +125,9 @@ fun EditorScreen(
         onOpenText = onOpenText,
         onOpenEmoji = onOpenEmoji,
         onOpenBlur = onOpenBlur,
+        onOpenSplash = onOpenSplash,
+        onOpenSelectiveBlur = onOpenSelectiveBlur,
+        onOpenSelectiveSplash = onOpenSelectiveSplash,
         onOpenFrame = onOpenFrame,
         onOpenDraw = onOpenDraw,
         onOpenRotate = onOpenRotate,
@@ -142,6 +148,9 @@ private fun EditorContent(
     onOpenText: () -> Unit,
     onOpenEmoji: () -> Unit,
     onOpenBlur: () -> Unit,
+    onOpenSplash: () -> Unit,
+    onOpenSelectiveBlur: () -> Unit,
+    onOpenSelectiveSplash: () -> Unit,
     onOpenFrame: () -> Unit,
     onOpenDraw: () -> Unit,
     onOpenRotate: () -> Unit,
@@ -177,10 +186,12 @@ private fun EditorContent(
                     EditorTool.Text -> onOpenText()
                     EditorTool.Sticker -> onOpenEmoji()
                     EditorTool.Blur -> onOpenBlur()
+                    EditorTool.SelectiveBlur -> onOpenSelectiveBlur()
+                    EditorTool.Splash -> onOpenSplash()
+                    EditorTool.SelectiveSplash -> onOpenSelectiveSplash()
                     EditorTool.Frame -> onOpenFrame()
                     EditorTool.Draw -> onOpenDraw()
                     EditorTool.Rotate -> onOpenRotate()
-                    else -> selectedTool = if (selectedTool == tool) null else tool
                 }
             },
         )
@@ -327,6 +338,9 @@ private fun EditorScreenPreview() {
             onOpenText = {},
             onOpenEmoji = {},
             onOpenBlur = {},
+            onOpenSplash = {},
+            onOpenSelectiveBlur = {},
+            onOpenSelectiveSplash = {},
             onOpenFrame = {},
             onOpenDraw = {},
             onOpenRotate = {},

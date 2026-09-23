@@ -84,6 +84,8 @@ kotlin {
             implementation(libs.haze)
             implementation(libs.haze.materials)
 
+            implementation(libs.liquid.glass)
+
             implementation(libs.kotlinx.coroutines.core)
 
             // Networking — fetch collage layouts (and their frame/thumbnail images) from the server.

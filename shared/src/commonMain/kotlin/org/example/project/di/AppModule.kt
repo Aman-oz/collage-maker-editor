@@ -20,7 +20,12 @@ import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.home.HomeViewModel
 import org.example.project.ui.overlay.OverlayViewModel
 import org.example.project.ui.ratio.RatioViewModel
+import org.example.project.ui.reveal.RevealEditViewModel
 import org.example.project.ui.rotate.RotateViewModel
+import org.example.project.ui.templates.TemplateFrame
+import org.example.project.ui.templates.TemplatesEditorViewModel
+import org.example.project.ui.templates.TemplatesRepository
+import org.example.project.ui.templates.TemplatesViewModel
 import org.example.project.ui.text.TextViewModel
 import org.example.project.ui.splash.SplashViewModel
 import org.koin.core.module.Module
@@ -39,6 +44,8 @@ val coreModule: Module = module {
     single { NetworkImageLoader(get()) }
     // Loads the bundled collages.json layout catalog.
     single { CollageCatalog() }
+    // Fetches the server template catalog (categories + templates) for the Templates screen.
+    single { TemplatesRepository(get()) }
 }
 
 /** ViewModels, scoped to their Navigation 3 entry. */
@@ -62,6 +69,11 @@ val viewModelModule: Module = module {
     viewModelOf(::FrameViewModel)
     viewModelOf(::DrawViewModel)
     viewModelOf(::RotateViewModel)
+    // Shared by the Splash / s-Blur / s-Splash reveal tools (one scoped instance per destination).
+    viewModelOf(::RevealEditViewModel)
+    viewModelOf(::TemplatesViewModel)
+    // The selected template comes from the navigation key, passed in as a runtime parameter.
+    viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get()) }
 }
 
 val appModules: List<Module> = listOf(coreModule, viewModelModule)

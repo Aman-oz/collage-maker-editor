@@ -24,6 +24,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     onOpenProEditor: () -> Unit,
+    onOpenTemplates: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -33,6 +34,7 @@ fun HomeScreen(
         onPickCollageImages = { onOpenGallery(8, GalleryTarget.Collage) },
         onPickFreestyleImages = { onOpenGallery(12, GalleryTarget.Freestyle) },
         onOpenProEditor = onOpenProEditor,
+        onOpenTemplates = onOpenTemplates,
         modifier = modifier,
     )
 }
@@ -44,6 +46,7 @@ private fun HomeContent(
     onPickCollageImages: () -> Unit,
     onPickFreestyleImages: () -> Unit,
     onOpenProEditor: () -> Unit,
+    onOpenTemplates: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -123,6 +126,21 @@ private fun HomeContent(
                 style = MaterialTheme.typography.titleMedium,
             )
         }
+        Button(
+            onClick = onOpenTemplates,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF7C3AED),
+            ),
+        ) {
+            Text(
+                text = "Templates",
+                modifier = Modifier.padding(vertical = 8.dp),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
     }
 }
 
@@ -136,6 +154,7 @@ private fun HomeScreenPreview() {
             onPickCollageImages = {},
             onPickFreestyleImages = {},
             onOpenProEditor = {},
+            onOpenTemplates = {},
         )
     }
 }

@@ -29,9 +29,14 @@ import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.overlay.OverlayScreen
 import org.example.project.ui.proeditor.ProEditorScreen
+import org.example.project.ui.colorsplash.ColorSplashScreen
 import org.example.project.ui.ratio.RatioScreen
 import org.example.project.ui.rotate.RotateScreen
+import org.example.project.ui.shapereveal.SelectiveBlurScreen
+import org.example.project.ui.shapereveal.SelectiveSplashScreen
 import org.example.project.ui.splash.SplashScreen
+import org.example.project.ui.templates.TemplatesEditorScreen
+import org.example.project.ui.templates.TemplatesScreen
 import org.example.project.ui.text.TextScreen
 
 /** How long a tool screen (crop, filter, ...) takes to slide up over / down off the editor. */
@@ -96,11 +101,26 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         backStack.add(Destination.Gallery(maxSelection, target))
                     },
                     onOpenProEditor = { backStack.add(Destination.ProEditor) },
+                    onOpenTemplates = { backStack.add(Destination.Templates) },
                 )
             }
 
             entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
                 ProEditorScreen(onBack = { backStack.removeLastOrNull() })
+            }
+
+            entry<Destination.Templates>(metadata = slideUpMetadata()) {
+                TemplatesScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
+                )
+            }
+
+            entry<Destination.TemplatesEditor> { key ->
+                TemplatesEditorScreen(
+                    frame = key.frame,
+                    onBack = { backStack.removeLastOrNull() },
+                )
             }
 
             entry<Destination.Gallery>(metadata = slideUpMetadata()) { key ->
@@ -144,6 +164,9 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     onOpenText = { backStack.add(Destination.Text) },
                     onOpenEmoji = { backStack.add(Destination.Emoji) },
                     onOpenBlur = { backStack.add(Destination.Blur) },
+                    onOpenSplash = { backStack.add(Destination.ColorSplash) },
+                    onOpenSelectiveBlur = { backStack.add(Destination.SelectiveBlur) },
+                    onOpenSelectiveSplash = { backStack.add(Destination.SelectiveSplash) },
                     onOpenFrame = { backStack.add(Destination.Frame) },
                     onOpenDraw = { backStack.add(Destination.Draw) },
                     onOpenRotate = { backStack.add(Destination.Rotate) },
@@ -201,6 +224,27 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
             entry<Destination.Blur>(metadata = slideUpMetadata()) {
                 BlurScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onApplied = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Destination.ColorSplash>(metadata = slideUpMetadata()) {
+                ColorSplashScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onApplied = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Destination.SelectiveBlur>(metadata = slideUpMetadata()) {
+                SelectiveBlurScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onApplied = { backStack.removeLastOrNull() },
+                )
+            }
+
+            entry<Destination.SelectiveSplash>(metadata = slideUpMetadata()) {
+                SelectiveSplashScreen(
                     onBack = { backStack.removeLastOrNull() },
                     onApplied = { backStack.removeLastOrNull() },
                 )

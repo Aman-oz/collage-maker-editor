@@ -68,6 +68,18 @@ sealed interface Destination : NavKey {
     @Serializable
     data object ProEditor : Destination
 
+    /** Server-driven template browser (categories + templates masonry grid). */
+    @Serializable
+    data object Templates : Destination
+
+    /**
+     * Template editor for a chosen [frame]: its decorative image with photo slots the user fills.
+     * The whole [org.example.project.ui.templates.TemplateFrame] (URL + slot coordinates) rides in
+     * the nav key, so it is [Serializable].
+     */
+    @Serializable
+    data class TemplatesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
+
     /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Crop : Destination
@@ -99,6 +111,18 @@ sealed interface Destination : NavKey {
     /** Blur tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Blur : Destination
+
+    /** Color Splash (brush). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
+    @Serializable
+    data object ColorSplash : Destination
+
+    /** s-Blur (shape reveal). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
+    @Serializable
+    data object SelectiveBlur : Destination
+
+    /** s-Splash (shape reveal). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
+    @Serializable
+    data object SelectiveSplash : Destination
 
     /** Frame tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable

@@ -4,6 +4,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
@@ -13,6 +15,27 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
+
+/**
+ * Returns a fully desaturated (grayscale) copy of [source], drawn through a saturation-0
+ * [ColorMatrix] color filter — no per-pixel loop, so it works identically on Android and iOS and
+ * backs both the color-splash preview and its bake.
+ */
+internal fun grayscaleBitmap(source: ImageBitmap): ImageBitmap {
+    val output = ImageBitmap(source.width, source.height)
+    Canvas(output).drawImageRect(
+        image = source,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(source.width, source.height),
+        dstOffset = IntOffset.Zero,
+        dstSize = IntSize(source.width, source.height),
+        paint = Paint().apply {
+            filterQuality = FilterQuality.High
+            colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+        },
+    )
+    return output
+}
 
 /**
  * Returns a fresh raster copy of [source]. Some platform-decoded [ImageBitmap]s (e.g. a photo
