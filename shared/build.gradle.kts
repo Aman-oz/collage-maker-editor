@@ -80,11 +80,8 @@ kotlin {
             implementation(libs.filekit.core)
             implementation(libs.filekit.dialogs.compose)
 
-            // Glassmorphism / backdrop blur (reusable GlassBottomNav module)
-            implementation(libs.haze)
-            implementation(libs.haze.materials)
-
-            implementation(libs.liquid.glass)
+            // Liquid Glass effect (reusable GlassBottomNav module)
+            implementation(libs.liquid)
 
             implementation(libs.kotlinx.coroutines.core)
 
