@@ -27,6 +27,8 @@ import org.example.project.ui.frame.FrameScreen
 import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
+import org.example.project.ui.language.LanguageScreen
+import org.example.project.ui.onboarding.OnboardingScreen
 import org.example.project.ui.overlay.OverlayScreen
 import org.example.project.ui.proeditor.ProEditorScreen
 import org.example.project.ui.colorsplash.ColorSplashScreen
@@ -88,9 +90,27 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
         entryProvider = entryProvider {
             entry<Destination.Splash> {
                 SplashScreen(
-                    onFinished = {
-                        backStack.add(Destination.Home)
+                    onGetStarted = {
+                        backStack.add(Destination.Language)
                         backStack.remove(Destination.Splash)
+                    },
+                )
+            }
+
+            entry<Destination.Language> {
+                LanguageScreen(
+                    onDone = {
+                        backStack.add(Destination.Onboarding)
+                        backStack.remove(Destination.Language)
+                    },
+                )
+            }
+
+            entry<Destination.Onboarding> {
+                OnboardingScreen(
+                    onFinish = {
+                        backStack.add(Destination.Home)
+                        backStack.remove(Destination.Onboarding)
                     },
                 )
             }
@@ -100,7 +120,6 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     onOpenGallery = { maxSelection, target ->
                         backStack.add(Destination.Gallery(maxSelection, target))
                     },
-                    onOpenProEditor = { backStack.add(Destination.ProEditor) },
                     onOpenTemplates = { backStack.add(Destination.Templates) },
                 )
             }
@@ -142,6 +161,9 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                 CollageEditorScreen(
                     imagePaths = key.imagePaths,
                     onBack = { backStack.removeLastOrNull() },
+                    // The baked collage is already in the session; the collage stays underneath so
+                    // Back from the editor returns to it for further layout tweaks.
+                    onOpenEditor = { backStack.add(Destination.Editor()) },
                 )
             }
 

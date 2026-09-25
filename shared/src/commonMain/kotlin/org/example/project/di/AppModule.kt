@@ -17,7 +17,7 @@ import org.example.project.ui.filter.FilterViewModel
 import org.example.project.ui.frame.FrameViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
-import org.example.project.ui.home.HomeViewModel
+import org.example.project.ui.language.LanguageViewModel
 import org.example.project.ui.overlay.OverlayViewModel
 import org.example.project.ui.ratio.RatioViewModel
 import org.example.project.ui.reveal.RevealEditViewModel
@@ -51,10 +51,10 @@ val coreModule: Module = module {
 /** ViewModels, scoped to their Navigation 3 entry. */
 val viewModelModule: Module = module {
     viewModelOf(::SplashViewModel)
-    viewModelOf(::HomeViewModel)
+    viewModelOf(::LanguageViewModel)
     viewModelOf(::GalleryViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
-    viewModel { (imagePath: String) -> EditorViewModel(imagePath, get()) }
+    viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get()) }
     // The image paths come from the navigation key, so they are passed in as a runtime parameter.
     viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get()) }

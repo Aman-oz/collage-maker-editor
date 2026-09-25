@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,22 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.AspectRatio
-import androidx.compose.material.icons.filled.BlurCircular
-import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.Colorize
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.Draw
-import androidx.compose.material.icons.filled.EmojiEmotions
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.FilterFrames
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Title
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,28 +56,45 @@ import org.example.project.ui.common.EditorLabelTint
 import org.example.project.ui.common.EditorOnAccent
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import org.koin.core.parameter.parametersOf
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_adjust_editor
+import photocollagemaker.shared.generated.resources.ic_blur_editor
+import photocollagemaker.shared.generated.resources.ic_crop_editor
+import photocollagemaker.shared.generated.resources.ic_draw_editor
+import photocollagemaker.shared.generated.resources.ic_filter_editor
+import photocollagemaker.shared.generated.resources.ic_frame_editor
+import photocollagemaker.shared.generated.resources.ic_overlay_editor
+import photocollagemaker.shared.generated.resources.ic_ratio_editor
+import photocollagemaker.shared.generated.resources.ic_rotate_editor
+import photocollagemaker.shared.generated.resources.ic_s_blur_editor
+import photocollagemaker.shared.generated.resources.ic_s_splash_editor
+import photocollagemaker.shared.generated.resources.ic_splash_editor
+import photocollagemaker.shared.generated.resources.ic_stickers_editor
+import photocollagemaker.shared.generated.resources.ic_text_editor
 
-private enum class EditorTool(val label: String, val icon: ImageVector) {
-    Crop("Crop", Icons.Filled.Crop),
-    Filter("Filter", Icons.Filled.FilterAlt),
-    Adjust("Adjust", Icons.Filled.Tune),
-    Overlay("Overlay", Icons.Filled.Layers),
-    Ratio("Ratio", Icons.Filled.AspectRatio),
-    Text("Text", Icons.Filled.Title),
-    Sticker("Sticker", Icons.Filled.EmojiEmotions),
-    Blur("Blur", Icons.Filled.BlurOn),
-    SelectiveBlur("s-Blur", Icons.Filled.BlurCircular),
-    Rotate("Rotate", Icons.AutoMirrored.Filled.RotateRight),
-    Splash("Splash", Icons.Filled.ColorLens),
-    SelectiveSplash("s-Splash", Icons.Filled.Colorize),
-    Draw("Draw", Icons.Filled.Draw),
-    Frame("Frame", Icons.Filled.FilterFrames),
+private enum class EditorTool(val label: String, val icon: DrawableResource) {
+    Crop("Crop", Res.drawable.ic_crop_editor),
+    Filter("Filter", Res.drawable.ic_filter_editor),
+    Adjust("Adjust", Res.drawable.ic_adjust_editor),
+    Overlay("Overlay", Res.drawable.ic_overlay_editor),
+    Ratio("Ratio", Res.drawable.ic_ratio_editor),
+    Text("Text", Res.drawable.ic_text_editor),
+    Sticker("Sticker", Res.drawable.ic_stickers_editor),
+    Blur("Blur", Res.drawable.ic_blur_editor),
+    SelectiveBlur("s-Blur", Res.drawable.ic_s_blur_editor),
+    Rotate("Rotate", Res.drawable.ic_rotate_editor),
+    Splash("Splash", Res.drawable.ic_splash_editor),
+    SelectiveSplash("s-Splash", Res.drawable.ic_s_splash_editor),
+    Draw("Draw", Res.drawable.ic_draw_editor),
+    Frame("Frame", Res.drawable.ic_frame_editor),
 }
 
 @Composable
 fun EditorScreen(
-    imagePath: String,
+    imagePath: String?,
     onBack: () -> Unit,
     onOpenCrop: () -> Unit,
     onOpenFilter: () -> Unit,
@@ -162,7 +164,7 @@ private fun EditorContent(
         modifier = modifier
             .fillMaxSize()
             .background(EditorBackground)
-            .safeContentPadding(),
+            .safeDrawingPadding(),
     ) {
         EditorTopBar(onClose = onClose, onDone = onDone)
 
@@ -243,7 +245,7 @@ private fun EditorTopBar(onClose: () -> Unit, onDone: () -> Unit) {
 private fun EditorCanvas(uiState: EditorUiState, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(2.dp))
             .background(EditorCanvasBackground),
         contentAlignment = Alignment.Center,
     ) {
@@ -302,9 +304,12 @@ private fun EditorToolItem(tool: EditorTool, selected: Boolean, onClick: () -> U
                 .background(if (selected) EditorAccent else EditorControlBackground),
             contentAlignment = Alignment.Center,
         ) {
+            // The vectors are 46dp with the glyph inset to a 33dp area, so draw them larger than
+            // the default 24dp icon size to keep the glyph at roughly Material icon scale.
             Icon(
-                imageVector = tool.icon,
+                painter = painterResource(tool.icon),
                 contentDescription = tool.label,
+                modifier = Modifier.size(32.dp),
                 tint = if (selected) EditorOnAccent else EditorIconTint,
             )
         }

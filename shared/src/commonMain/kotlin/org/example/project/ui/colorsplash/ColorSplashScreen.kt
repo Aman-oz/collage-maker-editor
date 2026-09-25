@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -106,7 +106,7 @@ private fun ColorSplashContent(
     val grayImage = remember(sourceImage) { sourceImage?.let { grayscaleBitmap(it) } }
     val colorImage = remember(sourceImage) { sourceImage?.let { copyBitmap(it) } }
 
-    Column(modifier = modifier.fillMaxSize().background(EditorBackground).safeContentPadding()) {
+    Column(modifier = modifier.fillMaxSize().background(EditorBackground).safeDrawingPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -21,10 +21,12 @@ sealed interface EditorUiState {
  * Decodes the picked image so the editing tools can work on it, and keeps [uiState] in sync with
  * [ImageEditSession] so edits made in other tool screens (crop, filter, ...) reflect back here.
  *
- * [imagePath] is passed in from the navigation key via Koin's `parametersOf`.
+ * [imagePath] is passed in from the navigation key via Koin's `parametersOf`. When it is `null` the
+ * image was already put in the session by another editor (e.g. a baked collage), so nothing is
+ * decoded here.
  */
 class EditorViewModel(
-    private val imagePath: String,
+    private val imagePath: String?,
     private val session: ImageEditSession,
 ) : ViewModel() {
 
@@ -37,6 +39,11 @@ class EditorViewModel(
     }
 
     private fun loadImage() {
+        if (imagePath == null) {
+            // The session is in-memory only, so after process death there is nothing to restore.
+            if (session.image.value == null) _uiState.value = EditorUiState.Error("This image is no longer available")
+            return
+        }
         viewModelScope.launch {
             runCatching { PlatformFile(imagePath).toImageBitmap() }
                 .onSuccess { session.set(it) }

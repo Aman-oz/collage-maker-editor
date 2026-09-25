@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Holds the splash screen state. Any real start-up work (remote config, billing, assets) belongs
- * here, replacing the fixed delay below.
+ * Holds the splash screen state. [isReady] gates the Get started button. Any real start-up work
+ * (remote config, billing, assets) belongs here, replacing the fixed delay below.
  */
 class SplashViewModel : ViewModel() {
 

@@ -25,7 +25,7 @@ sealed interface CollageEditorUiState {
     data class Error(val message: String) : CollageEditorUiState
 }
 
-/** The layout picker's state (the Frame tab): the layouts for the current photo count. */
+/** The layout picker's state (the Layouts tab): the layouts for the current photo count. */
 data class CollagePickerState(
     val templates: List<TemplateItem> = emptyList(),
     val selectedTemplateId: String = "",
@@ -37,8 +37,8 @@ data class CollagePickerState(
  * Drives the collage editor, mirroring the LAS `CollageActivity`: it decodes the picked photos, loads
  * the `collages.json` layout catalog, keeps only the layouts whose slot count matches how many photos
  * were picked, and seeds the first one. Selecting a free layout re-flows the photos into its slots;
- * premium layouts raise a one-shot [messages] toast and are not applied. Border=`space` and
- * Corners=`corner` feed straight into the polygon renderer.
+ * premium layouts raise a one-shot [messages] toast and are not applied. The Border tab's width
+ * (`space`) and corner radius (`corner`) feed straight into the polygon renderer.
  */
 class CollageEditorViewModel(
     private val imagePaths: List<String>,
@@ -146,10 +146,12 @@ class CollageEditorViewModel(
 
     fun updateBackgroundColor(color: Color) = updateReady { it.copy(backgroundColor = color) }
 
+    fun updateRatio(ratio: CollageRatio) = updateReady { it.copy(ratio = ratio) }
+
     /** Bakes the current collage into one bitmap and hands it to the shared editing session. */
-    fun applyCollage(previewSizePx: Float, spacePx: Float, cornerPx: Float) {
+    fun applyCollage(previewWidthPx: Float, spacePx: Float, cornerPx: Float) {
         val state = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return
-        session.set(bakeCollage(state, previewSizePx, spacePx, cornerPx))
+        session.set(bakeCollage(state, previewWidthPx, spacePx, cornerPx))
     }
 
     private inline fun updateReady(transform: (CollageState) -> CollageState) {

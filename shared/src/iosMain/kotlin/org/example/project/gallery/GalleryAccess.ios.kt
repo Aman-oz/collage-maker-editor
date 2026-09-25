@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.Photos.PHAccessLevelReadWrite
@@ -14,7 +15,10 @@ import platform.Photos.PHAuthorizationStatusAuthorized
 import platform.Photos.PHAuthorizationStatusDenied
 import platform.Photos.PHAuthorizationStatusLimited
 import platform.Photos.PHAuthorizationStatusRestricted
+import platform.Foundation.NSURL
 import platform.Photos.PHPhotoLibrary
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationOpenSettingsURLString
 import kotlin.coroutines.resume
 
 private fun mapStatus(status: PHAuthorizationStatus): GalleryAccessStatus = when (status) {
@@ -39,10 +43,20 @@ actual fun rememberGalleryAccessState(): GalleryAccessState {
     val scope = rememberCoroutineScope()
     val currentStatus = status
 
+    // Picks up a permission granted from Settings when the user comes back to the app.
+    LifecycleResumeEffect(Unit) {
+        status = currentIOSStatus()
+        onPauseOrDispose { }
+    }
+
     return object : GalleryAccessState {
         override val status: GalleryAccessStatus = currentStatus
         override fun requestAccess() {
             scope.launch { status = requestIOSAccess() }
+        }
+        override fun openSettings() {
+            val url = NSURL.URLWithString(UIApplicationOpenSettingsURLString) ?: return
+            UIApplication.sharedApplication.openURL(url, options = emptyMap<Any?, Any>(), completionHandler = null)
         }
     }
 }

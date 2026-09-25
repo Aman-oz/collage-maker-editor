@@ -6,9 +6,37 @@ import androidx.compose.ui.graphics.ImageBitmap
  * string on Android, a `PHAsset.localIdentifier` on iOS — never shown to the user directly. */
 data class GalleryPhoto(val id: String)
 
+/**
+ * Which Collections section an album is listed under. Neither platform exposes a public API for
+ * face-grouped "People" albums, so that part of the design has no data source and is left out.
+ */
+enum class GalleryAlbumSection { Pinned, Albums }
+
+/**
+ * One album (an iOS `PHAssetCollection`, or an Android MediaStore bucket). [coverPhotoId] is its
+ * most recent photo and goes through [loadGalleryThumbnail] like any grid cell.
+ */
+data class GalleryAlbum(
+    val id: String,
+    val name: String,
+    val section: GalleryAlbumSection,
+    val coverPhotoId: String,
+    val photoCount: Int,
+)
+
 /** Lists the device's photos, most recent first. Requires [GalleryAccessStatus.Granted] or
  * [GalleryAccessStatus.Limited] — the caller is responsible for checking access first. */
 expect suspend fun loadGalleryPhotos(): List<GalleryPhoto>
+
+/**
+ * Lists the device's non-empty photo albums: system albums (Favourites, Screenshots, …) under
+ * [GalleryAlbumSection.Pinned], everything else under [GalleryAlbumSection.Albums], each most
+ * recently updated first. Same access requirement as [loadGalleryPhotos].
+ */
+expect suspend fun loadGalleryAlbums(): List<GalleryAlbum>
+
+/** The photos in [albumId] (a [GalleryAlbum.id]), most recent first. */
+expect suspend fun loadGalleryAlbumPhotos(albumId: String): List<GalleryPhoto>
 
 /** A small, decoded preview of [photoId] for a grid cell. */
 expect suspend fun loadGalleryThumbnail(photoId: String): ImageBitmap?

@@ -15,6 +15,8 @@ import kotlinx.serialization.modules.subclass
 private val navKeySerializersModule = SerializersModule {
     polymorphic(NavKey::class) {
         subclass(Destination.Splash::class, Destination.Splash.serializer())
+        subclass(Destination.Language::class, Destination.Language.serializer())
+        subclass(Destination.Onboarding::class, Destination.Onboarding.serializer())
         subclass(Destination.Home::class, Destination.Home.serializer())
         subclass(Destination.Gallery::class, Destination.Gallery.serializer())
         subclass(Destination.Editor::class, Destination.Editor.serializer())

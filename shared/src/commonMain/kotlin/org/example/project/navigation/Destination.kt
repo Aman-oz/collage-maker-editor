@@ -20,6 +20,14 @@ sealed interface Destination : NavKey {
     @Serializable
     data object Splash : Destination
 
+    /** Language picker shown after [Splash]'s Get started; Done continues to [Onboarding]. */
+    @Serializable
+    data object Language : Destination
+
+    /** Feature walkthrough pager shown after [Language]; Continue on the last page (or close) goes to [Home]. */
+    @Serializable
+    data object Onboarding : Destination
+
     /** Landing screen with the entry points into the different editors. */
     @Serializable
     data object Home : Destination
@@ -37,10 +45,12 @@ sealed interface Destination : NavKey {
      * Photo editor.
      *
      * @param imagePath platform path of the picked image. On Android this is a `content://` uri,
-     * on iOS an absolute file path. Both round-trip through `PlatformFile(path)`.
+     * on iOS an absolute file path. Both round-trip through `PlatformFile(path)`. `null` means
+     * "edit whatever is already in [org.example.project.data.ImageEditSession]" — used when a
+     * collage is baked and handed straight to the editor, since it has no file on disk.
      */
     @Serializable
-    data class Editor(val imagePath: String) : Destination
+    data class Editor(val imagePath: String? = null) : Destination
 
     /**
      * Collage editor.

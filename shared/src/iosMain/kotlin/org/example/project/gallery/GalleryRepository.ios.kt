@@ -13,7 +13,21 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSSortDescriptor
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
+import platform.Foundation.NSPredicate
+import platform.Foundation.timeIntervalSince1970
 import platform.Photos.PHAsset
+import platform.Photos.PHAssetCollection
+import platform.Photos.PHAssetCollectionSubtype
+import platform.Photos.PHAssetCollectionSubtypeAlbumRegular
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumDepthEffect
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumFavorites
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumLivePhotos
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumPanoramas
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumRecentlyAdded
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumScreenshots
+import platform.Photos.PHAssetCollectionSubtypeSmartAlbumSelfPortraits
+import platform.Photos.PHAssetCollectionTypeAlbum
+import platform.Photos.PHAssetCollectionTypeSmartAlbum
 import platform.Photos.PHAssetMediaTypeImage
 import platform.Photos.PHFetchOptions
 import platform.Photos.PHImageContentModeAspectFill
@@ -32,12 +46,32 @@ import kotlin.coroutines.resume
  * later thumbnail/resolve calls, which only ever receive a [GalleryPhoto.id] string. */
 private val assetCache = mutableMapOf<String, PHAsset>()
 
+/** Collections found by [loadGalleryAlbums], keyed by `localIdentifier`, for [loadGalleryAlbumPhotos]. */
+private val collectionCache = mutableMapOf<String, PHAssetCollection>()
+
+/** Smart albums surfaced as Pinned, in display order. Recents is skipped: it *is* the Photos tab. */
+private val PinnedSmartAlbums: List<PHAssetCollectionSubtype> = listOf(
+    PHAssetCollectionSubtypeSmartAlbumFavorites,
+    PHAssetCollectionSubtypeSmartAlbumRecentlyAdded,
+    PHAssetCollectionSubtypeSmartAlbumScreenshots,
+    PHAssetCollectionSubtypeSmartAlbumSelfPortraits,
+    PHAssetCollectionSubtypeSmartAlbumDepthEffect,
+    PHAssetCollectionSubtypeSmartAlbumLivePhotos,
+    PHAssetCollectionSubtypeSmartAlbumPanoramas,
+)
+
+/** Images only, newest first. `1` is `PHAssetMediaTypeImage`; the varargs `%d` form of
+ * `predicateWithFormat` isn't callable from Kotlin/Native, so the value is inlined. */
+private fun imageFetchOptions() = PHFetchOptions().apply {
+    predicate = NSPredicate.predicateWithFormat("mediaType == 1")
+    sortDescriptors = listOf(NSSortDescriptor(key = "creationDate", ascending = false))
+}
+
 actual suspend fun loadGalleryPhotos(): List<GalleryPhoto> {
     val options = PHFetchOptions().apply {
         sortDescriptors = listOf(NSSortDescriptor(key = "creationDate", ascending = false))
     }
     val result = PHAsset.fetchAssetsWithMediaType(PHAssetMediaTypeImage, options)
-    assetCache.clear()
 
     val photos = mutableListOf<GalleryPhoto>()
     for (index in 0 until result.count.toInt()) {
@@ -46,6 +80,49 @@ actual suspend fun loadGalleryPhotos(): List<GalleryPhoto> {
         photos.add(GalleryPhoto(asset.localIdentifier))
     }
     return photos
+}
+
+actual suspend fun loadGalleryAlbums(): List<GalleryAlbum> {
+    val pinned = PinnedSmartAlbums.flatMap { subtype ->
+        PHAssetCollection.fetchAssetCollectionsWithType(PHAssetCollectionTypeSmartAlbum, subtype, null).collections()
+    }.mapNotNull { it.toAlbum(GalleryAlbumSection.Pinned) }
+
+    // User albums sorted by their newest photo, so recently used albums come first.
+    val albums = PHAssetCollection
+        .fetchAssetCollectionsWithType(PHAssetCollectionTypeAlbum, PHAssetCollectionSubtypeAlbumRegular, null)
+        .collections()
+        .mapNotNull { it.toAlbum(GalleryAlbumSection.Albums) }
+        .sortedByDescending { assetCache[it.coverPhotoId]?.creationDate?.timeIntervalSince1970 ?: 0.0 }
+
+    return pinned + albums
+}
+
+actual suspend fun loadGalleryAlbumPhotos(albumId: String): List<GalleryPhoto> {
+    val collection = collectionCache[albumId] ?: return emptyList()
+    val result = PHAsset.fetchAssetsInAssetCollection(collection, imageFetchOptions())
+    return (0 until result.count.toInt()).map { index ->
+        val asset = result.objectAtIndex(index.toULong()) as PHAsset
+        assetCache[asset.localIdentifier] = asset
+        GalleryPhoto(asset.localIdentifier)
+    }
+}
+
+private fun platform.Photos.PHFetchResult.collections(): List<PHAssetCollection> =
+    (0 until count.toInt()).map { objectAtIndex(it.toULong()) as PHAssetCollection }
+
+/** Null for albums with no images (e.g. a video-only album), which Collections doesn't show. */
+private fun PHAssetCollection.toAlbum(section: GalleryAlbumSection): GalleryAlbum? {
+    val assets = PHAsset.fetchAssetsInAssetCollection(this, imageFetchOptions())
+    val cover = assets.firstObject as? PHAsset ?: return null
+    assetCache[cover.localIdentifier] = cover
+    collectionCache[localIdentifier] = this
+    return GalleryAlbum(
+        id = localIdentifier,
+        name = localizedTitle ?: "Album",
+        section = section,
+        coverPhotoId = cover.localIdentifier,
+        photoCount = assets.count.toInt(),
+    )
 }
 
 actual suspend fun loadGalleryThumbnail(photoId: String): ImageBitmap? {

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -101,7 +101,7 @@ private fun FrameContent(
         modifier = modifier
             .fillMaxSize()
             .background(EditorBackground)
-            .safeContentPadding(),
+            .safeDrawingPadding(),
     ) {
         FrameTopBar(
             onBack = onBack,

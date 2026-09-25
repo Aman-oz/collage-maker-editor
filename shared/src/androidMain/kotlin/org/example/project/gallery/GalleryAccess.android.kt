@@ -2,8 +2,11 @@ package org.example.project.gallery
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -13,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 
 private fun requiredPermissions(): Array<String> = buildList {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -49,6 +53,12 @@ actual fun rememberGalleryAccessState(): GalleryAccessState {
         lastCheckedStatus = currentStatus(context)
     }
 
+    // Picks up a permission granted from Settings when the user comes back to the app.
+    LifecycleResumeEffect(context) {
+        lastCheckedStatus = currentStatus(context)
+        onPauseOrDispose { }
+    }
+
     val resolvedStatus = if (lastCheckedStatus != GalleryAccessStatus.NotDetermined) {
         lastCheckedStatus
     } else if (hasRequestedOnce) {
@@ -61,6 +71,13 @@ actual fun rememberGalleryAccessState(): GalleryAccessState {
         override val status: GalleryAccessStatus = resolvedStatus
         override fun requestAccess() {
             launcher.launch(requiredPermissions())
+        }
+        override fun openSettings() {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
         }
     }
 }

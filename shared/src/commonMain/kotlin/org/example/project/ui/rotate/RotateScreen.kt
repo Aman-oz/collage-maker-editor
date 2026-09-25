@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -137,7 +137,7 @@ private fun RotateContent(
         modifier = modifier
             .fillMaxSize()
             .background(EditorBackground)
-            .safeContentPadding(),
+            .safeDrawingPadding(),
     ) {
         RotateTopBar(onBack = onBack, onDone = { onDone(edit) }, doneEnabled = sourceImage != null)
 

@@ -36,6 +36,7 @@ class CollageCatalog {
             item.id = entry.id
             item.title = entry.name
             item.preview = entry.image_light
+            item.previewDark = entry.image_dark
             item.isPremium = entry.isPremium
             item
         }.sortedBy { it.photoItemList.size }

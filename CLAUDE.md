@@ -62,14 +62,44 @@ current bitmap from the session and writes the edited bitmap back with `session.
 `EditorViewModel` collects the session flow, so any tool's result reflects back into the editor
 automatically on pop.
 
+### Multi-image editors — Collage, Freestyle, Templates
+
+Besides the single-photo `Editor` + tools flow, three editors carry their inputs in the nav key:
+`CollageEditor(imagePaths)`, `FreestyleEditor(imagePaths)` and `TemplatesEditor(frame)` (the whole
+`@Serializable` `TemplateFrame` rides in the key). `Home` routes through
+`Gallery(maxSelection, target: GalleryTarget)`, which pushes the matching editor and removes itself
+from the back stack.
+
+- **Collage** (`ui/collage/`): layout geometry is hand-coded, ported from the older Android "LAS"
+  app. `frames/*FrameImage.kt` + `FrameImageUtils.createTemplateItems(name)` map a
+  `collage_<count>_<index>.png` name to slot polygons (`geom/` has the `PhotoItem`/`TemplateItem`
+  model). `CollageCatalog` joins that with the bundled `composeResources/files/collages.json`
+  (preview URLs, premium flag) and drops entries with no generator. A new layout needs both a JSON
+  entry and a generator case.
+- **Templates** (`ui/templates/`): server-driven. `TemplatesRepository` hits the unauthenticated
+  plain-HTTP LAS collagemaker API, which is why cleartext traffic is enabled in the Android
+  manifest and iOS `Info.plist` (ATS). The server sends slot coordinates as quoted strings, which
+  `LenientFloatSerializer` handles.
+
+### Networking
+
+`data/network/`: one shared Ktor `HttpClient` (`createHttpClient`, which names no engine: OkHttp
+comes from `androidMain` deps and Darwin from `iosMain`, so Ktor auto-selects). `NetworkImageLoader`
+is a small in-house URL→`ImageBitmap` memo cache, not an image library. It decodes bytes through the
+`expect fun decodeImageBitmap` because FileKit only decodes files on disk. Compose code uses
+`ui/common/NetworkImage.kt`.
+
 ### DI — Koin
 
-`di/AppModule.kt` declares `coreModule` (Platform, `ImageEditSession`) and `viewModelModule`.
+`di/AppModule.kt` declares `coreModule` (Platform, `ImageEditSession`, the HttpClient,
+`NetworkImageLoader`, `CollageCatalog`, `TemplatesRepository`) and `viewModelModule`.
 `di/Koin.kt`'s `initKoin` is idempotent and called from `CollageApplication` on Android (with
 `androidContext`) and from `MainViewController` on iOS. Screens obtain ViewModels via
-`koinViewModel()`; `EditorViewModel` needs the nav argument, so it uses
-`koinViewModel { parametersOf(imagePath) }` against a `viewModel { (imagePath: String) -> ... }`
-definition.
+`koinViewModel()`. ViewModels that need a nav argument (`EditorViewModel`, `CollageEditorViewModel`,
+`FreestyleEditorViewModel`, `TemplatesEditorViewModel`) use `koinViewModel { parametersOf(...) }`
+against a `viewModel { (arg: T) -> ... }` definition. `RevealEditViewModel` is shared by the
+ColorSplash / SelectiveBlur / SelectiveSplash tools; each destination gets its own nav-scoped
+instance.
 
 ### Feature package layout
 
@@ -103,12 +133,19 @@ splash and home, and the hardcoded dark chrome in `ui/common/EditorPalette.kt`
 (`EditorBackground`, `EditorAccent`, …) for the editor and all tool screens, which are always dark.
 Shared editor widgets live in `ui/common/EditorControls.kt` and `EditorSlider.kt`.
 
-### Gallery picking
+### Photo picking — two mechanisms
 
-FileKit (`rememberFilePickerLauncher(type = FileKitType.Image)`) — Android photo picker /
-iOS `PHPickerViewController`, neither requiring a runtime permission. The resulting `file.path`
-(a `content://` uri on Android, an absolute path on iOS) round-trips through `PlatformFile(path)`
-and is what `Destination.Editor` carries.
+- **Entry pick** (from Home): the in-app `Destination.Gallery` screen, backed by the
+  `gallery/` expect/actuals (`rememberGalleryAccessState`, `loadGalleryPhotos`,
+  `resolveGalleryImagePath`). It *does* request photo-library permission. `Limited` access is
+  treated like `Granted`.
+- **In-editor pick** (replacing a collage/template slot, adding a freestyle layer): FileKit
+  `rememberFilePickerLauncher(type = FileKitType.Image)`, which needs no runtime permission.
+
+Both produce the same path shape (a `content://` URI on Android, an absolute path on iOS). It
+round-trips through `PlatformFile(path)` and is what the editor nav keys carry.
+
+Compose resources are accessed via `photocollagemaker.shared.generated.resources.Res`.
 
 ## Conventions
 
