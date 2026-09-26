@@ -22,18 +22,20 @@ internal val TextFontStyles: List<TextFontStyleOption> = listOf(
     TextFontStyleOption("Modern", FontFamily.SansSerif, FontWeight.Medium),
     TextFontStyleOption("Bold", FontFamily.SansSerif, FontWeight.Bold),
     TextFontStyleOption("Elegant", FontFamily.Cursive, FontWeight.Normal, FontStyle.Italic),
-    TextFontStyleOption("Handwriting", FontFamily.Cursive, FontWeight.Light, FontStyle.Italic),
+    TextFontStyleOption("Stylish", FontFamily.Serif, FontWeight.Bold, FontStyle.Italic),
+    TextFontStyleOption("Simple", FontFamily.SansSerif, FontWeight.Light),
 )
 
 internal val TextColorOptions: List<Color> = listOf(
+    Color(0xFF1F2430),
+    Color(0xFF3A8FD6),
+    Color(0xFF151A4A),
+    Color(0xFFEF4A5E),
+    Color(0xFF9147E8),
+    Color(0xFFF2A93B),
     Color.White,
     Color.Black,
-    Color(0xFFE53935),
-    Color(0xFFEF6C00),
-    Color(0xFFC0A930),
     Color(0xFF2E7D32),
-    Color(0xFF1976D2),
-    Color(0xFF7B1FA2),
 )
 
 internal val TextSizeRange = 12f..120f

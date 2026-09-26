@@ -10,25 +10,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,26 +36,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlin.math.max
 import kotlin.math.min
 import org.example.project.ui.blur.BlurLevelDefault
 import org.example.project.ui.blur.BlurLevelMax
 import org.example.project.ui.blur.BlurLevelMin
-import org.example.project.ui.common.AccentPillButton
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
+import org.example.project.ui.blur.BlurLevelStepper
 import org.example.project.ui.common.RevealShape
-import org.example.project.ui.common.buildShapePath
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.reveal.RevealEditViewModel
@@ -97,141 +83,139 @@ private fun ShapeRevealContent(
         sourceImage?.let { buildEffectBitmap(it, effect, blurLevel) }
     }
     val revealImage = remember(sourceImage) { sourceImage?.let { copyBitmap(it) } }
+    // Glyph shapes are measured per draw at many sizes (canvas, thumbnails, bake); a larger
+    // cache than the default 8 keeps the thumbnail row from evicting the canvas's layout.
+    val textMeasurer = rememberTextMeasurer(cacheSize = 48)
 
-    Column(modifier = modifier.fillMaxSize().background(EditorBackground).safeDrawingPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-            )
-            AccentPillButton(
-                text = "Done",
-                enabled = baseImage != null && revealImage != null,
-                onClick = { if (baseImage != null && revealImage != null) onDone(bakeShapeReveal(baseImage, revealImage, placement)) },
-            )
-        }
+    val scheme = MaterialTheme.colorScheme
 
-        BoxWithConstraints(
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(scheme.surface)
+            .safeDrawingPadding(),
+    ) {
+        ToolTopBar(
+            title = title,
+            onClose = onBack,
+            onDone = { if (baseImage != null && revealImage != null) onDone(bakeShapeReveal(baseImage, revealImage, placement, textMeasurer)) },
+            doneEnabled = baseImage != null && revealImage != null,
+        )
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null && baseImage != null && revealImage != null) {
-                val density = LocalDensity.current
-                val boxWidthPx = with(density) { maxWidth.toPx() }
-                val boxHeightPx = with(density) { maxHeight.toPx() }
-                val fitScale = min(boxWidthPx / sourceImage.width, boxHeightPx / sourceImage.height)
-                val imageWidthPx = sourceImage.width * fitScale
-                val imageHeightPx = sourceImage.height * fitScale
-                val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
-                val imageSizePx = Size(imageWidthPx, imageHeightPx)
-                val strokePx = with(density) { 2.dp.toPx() }
-
-                Canvas(
+                // aspectRatio sizes the canvas to the photo itself, so the rounded clip follows the
+                // photo's edges and the placement fractions map straight onto the canvas.
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(imageWidthPx, imageHeightPx) {
-                            detectTransformGestures { _, pan, zoom, rotation ->
-                                placement = placement.copy(
-                                    centerXFraction = (placement.centerXFraction + pan.x / imageWidthPx).coerceIn(0f, 1f),
-                                    centerYFraction = (placement.centerYFraction + pan.y / imageHeightPx).coerceIn(0f, 1f),
-                                    sizeFraction = (placement.sizeFraction * zoom).coerceIn(0.12f, 2.5f),
-                                    rotationDegrees = placement.rotationDegrees + rotation,
-                                )
-                            }
-                        },
+                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                        .clip(RoundedCornerShape(24.dp)),
                 ) {
-                    drawShapeReveal(base = baseImage, reveal = revealImage, placement = placement, imageOffset = imageOffsetPx, imageSize = imageSizePx)
-                    drawShapeOutline(placement = placement, imageOffset = imageOffsetPx, imageSize = imageSizePx, color = Color.White, strokeWidthPx = strokePx)
+                    val density = LocalDensity.current
+                    val imageWidthPx = with(density) { maxWidth.toPx() }
+                    val imageHeightPx = with(density) { maxHeight.toPx() }
+                    val imageSizePx = Size(imageWidthPx, imageHeightPx)
+                    val strokePx = with(density) { 1.dp.toPx() }
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(imageWidthPx, imageHeightPx) {
+                                detectTransformGestures { _, pan, zoom, rotation ->
+                                    placement = placement.copy(
+                                        centerXFraction = (placement.centerXFraction + pan.x / imageWidthPx).coerceIn(0f, 1f),
+                                        centerYFraction = (placement.centerYFraction + pan.y / imageHeightPx).coerceIn(0f, 1f),
+                                        sizeFraction = (placement.sizeFraction * zoom).coerceIn(0.12f, 2.5f),
+                                        rotationDegrees = placement.rotationDegrees + rotation,
+                                    )
+                                }
+                            },
+                    ) {
+                        drawShapeReveal(base = baseImage, reveal = revealImage, placement = placement, imageOffset = Offset.Zero, imageSize = imageSizePx, textMeasurer = textMeasurer)
+                        drawShapeOutline(
+                            placement = placement,
+                            imageOffset = Offset.Zero,
+                            imageSize = imageSizePx,
+                            textMeasurer = textMeasurer,
+                            color = Color.White.copy(alpha = 0.8f),
+                            strokeWidthPx = strokePx,
+                        )
+                    }
                 }
             } else {
-                Text("No image to edit", color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        Text(
-            text = "Drag to move · pinch to resize · twist to rotate",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         if (effect == RevealEffect.Blur) {
-            BlurIntensityStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+            BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        ShapePickerRow(selected = placement.shape, onSelected = { placement = placement.copy(shape = it) })
+        ShapePickerRow(
+            base = baseImage,
+            reveal = revealImage,
+            textMeasurer = textMeasurer,
+            selected = placement.shape,
+            onSelected = { placement = placement.copy(shape = it) },
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
+private val ThumbnailShape = RoundedCornerShape(8.dp)
+
+/** One thumbnail per shape, each previewing the actual photo revealed through that shape. */
 @Composable
-private fun ShapePickerRow(selected: RevealShape, onSelected: (RevealShape) -> Unit) {
+private fun ShapePickerRow(
+    base: ImageBitmap?,
+    reveal: ImageBitmap?,
+    textMeasurer: TextMeasurer,
+    selected: RevealShape,
+    onSelected: (RevealShape) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(RevealShape.entries) { shape ->
             val isSelected = shape == selected
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(EditorControlBackground)
-                    .then(if (isSelected) Modifier.border(2.dp, EditorAccent, RoundedCornerShape(12.dp)) else Modifier)
-                    .clickable { onSelected(shape) }
-                    .padding(12.dp),
+                    .size(56.dp)
+                    .then(if (isSelected) Modifier.border(2.dp, scheme.primary, ThumbnailShape) else Modifier)
+                    .padding(if (isSelected) 3.dp else 0.dp)
+                    .clip(ThumbnailShape)
+                    .background(scheme.onSurface.copy(alpha = 0.08f))
+                    .clickable { onSelected(shape) },
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val s = min(size.width, size.height)
-                    val path = buildShapePath(shape, s)
-                    path.translate(Offset((size.width - s) / 2f, (size.height - s) / 2f))
-                    drawPath(path = path, color = if (isSelected) EditorAccent else Color.White, style = Fill)
+                if (base != null && reveal != null) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        // Center-crop the photo into the square thumbnail (the Box clip trims the
+                        // overflow) and size the shape to the visible square, not the image width.
+                        val fill = max(size.width / base.width, size.height / base.height)
+                        val imageSize = Size(base.width * fill, base.height * fill)
+                        val imageOffset = Offset((size.width - imageSize.width) / 2f, (size.height - imageSize.height) / 2f)
+                        val thumbPlacement = ShapePlacement(
+                            shape = shape,
+                            sizeFraction = 0.8f * min(size.width, size.height) / imageSize.width,
+                        )
+                        drawShapeReveal(base = base, reveal = reveal, placement = thumbPlacement, imageOffset = imageOffset, imageSize = imageSize, textMeasurer = textMeasurer)
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BlurIntensityStepper(value: Int, onValueChange: (Int) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        StepperButton(icon = Icons.Filled.Remove, contentDescription = "Less blur", enabled = value > BlurLevelMin, onClick = { onValueChange(value - 1) })
-        Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-            Text("$value", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-        StepperButton(icon = Icons.Filled.Add, contentDescription = "More blur", enabled = value < BlurLevelMax, onClick = { onValueChange(value + 1) })
-    }
-}
-
-@Composable
-private fun StepperButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.size(44.dp).clip(CircleShape).background(EditorControlBackground),
-    ) {
-        Icon(imageVector = icon, contentDescription = contentDescription, tint = if (enabled) Color.White else Color.White.copy(alpha = 0.35f))
     }
 }
 
@@ -239,6 +223,6 @@ private fun StepperButton(icon: androidx.compose.ui.graphics.vector.ImageVector,
 @Composable
 private fun ShapeRevealPreview() {
     ThemePreviews {
-        ShapeRevealContent(sourceImage = ImageBitmap(360, 480), title = "s-Splash", effect = RevealEffect.Grayscale, onBack = {}, onDone = {})
+        ShapeRevealContent(sourceImage = ImageBitmap(360, 480), title = "s-Blur", effect = RevealEffect.Blur, onBack = {}, onDone = {})
     }
 }

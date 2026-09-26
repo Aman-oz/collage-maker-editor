@@ -1,0 +1,17 @@
+<!-- From Collage Maker assets/ic_undo.svg. The SVG's 32x32 canvas has 4 units of padding (its clip
+     rect); the viewport is cropped to the inner 24x24 so it sizes like a Material icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:autoMirrored="true">
+  <group android:translateX="-4" android:translateY="-4">
+    <path
+        android:pathData="M13,17L9,13L13,9M9,13H20C21.0609,13 22.0783,13.4214 22.8284,14.1716C23.5786,14.9217 24,15.9391 24,17C24,18.0609 23.5786,19.0783 22.8284,19.8284C22.0783,20.5786 21.0609,21 20,21H19"
+        android:strokeWidth="1.75"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+  </group>
+</vector>

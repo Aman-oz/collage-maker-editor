@@ -82,7 +82,7 @@ private val TemplatesGradient = listOf(Color(0xFFFF6BAE), Color(0xFFF43F8E))
 private val EditorGradient = listOf(Color(0xFFFFA24C), Color(0xFFFF7A3D))
 private val PremiumColor = Color(0xFFFF9F1C)
 
-private const val CollageMaxSelection = 8
+internal const val CollageMaxSelection = 8
 private const val FreestyleMaxSelection = 12
 
 @Composable

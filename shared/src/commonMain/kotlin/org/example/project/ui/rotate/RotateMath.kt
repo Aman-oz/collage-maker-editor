@@ -4,18 +4,37 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
  * Fixed set of angles the rotation seekbar rests on — dragging snaps the thumb (and the image) to
  * whichever of these is nearest, rather than allowing any continuous value in between.
  */
-internal val RotationStops: List<Float> = listOf(-45f, -30f, -15f, 0f, 15f, 30f, 45f)
+internal val RotationStops: List<Float> = listOf(-180f, -90f, -45f, 0f, 45f, 90f, 180f)
 internal const val RotationDefault = 0f
+
+/**
+ * The stops are unevenly spaced in degrees but evenly spaced on the slider, so the slider works in
+ * stop-index space: this maps a fractional track position (0 = first stop, `lastIndex` = last) to
+ * the stop nearest it.
+ */
+internal fun rotationStopAtPosition(position: Float): Float =
+    RotationStops[position.roundToInt().coerceIn(0, RotationStops.lastIndex)]
 
 /** Snaps an arbitrary angle to the nearest value in [RotationStops]. */
 internal fun nearestRotationStop(angle: Float): Float =
     RotationStops.minByOrNull { abs(it - angle) } ?: angle
+
+/**
+ * The whole 90° turns inside a slider angle, truncated toward zero (45° → 0, 90° → 1, -180° → -2).
+ * These go through the same frame-swapping path as Rotate Left/Right rather than the cover-scaled
+ * tilt, so ±90° and ±180° turn the frame without cropping the photo.
+ */
+internal fun sliderQuarterTurns(degrees: Float): Int = (degrees / 90f).toInt()
+
+/** What is left of a slider angle after [sliderQuarterTurns] — the only part that is cover-scaled. */
+internal fun sliderFineDegrees(degrees: Float): Float = degrees - sliderQuarterTurns(degrees) * 90f
 
 /** Reduces any quarter-turn count to the 0..3 range `Rotate Left`/`Rotate Right` actually cycle through. */
 internal fun normalizeQuarterTurns(quarterTurns: Int): Int = ((quarterTurns % 4) + 4) % 4

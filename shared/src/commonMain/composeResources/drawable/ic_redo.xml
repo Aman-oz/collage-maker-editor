@@ -1,0 +1,17 @@
+<!-- From Collage Maker assets/ic_redo.svg. The SVG's 32x32 canvas has 4 units of padding (its clip
+     rect); the viewport is cropped to the inner 24x24 so it sizes like a Material icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:autoMirrored="true">
+  <group android:translateX="-4" android:translateY="-4">
+    <path
+        android:pathData="M19,17L23,13L19,9M23,13H12C10.9391,13 9.92172,13.4214 9.17157,14.1716C8.42143,14.9217 8,15.9391 8,17C8,18.0609 8.42143,19.0783 9.17157,19.8284C9.92172,20.5786 10.9391,21 12,21H13"
+        android:strokeWidth="1.75"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+  </group>
+</vector>

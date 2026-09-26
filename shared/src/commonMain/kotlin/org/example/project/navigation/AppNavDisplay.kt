@@ -16,6 +16,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import org.example.project.ui.adjust.AdjustScreen
+import org.example.project.ui.auto.AutoScreen
 import org.example.project.ui.blur.BlurScreen
 import org.example.project.ui.collage.CollageEditorScreen
 import org.example.project.ui.crop.CropScreen
@@ -34,6 +35,9 @@ import org.example.project.ui.proeditor.ProEditorScreen
 import org.example.project.ui.colorsplash.ColorSplashScreen
 import org.example.project.ui.ratio.RatioScreen
 import org.example.project.ui.rotate.RotateScreen
+import org.example.project.ui.home.CollageMaxSelection
+import org.example.project.ui.save.SaveImageScreen
+import org.example.project.ui.share.ShareImageScreen
 import org.example.project.ui.shapereveal.SelectiveBlurScreen
 import org.example.project.ui.shapereveal.SelectiveSplashScreen
 import org.example.project.ui.splash.SplashScreen
@@ -178,6 +182,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                 EditorScreen(
                     imagePath = key.imagePath,
                     onBack = { backStack.removeLastOrNull() },
+                    onDone = { backStack.add(Destination.SaveImage) },
+                    onOpenAuto = { backStack.add(Destination.Auto) },
                     onOpenCrop = { backStack.add(Destination.Crop) },
                     onOpenFilter = { backStack.add(Destination.Filter) },
                     onOpenAdjust = { backStack.add(Destination.Adjust) },
@@ -192,6 +198,13 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     onOpenFrame = { backStack.add(Destination.Frame) },
                     onOpenDraw = { backStack.add(Destination.Draw) },
                     onOpenRotate = { backStack.add(Destination.Rotate) },
+                )
+            }
+
+            entry<Destination.Auto>(metadata = slideUpMetadata()) {
+                AutoScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onApplied = { backStack.removeLastOrNull() },
                 )
             }
 
@@ -286,6 +299,25 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                 )
             }
 
+            entry<Destination.SaveImage>(metadata = slideUpMetadata()) {
+                SaveImageScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
+                )
+            }
+
+            entry<Destination.ShareImage> { key ->
+                ShareImageScreen(
+                    imagePath = key.imagePath,
+                    onBack = { backStack.removeLastOrNull() },
+                    onHome = { backStack.popToHome() },
+                    onNewCollage = {
+                        backStack.popToHome()
+                        backStack.add(Destination.Gallery(CollageMaxSelection, GalleryTarget.Collage))
+                    },
+                )
+            }
+
             entry<Destination.Rotate>(metadata = slideUpMetadata()) {
                 RotateScreen(
                     onBack = { backStack.removeLastOrNull() },
@@ -294,4 +326,15 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
             }
         },
     )
+}
+
+/** Drops every entry above [Destination.Home], so finishing a flow lands back on the home screen. */
+private fun MutableList<NavKey>.popToHome() {
+    val home = indexOf(Destination.Home)
+    if (home == -1) {
+        clear()
+        add(Destination.Home)
+    } else {
+        while (size > home + 1) removeLastOrNull()
+    }
 }

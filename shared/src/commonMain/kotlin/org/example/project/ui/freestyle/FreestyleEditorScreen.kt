@@ -543,7 +543,7 @@ private fun BorderToolPanel(
 private fun TextToolPanel(onAdd: (String, Color, TextFontStyleOption) -> Unit) {
     var content by remember { mutableStateOf("") }
     var font by remember { mutableStateOf(TextFontStyles[1]) }
-    var color by remember { mutableStateOf(TextColorOptions.first()) }
+    var color by remember { mutableStateOf(Color.White) }
     val focusRequester = remember { FocusRequester() }
 
     Column {

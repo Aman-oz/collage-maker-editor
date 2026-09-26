@@ -17,10 +17,9 @@ class FrameMathTest {
     }
 
     @Test
-    fun frameColors_startsWithWhiteThenNone() {
+    fun frameColors_defaultsToWhiteAndOffersNone() {
         assertEquals("White", FrameColors[0].label)
-        assertEquals("None", FrameColors[1].label)
-        assertEquals(FrameColorNone, FrameColors[1].color)
+        assertEquals(FrameColorNone, FrameColors.single { it.label == "None" }.color)
     }
 
     @Test

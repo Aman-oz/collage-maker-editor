@@ -17,7 +17,7 @@ import org.example.project.ui.common.drawImageScaled
 
 /**
  * Replays [actions] at full resolution in the order they were drawn — paint strokes fill with
- * their color, mosaic strokes reveal a pixelated copy of [source], erase strokes reveal the plain
+ * their color, mosaic strokes reveal their pattern (see [renderMosaic]), erase strokes reveal the plain
  * [source] again — so later strokes correctly paint over earlier ones exactly as the live preview
  * showed. [previewCanvasWidthPx] is the on-screen preview's width the strokes were captured
  * against, used to scale their brush radius up to the source's real resolution.
@@ -40,7 +40,7 @@ internal fun bakeDrawing(
     val mosaicBitmaps = actions.filterIsInstance<MosaicAction>()
         .map { it.pattern }
         .distinct()
-        .associateWith { computeMosaicBitmap(source, it.cellFractionX, it.cellFractionY) }
+        .associateWith { renderMosaic(source, it) }
 
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, size) {
         for (action in actions) {

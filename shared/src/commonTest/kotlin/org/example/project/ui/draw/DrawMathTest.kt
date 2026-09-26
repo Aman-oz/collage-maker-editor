@@ -35,9 +35,8 @@ class DrawMathTest {
     }
 
     @Test
-    fun everyMosaicPattern_hasPreviewColors() {
-        for (pattern in MosaicPatterns) {
-            assertTrue(pattern.previewColors.isNotEmpty(), "pattern ${pattern.label} has no preview colors")
-        }
+    fun everyMosaicTexture_isOffered() {
+        val offered = MosaicPatterns.filterIsInstance<TextureMosaic>().map { it.texture }.toSet()
+        assertEquals(MosaicTexture.entries.toSet(), offered)
     }
 }

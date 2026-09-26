@@ -90,6 +90,10 @@ sealed interface Destination : NavKey {
     @Serializable
     data class TemplatesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
 
+    /** Auto-enhance tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
+    @Serializable
+    data object Auto : Destination
+
     /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Crop : Destination
@@ -141,6 +145,19 @@ sealed interface Destination : NavKey {
     /** Draw tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Draw : Destination
+
+    /** Save screen: previews the finished image and exports it to the gallery, optionally watermarked. */
+    @Serializable
+    data object SaveImage : Destination
+
+    /**
+     * Post-save screen: shows the exported image and offers sharing plus New Collage / Home.
+     *
+     * @param imagePath absolute path of the exported JPEG in the app cache — the exact file that
+     * went to the gallery (watermarked or not), so sharing sends what was saved.
+     */
+    @Serializable
+    data class ShareImage(val imagePath: String) : Destination
 
     /** Rotate tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable

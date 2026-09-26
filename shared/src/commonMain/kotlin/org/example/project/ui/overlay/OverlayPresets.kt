@@ -6,9 +6,11 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.sqrt
 
 internal enum class OverlayCategory(val label: String) {
     Effect("Effect"),
+    Colorful("Color"),
     Hardmix("Hardmix"),
     Dodge("Dodge"),
     Burn("Burn"),
@@ -71,6 +73,48 @@ private fun DrawScope.vignette(color: Color, strengthFraction: Float, blendMode:
     )
 }
 
+private fun DrawScope.gradientWash(colors: List<Color>, start: Offset, end: Offset, blendMode: BlendMode, intensity: Float) {
+    drawRect(
+        brush = Brush.linearGradient(colors = colors, start = start, end = end),
+        alpha = intensity,
+        blendMode = blendMode,
+    )
+}
+
+/**
+ * Scatters [count] colored dots over the canvas. Positions come from a fixed LCG seed rather than
+ * `Random`, so the live preview, the thumbnail and the baked bitmap all get the same layout.
+ */
+private fun DrawScope.confetti(colors: List<Color>, count: Int, maxRadiusFraction: Float, blendMode: BlendMode, intensity: Float) {
+    var seed = 0x2545F491L
+    fun next(): Float {
+        seed = (seed * 1103515245L + 12345L) and 0x7FFFFFFFL
+        return seed / 0x7FFFFFFF.toFloat()
+    }
+    repeat(count) { index ->
+        val center = Offset(next() * size.width, next() * size.height)
+        val radius = size.minDimension * maxRadiusFraction * (0.3f + next() * 0.7f)
+        radialSpot(colors[index % colors.size], center, radius, blendMode, intensity)
+    }
+}
+
+/** A grid of dots that grow toward the bottom-left corner — a classic comic halftone. */
+private fun DrawScope.halftone(color: Color, cellsAcross: Int, blendMode: BlendMode, intensity: Float) {
+    val cell = size.width / cellsAcross
+    val diagonal = sqrt(size.width * size.width + size.height * size.height)
+    var y = cell / 2f
+    while (y < size.height) {
+        var x = cell / 2f
+        while (x < size.width) {
+            // 0 at the top-right corner, 1 at the bottom-left.
+            val t = sqrt((size.width - x) * (size.width - x) + y * y) / diagonal
+            drawCircle(color = color, radius = cell * 0.5f * t, center = Offset(x, y), alpha = intensity, blendMode = blendMode)
+            x += cell
+        }
+        y += cell
+    }
+}
+
 internal val OverlayPresets: List<OverlayPreset> = listOf(
     // Effect — mixed light/texture overlays.
     OverlayPreset(OverlayCategory.Effect, "Light Leak", BlendMode.Screen) { i, bm ->
@@ -99,6 +143,59 @@ internal val OverlayPresets: List<OverlayPreset> = listOf(
     },
     OverlayPreset(OverlayCategory.Effect, "Texture", BlendMode.Overlay) { i, bm ->
         stripeWash(Color.White, 8f, diagonal = true, bm, i * 0.5f)
+    },
+
+    // Color — vivid multi-color washes and patterns.
+    OverlayPreset(OverlayCategory.Colorful, "Rainbow", BlendMode.Softlight) { i, bm ->
+        gradientWash(
+            listOf(Color(0xFFFF1744), Color(0xFFFF9100), Color(0xFFFFEA00), Color(0xFF00E676), Color(0xFF2979FF), Color(0xFFD500F9)),
+            Offset.Zero, Offset(size.width, size.height), bm, i,
+        )
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Sunset", BlendMode.Overlay) { i, bm ->
+        gradientWash(listOf(Color(0xFFFFD54F), Color(0xFFFF7043), Color(0xFFD81B60), Color(0xFF4A148C)), Offset.Zero, Offset(0f, size.height), bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Aurora", BlendMode.Screen) { i, bm ->
+        gradientWash(
+            listOf(Color.Transparent, Color(0xFF00E5FF), Color(0xFF76FF03), Color(0xFFD500F9), Color.Transparent),
+            Offset(0f, size.height * 0.1f), Offset(size.width, size.height * 0.6f), bm, i * 0.8f,
+        )
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Neon", BlendMode.Screen) { i, bm ->
+        radialSpot(Color(0xFFFF00E5), Offset(0f, 0f), size.maxDimension * 0.7f, bm, i)
+        radialSpot(Color(0xFF00E5FF), Offset(size.width, size.height), size.maxDimension * 0.7f, bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Candy", BlendMode.Softlight) { i, bm ->
+        gradientWash(listOf(Color(0xFFFF80AB), Color(0xFFB388FF), Color(0xFF80D8FF)), Offset(size.width, 0f), Offset(0f, size.height), bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Tropical", BlendMode.Overlay) { i, bm ->
+        gradientWash(listOf(Color(0xFF00BFA5), Color(0xFFFFEB3B), Color(0xFFFF6D00)), Offset.Zero, Offset(size.width, 0f), bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Ocean", BlendMode.Softlight) { i, bm ->
+        gradientWash(listOf(Color(0xFF18FFFF), Color(0xFF2962FF), Color(0xFF1A237E)), Offset.Zero, Offset(0f, size.height), bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Holo", BlendMode.Screen) { i, bm ->
+        stripeWash(Color(0xFFFF80AB), size.minDimension * 0.5f, diagonal = true, bm, i * 0.5f)
+        gradientWash(listOf(Color(0xFF84FFFF), Color.Transparent, Color(0xFFEA80FC)), Offset.Zero, Offset(size.width, size.height), bm, i * 0.6f)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Cosmic", BlendMode.Screen) { i, bm ->
+        radialSpot(Color(0xFF7C4DFF), Offset(size.width * 0.3f, size.height * 0.3f), size.maxDimension * 0.45f, bm, i)
+        radialSpot(Color(0xFFFF4081), Offset(size.width * 0.75f, size.height * 0.7f), size.maxDimension * 0.4f, bm, i)
+        confetti(listOf(Color.White), 24, 0.015f, bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Confetti", BlendMode.Screen) { i, bm ->
+        confetti(
+            listOf(Color(0xFFFF1744), Color(0xFFFFEA00), Color(0xFF00E676), Color(0xFF2979FF), Color(0xFFD500F9), Color(0xFFFF9100)),
+            40, 0.05f, bm, i,
+        )
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Halftone", BlendMode.Overlay) { i, bm ->
+        halftone(Color(0xFFFF5722), 18, bm, i)
+    },
+    OverlayPreset(OverlayCategory.Colorful, "Prism Leak", BlendMode.Screen) { i, bm ->
+        radialSpot(Color(0xFFFF1744), Offset(0f, size.height * 0.2f), size.minDimension * 0.5f, bm, i)
+        radialSpot(Color(0xFFFFEA00), Offset(0f, size.height * 0.5f), size.minDimension * 0.45f, bm, i * 0.8f)
+        radialSpot(Color(0xFF00B0FF), Offset(0f, size.height * 0.8f), size.minDimension * 0.5f, bm, i)
     },
 
     // Hardmix — vivid two-color diagonal washes.

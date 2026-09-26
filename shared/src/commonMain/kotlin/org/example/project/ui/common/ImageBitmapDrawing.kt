@@ -3,6 +3,7 @@ package org.example.project.ui.common
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -62,7 +63,12 @@ internal fun copyBitmap(source: ImageBitmap): ImageBitmap {
  * this app created itself (e.g. via [copyBitmap], or drawn into a fresh `ImageBitmap`), not a raw
  * platform-decoded one, which doesn't redraw reliably through either scaling call.
  */
-internal fun DrawScope.drawImageScaled(image: ImageBitmap, dstOffset: IntOffset, dstSize: IntSize) {
+internal fun DrawScope.drawImageScaled(
+    image: ImageBitmap,
+    dstOffset: IntOffset,
+    dstSize: IntSize,
+    blendMode: BlendMode = BlendMode.SrcOver,
+) {
     drawIntoCanvas { canvas ->
         canvas.drawImageRect(
             image = image,
@@ -70,7 +76,10 @@ internal fun DrawScope.drawImageScaled(image: ImageBitmap, dstOffset: IntOffset,
             srcSize = IntSize(image.width, image.height),
             dstOffset = dstOffset,
             dstSize = dstSize,
-            paint = Paint().apply { filterQuality = FilterQuality.High },
+            paint = Paint().apply {
+                filterQuality = FilterQuality.High
+                this.blendMode = blendMode
+            },
         )
     }
 }

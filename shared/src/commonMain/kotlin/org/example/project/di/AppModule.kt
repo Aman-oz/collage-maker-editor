@@ -7,6 +7,7 @@ import org.example.project.data.network.createHttpClient
 import org.example.project.getPlatform
 import org.example.project.ui.collage.CollageCatalog
 import org.example.project.ui.adjust.AdjustViewModel
+import org.example.project.ui.auto.AutoViewModel
 import org.example.project.ui.blur.BlurViewModel
 import org.example.project.ui.collage.CollageEditorViewModel
 import org.example.project.ui.crop.CropViewModel
@@ -22,6 +23,8 @@ import org.example.project.ui.overlay.OverlayViewModel
 import org.example.project.ui.ratio.RatioViewModel
 import org.example.project.ui.reveal.RevealEditViewModel
 import org.example.project.ui.rotate.RotateViewModel
+import org.example.project.ui.save.SaveImageViewModel
+import org.example.project.ui.share.ShareImageViewModel
 import org.example.project.ui.templates.TemplateFrame
 import org.example.project.ui.templates.TemplatesEditorViewModel
 import org.example.project.ui.templates.TemplatesRepository
@@ -58,6 +61,7 @@ val viewModelModule: Module = module {
     // The image paths come from the navigation key, so they are passed in as a runtime parameter.
     viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get()) }
+    viewModelOf(::AutoViewModel)
     viewModelOf(::CropViewModel)
     viewModelOf(::FilterViewModel)
     viewModelOf(::AdjustViewModel)
@@ -69,6 +73,9 @@ val viewModelModule: Module = module {
     viewModelOf(::FrameViewModel)
     viewModelOf(::DrawViewModel)
     viewModelOf(::RotateViewModel)
+    viewModelOf(::SaveImageViewModel)
+    // The exported file path comes from the navigation key, passed in as a runtime parameter.
+    viewModel { (imagePath: String) -> ShareImageViewModel(imagePath) }
     // Shared by the Splash / s-Blur / s-Splash reveal tools (one scoped instance per destination).
     viewModelOf(::RevealEditViewModel)
     viewModelOf(::TemplatesViewModel)

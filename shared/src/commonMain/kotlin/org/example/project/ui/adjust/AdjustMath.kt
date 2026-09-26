@@ -1,12 +1,12 @@
 package org.example.project.ui.adjust
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Contrast
-import androidx.compose.material.icons.filled.Exposure
-import androidx.compose.material.icons.filled.Opacity
-import androidx.compose.material.icons.filled.Tonality
-import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.outlined.ChangeHistory
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.Exposure
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Thermostat
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ColorFilter
@@ -20,12 +20,12 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 internal enum class AdjustmentType(val label: String, val icon: ImageVector) {
-    Brightness("Brightness", Icons.Filled.WbSunny),
-    Contrast("Contrast", Icons.Filled.Contrast),
-    Saturation("Saturation", Icons.Filled.Opacity),
-    Hue("Hue", Icons.Filled.Tonality),
-    Sharpen("Sharpen", Icons.Filled.AutoAwesome),
-    Exposure("Exposure", Icons.Filled.Exposure),
+    Brightness("Brightness", Icons.Outlined.LightMode),
+    Contrast("Contrast", Icons.Outlined.Contrast),
+    Saturation("Saturation", Icons.Outlined.WaterDrop),
+    Hue("Hue", Icons.Outlined.Thermostat),
+    Sharpen("Sharpen", Icons.Outlined.ChangeHistory),
+    Exposure("Exposure", Icons.Outlined.Exposure),
 }
 
 /** Each slider is -100..100; 0 is "no change" for every one of them. */

@@ -1,36 +1,27 @@
 package org.example.project.ui.draw
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Backspace
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,40 +35,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.min
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
-import org.example.project.ui.common.EditorIconTint
-import org.example.project.ui.common.EditorLabelTint
-import org.example.project.ui.common.EditorOnAccent
+import org.example.project.ui.common.SelectableSwatch
+import org.example.project.ui.common.SwatchInnerCorner
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_eraser
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_trash
+import photocollagemaker.shared.generated.resources.ic_undo
 
 private enum class DrawTab { Paint, Mosaic }
+
+/** Share of the screen width taken by the Paint/Mosaic toggle and the tool icons under it. */
+private const val ToolClusterWidthFraction = 0.64f
 
 @Composable
 fun DrawScreen(
@@ -106,6 +99,7 @@ private fun DrawContent(
     onDone: (actions: List<DrawAction>, canvasWidthPx: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     var actions by remember { mutableStateOf(emptyList<DrawAction>()) }
     var undoStack by remember { mutableStateOf(emptyList<List<DrawAction>>()) }
     var redoStack by remember { mutableStateOf(emptyList<List<DrawAction>>()) }
@@ -139,7 +133,7 @@ private fun DrawContent(
     var isDragging by remember { mutableStateOf(false) }
     var isAdjustingBrush by remember { mutableStateOf(false) }
     var cursorPositionPx by remember { mutableStateOf(Offset.Zero) }
-    var displayedImageWidthPx by remember { mutableFloatStateOf(0f) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     fun buildAction(points: List<Offset>): DrawAction {
         val radiusFraction = brushRadiusFraction(brushSize)
@@ -151,59 +145,55 @@ private fun DrawContent(
     }
 
     val sharpImage = remember(sourceImage) { sourceImage?.let { copyBitmap(it) } }
-    val mosaicPreviewBitmaps = remember(sourceImage) {
-        sourceImage?.let { image -> MosaicPatterns.associateWith { computeMosaicBitmap(image, it.cellFractionX, it.cellFractionY) } }
+    // Full-size mosaic bitmaps are rendered lazily — only for patterns actually picked — since
+    // rendering every pattern up front would hold a dozen photo-sized bitmaps for nothing.
+    val mosaicCache = remember(sharpImage) { mutableMapOf<MosaicPattern, ImageBitmap>() }
+    fun mosaicFor(pattern: MosaicPattern): ImageBitmap? =
+        sharpImage?.let { image -> mosaicCache.getOrPut(pattern) { renderMosaic(image, pattern) } }
+    // Warms the cache on selection so the first stroke doesn't stall mid-drag.
+    LaunchedEffect(sharpImage, selectedPattern, selectedTab) {
+        if (selectedTab == DrawTab.Mosaic) mosaicFor(selectedPattern)
+    }
+    val mosaicSwatches = remember(sharpImage) {
+        sharpImage?.let { image -> MosaicPatterns.associateWith { renderMosaicSwatch(image, it) } }
     } ?: emptyMap()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        DrawTopBar(
-            onBack = onBack,
-            onDone = { onDone(actions, displayedImageWidthPx) },
+        ToolTopBar(
+            title = "Draw",
+            onClose = onBack,
+            onDone = { onDone(actions, canvasSize.width.toFloat()) },
             doneEnabled = sourceImage != null,
         )
 
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null && sharpImage != null) {
-                val density = LocalDensity.current
-                val boxWidthPx = with(density) { maxWidth.toPx() }
-                val boxHeightPx = with(density) { maxHeight.toPx() }
-                val bitmapWidth = sourceImage.width.toFloat()
-                val bitmapHeight = sourceImage.height.toFloat()
-                val fitScale = min(boxWidthPx / bitmapWidth, boxHeightPx / bitmapHeight)
-                val imageWidthPx = bitmapWidth * fitScale
-                val imageHeightPx = bitmapHeight * fitScale
-                val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
-                val imageSizePx = Size(imageWidthPx, imageHeightPx)
-                val brushRadiusPx = brushRadiusFraction(brushSize) * imageWidthPx
-                val imageCenterPx = imageOffsetPx + Offset(imageWidthPx / 2f, imageHeightPx / 2f)
-                val dstOffset = IntOffset(imageOffsetPx.x.roundToInt(), imageOffsetPx.y.roundToInt())
-                val dstSize = IntSize(imageWidthPx.roundToInt().coerceAtLeast(1), imageHeightPx.roundToInt().coerceAtLeast(1))
-                LaunchedEffect(imageWidthPx) { displayedImageWidthPx = imageWidthPx }
-
-                fun fractionFor(positionInBox: Offset): Offset = Offset(
-                    ((positionInBox.x - imageOffsetPx.x) / imageWidthPx).coerceIn(0f, 1f),
-                    ((positionInBox.y - imageOffsetPx.y) / imageHeightPx).coerceIn(0f, 1f),
-                )
-
                 val liveAction = if (currentPoints.isNotEmpty()) buildAction(currentPoints) else null
 
+                // aspectRatio sizes the canvas to the photo itself, so the canvas bounds are the
+                // image bounds (no letterbox offset) and the rounded clip follows the photo's edges.
                 Canvas(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(imageOffsetPx, imageWidthPx, imageHeightPx) {
+                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                        .clip(RoundedCornerShape(16.dp))
+                        .onSizeChanged { canvasSize = it }
+                        .pointerInput(Unit) {
+                            fun fractionFor(position: Offset): Offset = Offset(
+                                (position.x / size.width).coerceIn(0f, 1f),
+                                (position.y / size.height).coerceIn(0f, 1f),
+                            )
                             detectDragGestures(
                                 onDragStart = { position ->
                                     isDragging = true
@@ -229,25 +219,26 @@ private fun DrawContent(
                             )
                         },
                 ) {
-                    drawImageScaled(sharpImage, dstOffset, dstSize)
+                    val dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1))
+                    drawImageScaled(sharpImage, IntOffset.Zero, dstSize)
                     for (action in actions + listOfNotNull(liveAction)) {
-                        val radiusPx = action.radiusFraction * imageWidthPx
-                        val path = buildStrokePath(action.points, imageOffsetPx, imageSizePx, radiusPx)
+                        val radiusPx = action.radiusFraction * size.width
+                        val path = buildStrokePath(action.points, Offset.Zero, size, radiusPx)
                         when (action) {
                             is PaintAction -> drawPath(path, color = action.color)
                             is MosaicAction -> clipPath(path) {
-                                drawImageScaled(mosaicPreviewBitmaps.getValue(action.pattern), dstOffset, dstSize)
+                                mosaicFor(action.pattern)?.let { drawImageScaled(it, IntOffset.Zero, dstSize) }
                             }
                             is EraseAction -> clipPath(path) {
-                                drawImageScaled(sharpImage, dstOffset, dstSize)
+                                drawImageScaled(sharpImage, IntOffset.Zero, dstSize)
                             }
                         }
                     }
                     if (isDragging || isAdjustingBrush) {
                         drawCircle(
                             color = Color.White,
-                            radius = brushRadiusPx,
-                            center = if (isDragging) cursorPositionPx else imageCenterPx,
+                            radius = brushRadiusFraction(brushSize) * size.width,
+                            center = if (isDragging) cursorPositionPx else center,
                             style = Stroke(width = 2.dp.toPx()),
                         )
                     }
@@ -255,18 +246,21 @@ private fun DrawContent(
             } else {
                 Text(
                     text = "No image to draw on",
-                    color = Color.White,
+                    color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        DrawTabRow(
+        DrawTabToggle(
             selected = selectedTab,
             onSelected = { tab ->
                 selectedTab = tab
                 isEraserActive = false
             },
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 12.dp),
         )
 
         DrawToolRow(
@@ -278,17 +272,26 @@ private fun DrawContent(
             onRedo = ::redo,
             onDelete = { if (actions.isNotEmpty()) commit(emptyList()) },
             onToggleEraser = { isEraserActive = !isEraserActive },
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 6.dp),
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        BrushSizeControlRow(value = brushSize)
+        BrushSizeLabelRow(value = brushSize)
         CenterFillSlider(
             value = brushSize,
             onValueChange = { brushSize = it },
             range = BrushSizeRange,
             referenceValue = BrushSizeRange.start,
             onDraggingChange = { isAdjustingBrush = it },
+            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+            fillColor = scheme.primary,
+            thumbColor = scheme.primary,
+            thumbWidth = 26.dp,
+            thumbHeight = 14.dp,
+            horizontalPadding = 12.dp,
+            glassThumb = true,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
         )
 
         when (selectedTab) {
@@ -297,6 +300,7 @@ private fun DrawContent(
                 onSelected = { selectedColor = it; isEraserActive = false },
             )
             DrawTab.Mosaic -> MosaicPatternRow(
+                swatches = mosaicSwatches,
                 selected = selectedPattern,
                 onSelected = { selectedPattern = it; isEraserActive = false },
             )
@@ -304,73 +308,36 @@ private fun DrawContent(
     }
 }
 
+/** Pill-shaped Paint/Mosaic segmented toggle; the selected half gets a soft accent pill. */
 @Composable
-private fun DrawTopBar(onBack: () -> Unit, onDone: () -> Unit, doneEnabled: Boolean) {
+private fun DrawTabToggle(selected: DrawTab, onSelected: (DrawTab) -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-
-        Text(
-            text = "Draw",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
-        )
-
-        AccentPillButton(text = "Done", onClick = onDone, enabled = doneEnabled)
-    }
-}
-
-@Composable
-private fun DrawTabRow(selected: DrawTab, onSelected: (DrawTab) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(50))
-            .background(EditorControlBackground),
-    ) {
-        DrawTabItem(
-            label = "Paint",
-            selected = selected == DrawTab.Paint,
-            modifier = Modifier.weight(1f),
-            onClick = { onSelected(DrawTab.Paint) },
-        )
-        DrawTabItem(
-            label = "Mosaic",
-            selected = selected == DrawTab.Mosaic,
-            modifier = Modifier.weight(1f),
-            onClick = { onSelected(DrawTab.Mosaic) },
-        )
-    }
-}
-
-@Composable
-private fun DrawTabItem(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
         modifier = modifier
+            .fillMaxWidth(ToolClusterWidthFraction)
             .clip(RoundedCornerShape(50))
-            .background(if (selected) EditorAccent else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
+            .background(scheme.onSurface.copy(alpha = 0.06f))
+            .padding(4.dp),
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (selected) EditorOnAccent else EditorLabelTint,
-        )
+        for (tab in DrawTab.entries) {
+            val isSelected = tab == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isSelected) scheme.primary.copy(alpha = 0.18f) else Color.Transparent)
+                    .clickable(onClick = { onSelected(tab) })
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = tab.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = scheme.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -384,62 +351,68 @@ private fun DrawToolRow(
     onRedo: () -> Unit,
     onDelete: () -> Unit,
     onToggleEraser: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
+        modifier = modifier.fillMaxWidth(ToolClusterWidthFraction),
+        horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
-        Spacer(modifier = Modifier.width(16.dp))
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
-        Spacer(modifier = Modifier.width(16.dp))
-        EditorCircleIconButton(icon = Icons.Filled.Delete, contentDescription = "Clear all", enabled = deleteEnabled, onClick = onDelete)
-        Spacer(modifier = Modifier.width(16.dp))
-        DrawToolToggleButton(icon = Icons.AutoMirrored.Filled.Backspace, contentDescription = "Eraser", selected = eraserActive, onClick = onToggleEraser)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_trash), contentDescription = "Clear all", enabled = deleteEnabled, onClick = onDelete)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_eraser), contentDescription = "Eraser", selected = eraserActive, onClick = onToggleEraser)
     }
 }
 
+/** Bare outline tool icon; [selected] (the eraser toggle) tints it and adds a soft accent circle. */
 @Composable
-private fun DrawToolToggleButton(icon: ImageVector, contentDescription: String, selected: Boolean, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
+private fun DrawToolIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    selected: Boolean = false,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val tint = when {
+        selected -> scheme.primary
+        enabled -> scheme.onSurface
+        else -> scheme.onSurface.copy(alpha = 0.3f)
+    }
+    Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(40.dp)
             .clip(CircleShape)
-            .background(if (selected) EditorAccent else EditorControlBackground),
+            .background(if (selected) scheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (selected) EditorOnAccent else EditorIconTint,
-            modifier = Modifier.size(18.dp),
-        )
+        Icon(imageVector = icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(20.dp))
     }
 }
 
 @Composable
-private fun BrushSizeControlRow(value: Float) {
+private fun BrushSizeLabelRow(value: Float) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = "Brush Size",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = "${value.roundToInt()}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = EditorAccent,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.primary,
         )
     }
 }
@@ -447,87 +420,44 @@ private fun BrushSizeControlRow(value: Float) {
 @Composable
 private fun DrawColorRow(selected: DrawColorOption, onSelected: (DrawColorOption) -> Unit) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(DrawColors) { option ->
-            DrawColorSwatch(option = option, selected = option == selected, onClick = { onSelected(option) })
+            SelectableSwatch(selected = option == selected, size = 48.dp, onClick = { onSelected(option) }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(option.color)
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(SwatchInnerCorner)),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun DrawColorSwatch(option: DrawColorOption, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(52.dp)
-            .clip(CircleShape)
-            .then(
-                if (selected) {
-                    Modifier.border(width = 2.dp, color = EditorAccent, shape = CircleShape)
-                } else {
-                    Modifier
-                },
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(if (selected) 40.dp else 44.dp)
-                .clip(CircleShape)
-                .background(option.color)
-                .border(width = 1.dp, color = EditorLabelTint.copy(alpha = 0.3f), shape = CircleShape),
-        )
-    }
-}
-
-@Composable
-private fun MosaicPatternRow(selected: MosaicPattern, onSelected: (MosaicPattern) -> Unit) {
+private fun MosaicPatternRow(
+    swatches: Map<MosaicPattern, ImageBitmap>,
+    selected: MosaicPattern,
+    onSelected: (MosaicPattern) -> Unit,
+) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(MosaicPatterns) { pattern ->
-            MosaicPatternSwatch(pattern = pattern, selected = pattern == selected, onClick = { onSelected(pattern) })
-        }
-    }
-}
-
-@Composable
-private fun MosaicPatternSwatch(pattern: MosaicPattern, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(64.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .then(
-                if (selected) {
-                    Modifier.border(width = 2.dp, color = EditorAccent, shape = RoundedCornerShape(16.dp))
-                } else {
-                    Modifier
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(10.dp)),
-        ) {
-            val columns = 4
-            val rows = 4
-            val cellWidth = size.width / columns
-            val cellHeight = size.height / rows
-            for (row in 0 until rows) {
-                for (column in 0 until columns) {
-                    val color = pattern.previewColors[(row * columns + column) % pattern.previewColors.size]
-                    drawRect(
-                        color = color,
-                        topLeft = Offset(column * cellWidth, row * cellHeight),
-                        size = Size(cellWidth, cellHeight),
+            SelectableSwatch(selected = pattern == selected, size = 58.dp, onClick = { onSelected(pattern) }) {
+                val swatch = swatches[pattern]
+                if (swatch != null) {
+                    Image(
+                        bitmap = swatch,
+                        contentDescription = pattern.label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
                     )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
                 }
             }
         }

@@ -7,14 +7,14 @@ import kotlin.test.assertTrue
 class TextStyleOptionsTest {
 
     @Test
-    fun fontStyles_matchAllFiveRequestedOptions() {
+    fun fontStyles_matchTheDesignsSixOptions() {
         val labels = TextFontStyles.map { it.label }
-        assertEquals(listOf("Classic", "Modern", "Bold", "Elegant", "Handwriting"), labels)
+        assertEquals(listOf("Classic", "Modern", "Bold", "Elegant", "Stylish", "Simple"), labels)
     }
 
     @Test
-    fun colorOptions_hasEightSwatches() {
-        assertEquals(8, TextColorOptions.size)
+    fun colorOptions_hasNineSwatches() {
+        assertEquals(9, TextColorOptions.size)
     }
 
     @Test

@@ -37,7 +37,7 @@ internal data class PaintAction(
     val color: Color,
 ) : DrawAction
 
-/** A stroke that reveals a pixelated (see [MosaicPattern]) version of the photo. */
+/** A stroke that reveals a [MosaicPattern] (pixelated photo or generated texture) over the photo. */
 internal data class MosaicAction(
     override val points: List<Offset>,
     override val radiusFraction: Float,

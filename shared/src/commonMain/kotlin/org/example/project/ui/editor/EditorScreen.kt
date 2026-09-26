@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,9 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +46,6 @@ import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.common.EditorAccent
 import org.example.project.ui.common.EditorBackground
 import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
 import org.example.project.ui.common.EditorControlBackground
 import org.example.project.ui.common.EditorIconTint
 import org.example.project.ui.common.EditorLabelTint
@@ -61,6 +57,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_adjust_editor
+import photocollagemaker.shared.generated.resources.ic_auto_editor
 import photocollagemaker.shared.generated.resources.ic_blur_editor
 import photocollagemaker.shared.generated.resources.ic_crop_editor
 import photocollagemaker.shared.generated.resources.ic_draw_editor
@@ -74,8 +71,12 @@ import photocollagemaker.shared.generated.resources.ic_s_splash_editor
 import photocollagemaker.shared.generated.resources.ic_splash_editor
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_undo
 
 private enum class EditorTool(val label: String, val icon: DrawableResource) {
+    Auto("Auto", Res.drawable.ic_auto_editor),
     Crop("Crop", Res.drawable.ic_crop_editor),
     Filter("Filter", Res.drawable.ic_filter_editor),
     Adjust("Adjust", Res.drawable.ic_adjust_editor),
@@ -96,6 +97,8 @@ private enum class EditorTool(val label: String, val icon: DrawableResource) {
 fun EditorScreen(
     imagePath: String?,
     onBack: () -> Unit,
+    onDone: () -> Unit,
+    onOpenAuto: () -> Unit,
     onOpenCrop: () -> Unit,
     onOpenFilter: () -> Unit,
     onOpenAdjust: () -> Unit,
@@ -118,7 +121,8 @@ fun EditorScreen(
     EditorContent(
         uiState = uiState,
         onClose = onBack,
-        onDone = onBack,
+        onDone = onDone,
+        onOpenAuto = onOpenAuto,
         onOpenCrop = onOpenCrop,
         onOpenFilter = onOpenFilter,
         onOpenAdjust = onOpenAdjust,
@@ -142,6 +146,7 @@ private fun EditorContent(
     uiState: EditorUiState,
     onClose: () -> Unit,
     onDone: () -> Unit,
+    onOpenAuto: () -> Unit,
     onOpenCrop: () -> Unit,
     onOpenFilter: () -> Unit,
     onOpenAdjust: () -> Unit,
@@ -173,13 +178,14 @@ private fun EditorContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp),
+                .padding(vertical = 12.dp),
         )
 
         EditorToolbar(
             selectedTool = selectedTool,
             onToolSelected = { tool ->
                 when (tool) {
+                    EditorTool.Auto -> onOpenAuto()
                     EditorTool.Crop -> onOpenCrop()
                     EditorTool.Filter -> onOpenFilter()
                     EditorTool.Adjust -> onOpenAdjust()
@@ -202,42 +208,70 @@ private fun EditorContent(
 
 @Composable
 private fun EditorTopBar(onClose: () -> Unit, onDone: () -> Unit) {
+    // Same layout as CollageTopBar: fixed-size circle buttons, and a title that takes the leftover
+    // width and ellipsizes, so the bar never overflows on narrow screens or large font scales.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        EditorCircleIconButton(icon = Icons.Filled.Close, contentDescription = "Close editor", onClick = onClose)
-
+        TopBarCircleButton(
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            contentDescription = "Back",
+            onClick = onClose,
+        )
         Text(
             text = "Edit Photo",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
+            color = EditorIconTint,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
         )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TopBarCircleButton(
+                icon = vectorResource(Res.drawable.ic_undo),
+                contentDescription = "Undo",
+                onClick = {},
+                enabled = false,
+            )
+            TopBarCircleButton(
+                icon = vectorResource(Res.drawable.ic_redo),
+                contentDescription = "Redo",
+                onClick = {},
+                enabled = false,
+            )
+            AccentPillButton(text = "Done", onClick = onDone)
+        }
+    }
+}
 
-        EditorCircleIconButton(
-            icon = Icons.AutoMirrored.Filled.Undo,
-            contentDescription = "Undo",
-            enabled = false,
-            onClick = {},
+@Composable
+private fun TopBarCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(EditorControlBackground)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) EditorIconTint else EditorIconTint.copy(alpha = 0.35f),
+            modifier = Modifier.size(22.dp),
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        EditorCircleIconButton(
-            icon = Icons.AutoMirrored.Filled.Redo,
-            contentDescription = "Redo",
-            enabled = false,
-            onClick = {},
-        )
-        Box(modifier = Modifier.width(10.dp))
-        AccentPillButton(text = "Done", onClick = onDone)
     }
 }
 
@@ -335,6 +369,7 @@ private fun EditorScreenPreview() {
             uiState = EditorUiState.Loading,
             onClose = {},
             onDone = {},
+            onOpenAuto = {},
             onOpenCrop = {},
             onOpenFilter = {},
             onOpenAdjust = {},

@@ -7,10 +7,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 
-internal val FrameWidthRange = 0f..30f
+internal val FrameWidthRange = 0f..60f
 internal const val FrameWidthDefault = 12f
 
-internal val FrameCornerRadiusRange = 0f..40f
+internal val FrameCornerRadiusRange = 0f..60f
 internal const val FrameCornerRadiusDefault = 18f
 
 /**

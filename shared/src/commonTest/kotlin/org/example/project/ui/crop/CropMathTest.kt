@@ -153,4 +153,39 @@ class CropMathTest {
         assertEquals(450f, resized.left)
         assertEquals(100f, resized.top)
     }
+
+    @Test
+    fun hitTest_findsEdgeAlongItsLength() {
+        val rect = Rect(100f, 100f, 300f, 300f)
+        assertEquals(CropHandle.Edge(RectEdge.Right), hitTest(Offset(305f, 240f), rect, handleRadius = 20f))
+        assertEquals(CropHandle.Edge(RectEdge.Top), hitTest(Offset(160f, 95f), rect, handleRadius = 20f))
+    }
+
+    @Test
+    fun resizeEdge_freeFormMovesOnlyThatEdge() {
+        val rect = Rect(200f, 200f, 400f, 400f)
+        assertEquals(Rect(150f, 200f, 400f, 400f), resizeCropEdge(rect, RectEdge.Left, Offset(-50f, 30f), null, bounds, 10f))
+        assertEquals(Rect(200f, 200f, 400f, 460f), resizeCropEdge(rect, RectEdge.Bottom, Offset(12f, 60f), null, bounds, 10f))
+    }
+
+    @Test
+    fun resizeEdge_freeFormClampsToBoundsAndMinSize() {
+        val rect = Rect(200f, 200f, 400f, 400f)
+        assertEquals(1000f, resizeCropEdge(rect, RectEdge.Right, Offset(5000f, 0f), null, bounds, 10f).right)
+        assertEquals(50f, resizeCropEdge(rect, RectEdge.Right, Offset(-5000f, 0f), null, bounds, 50f).width)
+    }
+
+    @Test
+    fun resizeEdge_withRatioGrowsOtherAxisAroundCenter() {
+        val rect = Rect(200f, 200f, 400f, 400f) // 1:1, center y = 300
+        val resized = resizeCropEdge(rect, RectEdge.Right, Offset(100f, 0f), 1f, bounds, 10f)
+        assertEquals(Rect(200f, 150f, 500f, 450f), resized)
+    }
+
+    @Test
+    fun resizeEdge_withRatioStaysInsideBounds() {
+        val rect = Rect(0f, 0f, 200f, 200f) // pinned to the top-left corner
+        val resized = resizeCropEdge(rect, RectEdge.Right, Offset(5000f, 0f), 1f, bounds, 10f)
+        assertEquals(Rect(0f, 0f, 1000f, 1000f), resized)
+    }
 }

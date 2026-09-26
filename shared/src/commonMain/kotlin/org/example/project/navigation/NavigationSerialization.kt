@@ -25,9 +25,23 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.ProEditor::class, Destination.ProEditor.serializer())
         subclass(Destination.Templates::class, Destination.Templates.serializer())
         subclass(Destination.TemplatesEditor::class, Destination.TemplatesEditor.serializer())
+        subclass(Destination.Auto::class, Destination.Auto.serializer())
+        subclass(Destination.Crop::class, Destination.Crop.serializer())
+        subclass(Destination.Filter::class, Destination.Filter.serializer())
+        subclass(Destination.Adjust::class, Destination.Adjust.serializer())
+        subclass(Destination.Overlay::class, Destination.Overlay.serializer())
+        subclass(Destination.Ratio::class, Destination.Ratio.serializer())
+        subclass(Destination.Text::class, Destination.Text.serializer())
+        subclass(Destination.Emoji::class, Destination.Emoji.serializer())
+        subclass(Destination.Blur::class, Destination.Blur.serializer())
         subclass(Destination.ColorSplash::class, Destination.ColorSplash.serializer())
         subclass(Destination.SelectiveBlur::class, Destination.SelectiveBlur.serializer())
         subclass(Destination.SelectiveSplash::class, Destination.SelectiveSplash.serializer())
+        subclass(Destination.Frame::class, Destination.Frame.serializer())
+        subclass(Destination.Draw::class, Destination.Draw.serializer())
+        subclass(Destination.SaveImage::class, Destination.SaveImage.serializer())
+        subclass(Destination.Rotate::class, Destination.Rotate.serializer())
+        subclass(Destination.ShareImage::class, Destination.ShareImage.serializer())
     }
 }
 

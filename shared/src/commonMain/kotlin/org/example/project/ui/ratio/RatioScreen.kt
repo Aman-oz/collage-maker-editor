@@ -2,66 +2,37 @@ package org.example.project.ui.ratio
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import org.example.project.ui.common.AccentPillButton
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
-import org.example.project.ui.crop.centeredRectForRatio
-import org.example.project.ui.crop.cropImageBitmap
-import org.example.project.ui.crop.toIntRectClamped
+import androidx.compose.ui.unit.min
+import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.crop.AspectRatioOptions
+import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
-
-private data class RatioOption(val label: String, val ratio: Float)
-
-private val RatioOptions = listOf(
-    RatioOption("1:1", 1f / 1f),
-    RatioOption("4:3", 4f / 3f),
-    RatioOption("3:4", 3f / 4f),
-    RatioOption("5:4", 5f / 4f),
-    RatioOption("4:5", 4f / 5f),
-    RatioOption("3:2", 3f / 2f),
-    RatioOption("2:3", 2f / 3f),
-    RatioOption("9:16", 9f / 16f),
-    RatioOption("16:9", 16f / 9f),
-)
 
 @Composable
 fun RatioScreen(
@@ -88,113 +59,79 @@ private fun RatioContent(
     onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selected by remember { mutableStateOf(RatioOptions.first()) }
+    val scheme = MaterialTheme.colorScheme
+    var selected by remember { mutableStateOf(AspectRatioOptions.first()) }
+    var paddingPercent by remember { mutableFloatStateOf(0f) }
 
-    // Recomputed whenever the ratio changes, so the preview always shows exactly what Apply
-    // would produce — reuses the same crop-baking pipeline the Crop screen uses.
-    val preview = remember(sourceImage, selected) {
-        sourceImage?.let { image -> cropImageBitmap(image, centeredRectForRatio(image, selected.ratio).toIntRectClamped(image)) }
+    // Recomputed only when the ratio changes. Padding stays a live layout inset on the preview and
+    // is baked once, on Done, so dragging the slider never re-renders the full-resolution photo.
+    val reframed = remember(sourceImage, selected) {
+        sourceImage?.let { reframeImage(it, selected.ratio) }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        RatioTopBar(
-            onBack = onBack,
-            onApply = { preview?.let(onApply) },
-            applyEnabled = preview != null,
+        ToolTopBar(
+            title = "Ratio",
+            onClose = onBack,
+            doneEnabled = reframed != null,
+            onDone = { reframed?.let { onApply(padImage(it, paddingPercent)) } },
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(24.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (preview != null) {
-                Image(
-                    bitmap = preview,
-                    contentDescription = "Ratio preview",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                )
+            if (reframed != null) {
+                // Sized to the bitmap's own aspect so the percent padding measures the same
+                // shorter side the bake uses; Crop mirrors padImage's center-crop into the inset.
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .aspectRatio(reframed.width.toFloat() / reframed.height)
+                        .background(RatioPaddingColor),
+                ) {
+                    Image(
+                        bitmap = reframed,
+                        contentDescription = "Ratio preview",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(min(maxWidth, maxHeight) * paddingPercent / 100f),
+                        contentScale = if (paddingPercent > 0f) ContentScale.Crop else ContentScale.Fit,
+                    )
+                }
             } else {
-                Text(
-                    text = "No image to reframe",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Text(text = "No image to reframe", color = scheme.onSurface)
             }
         }
 
-        RatioOptionRow(selected = selected, onSelected = { selected = it })
-    }
-}
-
-@Composable
-private fun RatioTopBar(onBack: () -> Unit, onApply: () -> Unit, applyEnabled: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-
-        Text(
-            text = "Ratio",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
+        CenterFillSlider(
+            value = paddingPercent,
+            onValueChange = { paddingPercent = it },
+            range = PaddingPercentRange,
+            referenceValue = PaddingPercentRange.start,
+            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+            fillColor = scheme.primary,
+            thumbColor = scheme.primary,
+            thumbWidth = 26.dp,
+            thumbHeight = 14.dp,
+            horizontalPadding = 12.dp,
+            glassThumb = true,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            modifier = Modifier.padding(top = 12.dp),
         )
 
-        AccentPillButton(text = "Apply", onClick = onApply, enabled = applyEnabled)
-    }
-}
-
-@Composable
-private fun RatioOptionRow(selected: RatioOption, onSelected: (RatioOption) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        items(RatioOptions) { option ->
-            RatioChip(option = option, selected = option == selected, onClick = { onSelected(option) })
-        }
-    }
-}
-
-@Composable
-private fun RatioChip(option: RatioOption, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(76.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(
-                width = if (selected) 2.dp else 1.5.dp,
-                color = if (selected) EditorAccent else EditorControlBackground,
-                shape = RoundedCornerShape(12.dp),
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = option.label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (selected) EditorAccent else Color.White,
+        AspectRatioStrip(
+            options = AspectRatioOptions,
+            selected = selected,
+            onSelected = { selected = it },
         )
     }
 }

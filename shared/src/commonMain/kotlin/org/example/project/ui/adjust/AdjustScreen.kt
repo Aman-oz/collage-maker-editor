@@ -3,11 +3,13 @@ package org.example.project.ui.adjust
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,7 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,18 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
-import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.CompareButton
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
-import org.example.project.ui.common.EditorIconTint
-import org.example.project.ui.common.EditorLabelTint
-import org.example.project.ui.common.EditorOnAccent
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -85,60 +79,75 @@ private fun AdjustContent(
     onApply: (FloatArray) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     var values by remember { mutableStateOf(AdjustValues()) }
     var selected by remember { mutableStateOf(AdjustmentType.Brightness) }
-    var showOriginal by remember { mutableStateOf(false) }
+    var comparing by remember { mutableStateOf(false) }
 
     val combinedMatrix = remember(values) { values.toColorMatrix() }
+    val colorFilter = remember(combinedMatrix) { ColorFilter.colorMatrix(ColorMatrix(combinedMatrix)) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        AdjustTopBar(
-            onBack = onBack,
-            onApply = { onApply(combinedMatrix) },
-            applyEnabled = sourceImage != null,
+        ToolTopBar(
+            title = "Adjust",
+            onClose = onBack,
+            onDone = { onApply(combinedMatrix) },
+            doneEnabled = sourceImage != null,
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null) {
+                // aspectRatio sizes the Image to the photo itself, so the rounded clip follows the
+                // photo's edges instead of the letterboxed stage.
                 Image(
                     bitmap = sourceImage,
                     contentDescription = "Photo preview",
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                        .clip(RoundedCornerShape(16.dp)),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (showOriginal) null else ColorFilter.colorMatrix(ColorMatrix(combinedMatrix)),
+                    colorFilter = if (comparing) null else colorFilter,
                 )
             } else {
                 Text(
                     text = "No image to adjust",
-                    color = Color.White,
+                    color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        AdjustControlRow(
-            selected = selected,
-            value = values[selected],
-            onComparePressedChange = { showOriginal = it },
+        CompareIconButton(
+            onComparingChange = { comparing = it },
+            modifier = Modifier
+                .align(Alignment.End)
+                .padding(top = 8.dp, end = 12.dp),
         )
 
         CenterFillSlider(
             value = values[selected],
             onValueChange = { values = values.with(selected, it) },
             range = AdjustRange,
+            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+            fillColor = scheme.primary,
+            thumbColor = scheme.primary,
+            thumbWidth = 26.dp,
+            thumbHeight = 14.dp,
+            horizontalPadding = 12.dp,
+            glassThumb = true,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
         )
 
         AdjustmentTypeRow(
@@ -149,66 +158,31 @@ private fun AdjustContent(
     }
 }
 
+/** Press-and-hold icon that shows the unadjusted photo while held. */
 @Composable
-private fun AdjustTopBar(onBack: () -> Unit, onApply: () -> Unit, applyEnabled: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .pointerInput(onComparingChange) {
+                detectTapGestures(
+                    onPress = {
+                        onComparingChange(true)
+                        tryAwaitRelease()
+                        onComparingChange(false)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
     ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-
-        Text(
-            text = "Adjust",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
+        Icon(
+            imageVector = Icons.Outlined.Compare,
+            contentDescription = "Press and hold to compare with the original",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
         )
-
-        AccentPillButton(text = "Apply", onClick = onApply, enabled = applyEnabled)
     }
-}
-
-@Composable
-private fun AdjustControlRow(
-    selected: AdjustmentType,
-    value: Float,
-    onComparePressedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = selected.label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = formatAdjustValue(value),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = EditorAccent,
-            modifier = Modifier.padding(end = 12.dp),
-        )
-        CompareButton(onPressedChange = onComparePressedChange)
-    }
-}
-
-private fun formatAdjustValue(value: Float): String {
-    val rounded = value.roundToInt()
-    return if (rounded > 0) "+$rounded" else "$rounded"
 }
 
 @Composable
@@ -218,8 +192,8 @@ private fun AdjustmentTypeRow(
     onSelected: (AdjustmentType) -> Unit,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(AdjustmentType.entries) { type ->
             AdjustmentTypeItem(
@@ -234,44 +208,40 @@ private fun AdjustmentTypeRow(
 
 @Composable
 private fun AdjustmentTypeItem(type: AdjustmentType, selected: Boolean, active: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val tint = if (selected) scheme.primary else scheme.onSurface
     Column(
         modifier = Modifier
             .width(72.dp)
-            .clickable(onClick = onClick),
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(if (selected) EditorAccent else EditorControlBackground),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = type.icon,
-                contentDescription = type.label,
-                tint = if (selected) EditorOnAccent else EditorIconTint,
-            )
-        }
-        Box(modifier = Modifier.height(6.dp))
+        Icon(
+            imageVector = type.icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(26.dp),
+        )
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = type.label,
-            style = MaterialTheme.typography.labelMedium,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) EditorAccent else EditorLabelTint,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = tint,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Box(modifier = Modifier.height(6.dp)) {
+        // Marks adjustments that have been changed from zero, so edits on other tabs stay visible.
+        Box(modifier = Modifier.padding(top = 4.dp).height(4.dp)) {
             if (active) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.Center)
                         .size(4.dp)
                         .clip(CircleShape)
-                        .background(EditorAccent),
+                        .background(scheme.primary),
                 )
             }
         }

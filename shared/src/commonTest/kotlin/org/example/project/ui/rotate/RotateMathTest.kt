@@ -14,11 +14,30 @@ class RotateMathTest {
 
     @Test
     fun nearestRotationStop_snapsToClosestStop() {
-        assertEquals(0f, nearestRotationStop(4f))
-        assertEquals(15f, nearestRotationStop(8f))
-        assertEquals(-30f, nearestRotationStop(-26f))
-        assertEquals(45f, nearestRotationStop(90f))
-        assertEquals(-45f, nearestRotationStop(-90f))
+        assertEquals(0f, nearestRotationStop(20f))
+        assertEquals(45f, nearestRotationStop(30f))
+        assertEquals(-90f, nearestRotationStop(-80f))
+        assertEquals(180f, nearestRotationStop(150f))
+        assertEquals(-180f, nearestRotationStop(-400f))
+    }
+
+    @Test
+    fun rotationStops_centerIsDefaultAndSidesMirror() {
+        assertEquals(RotationDefault, RotationStops[RotationStops.size / 2])
+        assertEquals(RotationStops.map { 0f - it }.reversed(), RotationStops)
+    }
+
+    @Test
+    fun rotationStopAtPosition_roundsToNearestIndexAndClamps() {
+        assertEquals(-180f, rotationStopAtPosition(-2f))
+        assertEquals(-45f, rotationStopAtPosition(2.4f))
+        assertEquals(0f, rotationStopAtPosition(2.6f))
+        assertEquals(180f, rotationStopAtPosition(99f))
+    }
+
+    @Test
+    fun coverScaleForRotation_isOneWhenUpsideDown() {
+        assertEquals(1f, coverScaleForRotation(400f, 300f, 180f), 1e-4f)
     }
 
     @Test
@@ -56,5 +75,15 @@ class RotateMathTest {
     @Test
     fun coverScaleForRotation_isSymmetricForNegativeAngles() {
         assertEquals(coverScaleForRotation(400f, 300f, 30f), coverScaleForRotation(400f, 300f, -30f))
+    }
+
+    @Test
+    fun sliderAngle_splitsIntoWholeTurnsAndFineRemainder() {
+        assertEquals(0, sliderQuarterTurns(45f)); assertEquals(45f, sliderFineDegrees(45f))
+        assertEquals(0, sliderQuarterTurns(-45f)); assertEquals(-45f, sliderFineDegrees(-45f))
+        assertEquals(1, sliderQuarterTurns(90f)); assertEquals(0f, sliderFineDegrees(90f))
+        assertEquals(-1, sliderQuarterTurns(-90f)); assertEquals(0f, sliderFineDegrees(-90f))
+        assertEquals(2, sliderQuarterTurns(180f)); assertEquals(0f, sliderFineDegrees(180f))
+        assertEquals(-2, sliderQuarterTurns(-180f)); assertEquals(0f, sliderFineDegrees(-180f))
     }
 }

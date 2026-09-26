@@ -3,6 +3,7 @@ package org.example.project.ui.rotate
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,17 +17,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.RotateLeft
-import androidx.compose.material.icons.automirrored.filled.RotateRight
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Flip
+import androidx.compose.material.icons.automirrored.outlined.RotateLeft
+import androidx.compose.material.icons.automirrored.outlined.RotateRight
+import androidx.compose.material.icons.outlined.Flip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,13 +34,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,23 +50,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.min
 import kotlin.math.roundToInt
-import org.example.project.ui.common.AccentPillButton
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
-import org.example.project.ui.common.EditorIconTint
-import org.example.project.ui.common.EditorLabelTint
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_undo
 
 /** The full rotation state — every field participates in undo/redo as one checkpoint each. */
 private data class RotateEdit(
@@ -72,7 +69,13 @@ private data class RotateEdit(
     val quarterTurns: Int = 0,
     val flipHorizontal: Boolean = false,
     val flipVertical: Boolean = false,
-)
+) {
+    /** The buttons' turns plus the slider's whole turns — everything that swaps the frame. */
+    val totalQuarterTurns: Int get() = normalizeQuarterTurns(quarterTurns + sliderQuarterTurns(rotationDegrees))
+
+    /** The slider's sub-90° remainder — the only part drawn as a cover-scaled tilt. */
+    val fineDegrees: Float get() = sliderFineDegrees(rotationDegrees)
+}
 
 @Composable
 fun RotateScreen(
@@ -89,10 +92,10 @@ fun RotateScreen(
                 viewModel.applyRotation(
                     bakeRotate(
                         source = image,
-                        quarterTurns = edit.quarterTurns,
+                        quarterTurns = edit.totalQuarterTurns,
                         flipHorizontal = edit.flipHorizontal,
                         flipVertical = edit.flipVertical,
-                        rotationDegrees = edit.rotationDegrees,
+                        rotationDegrees = edit.fineDegrees,
                     ),
                 )
             }
@@ -133,28 +136,34 @@ private fun RotateContent(
         redoStack = redoStack.dropLast(1)
     }
 
+    val scheme = MaterialTheme.colorScheme
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        RotateTopBar(onBack = onBack, onDone = { onDone(edit) }, doneEnabled = sourceImage != null)
+        ToolTopBar(
+            title = "Rotate",
+            onClose = onBack,
+            onDone = { onDone(edit) },
+            doneEnabled = sourceImage != null,
+        )
 
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(24.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null) {
                 val density = LocalDensity.current
                 val boxWidthPx = with(density) { maxWidth.toPx() }
                 val boxHeightPx = with(density) { maxHeight.toPx() }
-                val turns = normalizeQuarterTurns(edit.quarterTurns)
+                val turns = edit.totalQuarterTurns
                 val swapped = turns == 1 || turns == 3
                 val bitmapWidth = sourceImage.width.toFloat()
                 val bitmapHeight = sourceImage.height.toFloat()
@@ -163,34 +172,45 @@ private fun RotateContent(
                 val fitScale = min(boxWidthPx / footprintWidth, boxHeightPx / footprintHeight)
                 val imageWidthPx = bitmapWidth * fitScale
                 val imageHeightPx = bitmapHeight * fitScale
-                val coverScale = coverScaleForRotation(footprintWidth * fitScale, footprintHeight * fitScale, edit.rotationDegrees)
+                val coverScale = coverScaleForRotation(footprintWidth * fitScale, footprintHeight * fitScale, edit.fineDegrees)
 
                 with(density) {
-                    Image(
-                        bitmap = sourceImage,
-                        contentDescription = "Photo preview",
+                    // The rounded clip belongs to the upright output frame, not the rotated photo:
+                    // the photo is laid out at its own (possibly swapped) size and overflows the
+                    // frame, so the corners stay rounded at every angle, just like the baked result.
+                    Box(
                         modifier = Modifier
-                            .size(imageWidthPx.toDp(), imageHeightPx.toDp())
-                            .graphicsLayer(
-                                rotationZ = turns * 90f + edit.rotationDegrees,
-                                scaleX = (if (edit.flipHorizontal) -1f else 1f) * coverScale,
-                                scaleY = (if (edit.flipVertical) -1f else 1f) * coverScale,
-                            ),
-                    )
+                            .size((footprintWidth * fitScale).toDp(), (footprintHeight * fitScale).toDp())
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            bitmap = sourceImage,
+                            contentDescription = "Photo preview",
+                            modifier = Modifier
+                                .requiredSize(imageWidthPx.toDp(), imageHeightPx.toDp())
+                                .graphicsLayer(
+                                    rotationZ = turns * 90f + edit.fineDegrees,
+                                    scaleX = (if (edit.flipHorizontal) -1f else 1f) * coverScale,
+                                    scaleY = (if (edit.flipVertical) -1f else 1f) * coverScale,
+                                ),
+                        )
+                    }
                 }
             } else {
-                Text(
-                    text = "No image to rotate",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Text(text = "No image to rotate", color = scheme.onSurface)
             }
         }
 
-        RotationControlRow(value = edit.rotationDegrees)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        RotationLabelRow(value = edit.rotationDegrees)
         RotationPointsSlider(
             value = edit.rotationDegrees,
-            onValueChange = { commit(edit.copy(rotationDegrees = nearestRotationStop(it))) },
+            onValueChange = { snapped ->
+                // Every drag event reports a stop; only crossing into a new one is an undo step.
+                if (snapped != edit.rotationDegrees) commit(edit.copy(rotationDegrees = snapped))
+            },
         )
 
         RotateActionRow(
@@ -200,8 +220,6 @@ private fun RotateContent(
             onFlipVertical = { commit(edit.copy(flipVertical = !edit.flipVertical)) },
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         UndoRedoRow(
             undoEnabled = undoStack.isNotEmpty(),
             redoEnabled = redoStack.isNotEmpty(),
@@ -209,86 +227,64 @@ private fun RotateContent(
             onRedo = ::redo,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
-private fun RotateTopBar(onBack: () -> Unit, onDone: () -> Unit, doneEnabled: Boolean) {
+private fun RotationLabelRow(value: Float) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-
-        Text(
-            text = "Rotate",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
-        )
-
-        AccentPillButton(text = "Done", onClick = onDone, enabled = doneEnabled)
-    }
-}
-
-@Composable
-private fun RotationControlRow(value: Float) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = "Rotation",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = EditorLabelTint,
+            color = scheme.onSurface,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = "${value.roundToInt()}°",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = EditorAccent,
+            text = value.roundToInt().toString(),
+            color = scheme.primary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
 
 /**
  * A slider that only ever rests at one of [RotationStops] — dragging or tapping snaps the thumb
- * to whichever stop is nearest, with a small dot marking each stop along the track.
+ * to whichever stop is nearest, with a small dot marking each stop along the track. The dots are
+ * evenly spaced even though the angles between them are not (45° steps near 0, 90° further out).
  */
 @Composable
 private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier) {
-    val range = RotationStops.first()..RotationStops.last()
+    val scheme = MaterialTheme.colorScheme
+    val lastIndex = RotationStops.lastIndex.coerceAtLeast(1).toFloat()
+    // The gesture detectors are keyed on Unit, so read the latest callback through State.
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .padding(horizontal = 20.dp),
+            .height(32.dp)
+            .padding(horizontal = 16.dp),
     ) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
-        val thumbRadiusPx = with(density) { 12.dp.toPx() }
-        val usableWidth = (widthPx - thumbRadiusPx * 2).coerceAtLeast(1f)
+        val thumbHalfWidthPx = with(density) { 13.dp.toPx() }
+        val usableWidth = (widthPx - thumbHalfWidthPx * 2).coerceAtLeast(1f)
 
-        fun valueToX(v: Float): Float =
-            thumbRadiusPx + ((v - range.start) / (range.endInclusive - range.start)) * usableWidth
-
-        fun xToValue(x: Float): Float {
-            val raw = ((x - thumbRadiusPx) / usableWidth) * (range.endInclusive - range.start) + range.start
-            return nearestRotationStop(raw.coerceIn(range.start, range.endInclusive))
+        fun valueToX(v: Float): Float {
+            val index = RotationStops.indexOf(nearestRotationStop(v))
+            return thumbHalfWidthPx + (index / lastIndex) * usableWidth
         }
+
+        fun xToValue(x: Float): Float =
+            rotationStopAtPosition(((x - thumbHalfWidthPx) / usableWidth) * lastIndex)
 
         val thumbX = valueToX(value)
 
@@ -297,34 +293,39 @@ private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, m
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectDragGestures(
-                        onDragStart = { position -> onValueChange(xToValue(position.x)) },
+                        onDragStart = { position -> currentOnValueChange(xToValue(position.x)) },
                         onDrag = { change, _ ->
                             change.consume()
-                            onValueChange(xToValue(change.position.x))
+                            currentOnValueChange(xToValue(change.position.x))
                         },
                     )
                 }
                 .pointerInput(Unit) {
-                    detectTapGestures(onTap = { position -> onValueChange(xToValue(position.x)) })
+                    detectTapGestures(onTap = { position -> currentOnValueChange(xToValue(position.x)) })
                 },
         ) {
             val trackY = size.height / 2f
             drawLine(
-                color = EditorControlBackground,
-                start = Offset(thumbRadiusPx, trackY),
-                end = Offset(widthPx - thumbRadiusPx, trackY),
+                color = scheme.onSurface.copy(alpha = 0.12f),
+                start = Offset(thumbHalfWidthPx, trackY),
+                end = Offset(widthPx - thumbHalfWidthPx, trackY),
                 strokeWidth = 4.dp.toPx(),
                 cap = StrokeCap.Round,
             )
             for (stop in RotationStops) {
-                val stopX = valueToX(stop)
                 drawCircle(
-                    color = if (stop == value) EditorAccent else EditorLabelTint.copy(alpha = 0.5f),
-                    radius = 3.dp.toPx(),
-                    center = Offset(stopX, trackY),
+                    color = scheme.onSurface.copy(alpha = 0.22f),
+                    radius = 4.dp.toPx(),
+                    center = Offset(valueToX(stop), trackY),
                 )
             }
-            drawCircle(color = Color.White, radius = thumbRadiusPx, center = Offset(thumbX, trackY))
+            val thumbHalfHeightPx = 7.dp.toPx()
+            drawRoundRect(
+                color = scheme.primary,
+                topLeft = Offset(thumbX - thumbHalfWidthPx, trackY - thumbHalfHeightPx),
+                size = Size(thumbHalfWidthPx * 2f, thumbHalfHeightPx * 2f),
+                cornerRadius = CornerRadius(thumbHalfHeightPx),
+            )
         }
     }
 }
@@ -339,16 +340,17 @@ private fun RotateActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        RotateActionButton(icon = Icons.AutoMirrored.Filled.RotateLeft, label = "Rotate Left", onClick = onRotateLeft)
-        RotateActionButton(icon = Icons.AutoMirrored.Filled.RotateRight, label = "Rotate Right", onClick = onRotateRight)
-        RotateActionButton(icon = Icons.Filled.Flip, label = "Flip H", onClick = onFlipHorizontal)
-        RotateActionButton(icon = Icons.Filled.Flip, label = "Flip V", onClick = onFlipVertical, rotateIcon90 = true)
+        RotateActionButton(icon = Icons.AutoMirrored.Outlined.RotateLeft, label = "Rotate left", onClick = onRotateLeft)
+        RotateActionButton(icon = Icons.AutoMirrored.Outlined.RotateRight, label = "Rotate right", onClick = onRotateRight)
+        RotateActionButton(icon = Icons.Outlined.Flip, label = "Flip horizontally", onClick = onFlipHorizontal)
+        RotateActionButton(icon = Icons.Outlined.Flip, label = "Flip vertically", onClick = onFlipVertical, rotateIcon90 = true)
     }
 }
 
+/** Outlined square icon button; [label] is only the accessibility description, the design has no caption. */
 @Composable
 private fun RotateActionButton(
     icon: ImageVector,
@@ -356,37 +358,23 @@ private fun RotateActionButton(
     onClick: () -> Unit,
     rotateIcon90: Boolean = false,
 ) {
-    Column(
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(8.dp)
+    Box(
         modifier = Modifier
-            .width(76.dp)
+            .size(36.dp)
+            .clip(shape)
+            .border(width = 1.dp, color = scheme.onSurface.copy(alpha = 0.7f), shape = shape)
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = scheme.onSurface,
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(EditorControlBackground),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = EditorIconTint,
-                modifier = Modifier
-                    .size(22.dp)
-                    .then(if (rotateIcon90) Modifier.rotate(90f) else Modifier),
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            fontSize = 11.sp,
-            color = EditorLabelTint,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+                .size(20.dp)
+                .then(if (rotateIcon90) Modifier.rotate(90f) else Modifier),
         )
     }
 }
@@ -397,9 +385,28 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
     ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
-        Spacer(modifier = Modifier.width(16.dp))
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
+        PlainIconButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
+        Spacer(modifier = Modifier.width(4.dp))
+        PlainIconButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
+    }
+}
+
+@Composable
+private fun PlainIconButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
+    val tint = MaterialTheme.colorScheme.onSurface
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

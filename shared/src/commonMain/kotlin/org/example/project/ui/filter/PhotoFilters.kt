@@ -8,9 +8,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 
 /**
- * A selectable filter. [matrix] is `null` for "no filter" (both [isNoneOption] and the plain
- * "Original" baseline use this — they render identically, [isNoneOption] only changes whether the
- * filmstrip shows an icon or the actual photo thumbnail for it).
+ * A selectable filter. [matrix] is `null` for the "None" option, which the filmstrip shows as an
+ * icon rather than a photo thumbnail.
  */
 internal data class PhotoFilter(
     val label: String,
@@ -57,20 +56,24 @@ private fun fadeMatrix(): FloatArray = saturationMatrix(0.75f).also { m ->
 
 internal val PhotoFilters: List<PhotoFilter> = listOf(
     PhotoFilter("None", matrix = null, isNoneOption = true),
-    PhotoFilter("Original", matrix = null),
-    PhotoFilter("Vivid", saturationMatrix(1.45f)),
-    PhotoFilter("Warm", tintMatrix(1.18f, 1.02f, 0.82f)),
-    PhotoFilter("Cool", tintMatrix(0.85f, 1.0f, 1.2f)),
-    PhotoFilter("B&W", saturationMatrix(0f)),
-    PhotoFilter("Sepia", SepiaMatrix),
-    PhotoFilter("Fade", fadeMatrix()),
+    PhotoFilter("F1", saturationMatrix(1.45f)),
+    PhotoFilter("F2", tintMatrix(1.18f, 1.02f, 0.82f)),
+    PhotoFilter("F3", tintMatrix(0.85f, 1.0f, 1.2f)),
+    PhotoFilter("F4", saturationMatrix(0f)),
+    PhotoFilter("F5", SepiaMatrix),
+    PhotoFilter("F6", fadeMatrix()),
 )
 
-internal fun PhotoFilter.toColorFilter(): ColorFilter? = matrix?.let { ColorFilter.colorMatrix(ColorMatrix(it)) }
+/** The filter's color filter at [intensity] (0..1), or `null` when it would change nothing. */
+internal fun PhotoFilter.toColorFilter(intensity: Float = 1f): ColorFilter? {
+    val matrix = matrix ?: return null
+    if (intensity <= 0f) return null
+    return ColorFilter.colorMatrix(ColorMatrix(blendWithIdentity(matrix, intensity)))
+}
 
 /** Renders [source] through [filter] into a new bitmap, so the effect survives past this screen. */
-internal fun bakeFilter(source: ImageBitmap, filter: PhotoFilter): ImageBitmap {
-    val colorFilter = filter.toColorFilter() ?: return source
+internal fun bakeFilter(source: ImageBitmap, filter: PhotoFilter, intensity: Float): ImageBitmap {
+    val colorFilter = filter.toColorFilter(intensity) ?: return source
     val output = ImageBitmap(source.width, source.height)
     Canvas(output).drawImage(source, Offset.Zero, Paint().apply { this.colorFilter = colorFilter })
     return output

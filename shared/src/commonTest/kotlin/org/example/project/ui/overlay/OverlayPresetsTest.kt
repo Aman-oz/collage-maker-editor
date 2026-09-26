@@ -26,6 +26,18 @@ class OverlayPresetsTest {
     }
 
     @Test
+    fun colorCategory_hasAllTwelvePresets() {
+        val labels = OverlayPresets.filter { it.category == OverlayCategory.Colorful }.map { it.label }
+        assertEquals(
+            listOf(
+                "Rainbow", "Sunset", "Aurora", "Neon", "Candy", "Tropical",
+                "Ocean", "Holo", "Cosmic", "Confetti", "Halftone", "Prism Leak",
+            ),
+            labels,
+        )
+    }
+
+    @Test
     fun hardmixCategory_hasAllFiveRequestedPresets() {
         val labels = OverlayPresets.filter { it.category == OverlayCategory.Hardmix }.map { it.label }
         assertEquals(listOf("Crimson", "Cyan Split", "Amber Cut", "Violet Mix", "Toxic"), labels)
@@ -58,7 +70,7 @@ class OverlayPresetsTest {
     }
 
     @Test
-    fun totalPresetCountMatchesAllFiveCategoriesCombined() {
-        assertEquals(8 + 5 + 4 + 4 + 4, OverlayPresets.size)
+    fun totalPresetCountMatchesAllCategoriesCombined() {
+        assertEquals(8 + 12 + 5 + 4 + 4 + 4, OverlayPresets.size)
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -26,6 +27,9 @@ import androidx.compose.ui.unit.sp
  * scale). The resulting layout is then scaled up geometrically by
  * `source.width / previewCanvasWidthPx` (the ratio between the full-resolution image and its
  * on-screen displayed width), so the baked text matches the preview's proportions exactly.
+ *
+ * [rotationDegrees] turns the text clockwise around its own center, matching the preview's
+ * `graphicsLayer { rotationZ }` (whose default pivot is the text box's center).
  */
 internal fun bakeText(
     source: ImageBitmap,
@@ -36,6 +40,7 @@ internal fun bakeText(
     sizeSp: Float,
     previewCanvasWidthPx: Float,
     offsetFraction: Offset,
+    rotationDegrees: Float = 0f,
 ): ImageBitmap {
     if (content.isBlank() || previewCanvasWidthPx <= 0f) return source
 
@@ -60,8 +65,10 @@ internal fun bakeText(
             x = centerPx.x / scaleFactor - previewLayout.size.width / 2f,
             y = centerPx.y / scaleFactor - previewLayout.size.height / 2f,
         )
-        scale(scaleFactor, scaleFactor, pivot = Offset.Zero) {
-            drawText(previewLayout, topLeft = innerTopLeft)
+        rotate(rotationDegrees, pivot = centerPx) {
+            scale(scaleFactor, scaleFactor, pivot = Offset.Zero) {
+                drawText(previewLayout, topLeft = innerTopLeft)
+            }
         }
     }
 

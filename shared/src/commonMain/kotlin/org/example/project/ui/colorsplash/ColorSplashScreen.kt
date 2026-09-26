@@ -2,6 +2,8 @@ package org.example.project.ui.colorsplash
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,17 +11,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,24 +37,20 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlin.math.min
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
 import org.example.project.ui.common.MaskBrushSizeDefault
 import org.example.project.ui.common.MaskBrushSizeRange
 import org.example.project.ui.common.MaskStroke
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.common.bakeMaskReveal
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
@@ -64,6 +61,10 @@ import org.example.project.ui.common.strokeToPath
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.reveal.RevealEditViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_undo
 
 /**
  * Color Splash (the LAS `SplashFragment` with `isSplashView=true`): the whole photo starts grayscale
@@ -106,152 +107,152 @@ private fun ColorSplashContent(
     val grayImage = remember(sourceImage) { sourceImage?.let { grayscaleBitmap(it) } }
     val colorImage = remember(sourceImage) { sourceImage?.let { copyBitmap(it) } }
 
-    Column(modifier = modifier.fillMaxSize().background(EditorBackground).safeDrawingPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-            Text(
-                text = "Splash",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
-            )
-            AccentPillButton(
-                text = "Done",
-                enabled = sourceImage != null,
-                onClick = { if (grayImage != null && colorImage != null) onDone(grayImage, colorImage, strokes) },
-            )
-        }
+    val scheme = MaterialTheme.colorScheme
 
-        BoxWithConstraints(
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(scheme.surface)
+            .safeDrawingPadding(),
+    ) {
+        ToolTopBar(
+            title = "Splash",
+            onClose = onBack,
+            onDone = { if (grayImage != null && colorImage != null) onDone(grayImage, colorImage, strokes) },
+            doneEnabled = sourceImage != null,
+        )
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null && grayImage != null && colorImage != null) {
-                val density = LocalDensity.current
-                val boxWidthPx = with(density) { maxWidth.toPx() }
-                val boxHeightPx = with(density) { maxHeight.toPx() }
-                val fitScale = min(boxWidthPx / sourceImage.width, boxHeightPx / sourceImage.height)
-                val imageWidthPx = sourceImage.width * fitScale
-                val imageHeightPx = sourceImage.height * fitScale
-                val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
-                val imageSizePx = Size(imageWidthPx, imageHeightPx)
-                val brushRadiusPx = maskBrushRadiusFraction(brushSize) * imageWidthPx
-                val imageCenterPx = imageOffsetPx + Offset(imageWidthPx / 2f, imageHeightPx / 2f)
-
-                fun fractionFor(p: Offset) = Offset(
-                    ((p.x - imageOffsetPx.x) / imageWidthPx).coerceIn(0f, 1f),
-                    ((p.y - imageOffsetPx.y) / imageHeightPx).coerceIn(0f, 1f),
-                )
-
-                Canvas(
+                // aspectRatio sizes the canvas to the photo itself, so the rounded clip follows the
+                // photo's edges and stroke fractions map straight onto the canvas with no letterbox.
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(imageOffsetPx, imageWidthPx, imageHeightPx) {
-                            detectDragGestures(
-                                onDragStart = { position ->
-                                    isDragging = true
-                                    cursorPositionPx = position
-                                    currentStroke = listOf(fractionFor(position))
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                    if (currentStroke.isNotEmpty()) {
-                                        strokes = strokes + MaskStroke(currentStroke, maskBrushRadiusFraction(brushSize))
-                                        redoStack = emptyList()
-                                    }
-                                    currentStroke = emptyList()
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                    currentStroke = emptyList()
-                                },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    cursorPositionPx = change.position
-                                    currentStroke = currentStroke + fractionFor(change.position)
-                                },
-                            )
-                        },
+                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                        .clip(RoundedCornerShape(16.dp)),
                 ) {
-                    val committed = strokes.map { strokeToPath(it, imageOffsetPx, imageSizePx) }
-                    val live = if (currentStroke.isNotEmpty()) {
-                        listOf(buildStrokePath(currentStroke, imageOffsetPx, imageSizePx, brushRadiusPx))
-                    } else {
-                        emptyList()
-                    }
-                    drawMaskReveal(
-                        base = grayImage,
-                        reveal = colorImage,
-                        imageOffset = imageOffsetPx,
-                        imageSize = imageSizePx,
-                        revealPaths = committed + live,
+                    val density = LocalDensity.current
+                    val imageWidthPx = with(density) { maxWidth.toPx() }
+                    val imageHeightPx = with(density) { maxHeight.toPx() }
+                    val imageSizePx = Size(imageWidthPx, imageHeightPx)
+                    val brushRadiusPx = maskBrushRadiusFraction(brushSize) * imageWidthPx
+                    val imageCenterPx = Offset(imageWidthPx / 2f, imageHeightPx / 2f)
+
+                    fun fractionFor(p: Offset) = Offset(
+                        (p.x / imageWidthPx).coerceIn(0f, 1f),
+                        (p.y / imageHeightPx).coerceIn(0f, 1f),
                     )
-                    if (isDragging || isAdjustingBrush) {
-                        drawCircle(
-                            color = Color.White,
-                            radius = brushRadiusPx,
-                            center = if (isDragging) cursorPositionPx else imageCenterPx,
-                            style = Stroke(width = 2.dp.toPx()),
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(imageWidthPx, imageHeightPx) {
+                                detectDragGestures(
+                                    onDragStart = { position ->
+                                        isDragging = true
+                                        cursorPositionPx = position
+                                        currentStroke = listOf(fractionFor(position))
+                                    },
+                                    onDragEnd = {
+                                        isDragging = false
+                                        if (currentStroke.isNotEmpty()) {
+                                            strokes = strokes + MaskStroke(currentStroke, maskBrushRadiusFraction(brushSize))
+                                            redoStack = emptyList()
+                                        }
+                                        currentStroke = emptyList()
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
+                                        currentStroke = emptyList()
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        cursorPositionPx = change.position
+                                        currentStroke = currentStroke + fractionFor(change.position)
+                                    },
+                                )
+                            },
+                    ) {
+                        val committed = strokes.map { strokeToPath(it, Offset.Zero, imageSizePx) }
+                        val live = if (currentStroke.isNotEmpty()) {
+                            listOf(buildStrokePath(currentStroke, Offset.Zero, imageSizePx, brushRadiusPx))
+                        } else {
+                            emptyList()
+                        }
+                        drawMaskReveal(
+                            base = grayImage,
+                            reveal = colorImage,
+                            imageOffset = Offset.Zero,
+                            imageSize = imageSizePx,
+                            revealPaths = committed + live,
                         )
+                        if (isDragging || isAdjustingBrush) {
+                            drawCircle(
+                                color = Color.White,
+                                radius = brushRadiusPx,
+                                center = if (isDragging) cursorPositionPx else imageCenterPx,
+                                style = Stroke(width = 2.dp.toPx()),
+                            )
+                        }
                     }
                 }
             } else {
-                Text("No image to edit", color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        Text(
-            text = "Brush over the photo to bring back its colour",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-        )
+        Spacer(modifier = Modifier.height(28.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            EditorCircleIconButton(
-                icon = Icons.AutoMirrored.Filled.Undo,
+            OutlinedSquareIconButton(
+                icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
                 enabled = strokes.isNotEmpty(),
                 onClick = {
-                    val last = strokes.lastOrNull() ?: return@EditorCircleIconButton
+                    val last = strokes.lastOrNull() ?: return@OutlinedSquareIconButton
                     redoStack = redoStack + last
                     strokes = strokes.dropLast(1)
                 },
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            EditorCircleIconButton(
-                icon = Icons.AutoMirrored.Filled.Redo,
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedSquareIconButton(
+                icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
                 enabled = redoStack.isNotEmpty(),
                 onClick = {
-                    val next = redoStack.lastOrNull() ?: return@EditorCircleIconButton
+                    val next = redoStack.lastOrNull() ?: return@OutlinedSquareIconButton
                     strokes = strokes + next
                     redoStack = redoStack.dropLast(1)
                 },
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Brush Size", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
-            Text("${brushSize.roundToInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EditorAccent)
+            Text(
+                text = "Brush Size",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = scheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "${brushSize.roundToInt()}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = scheme.primary,
+            )
         }
         CenterFillSlider(
             value = brushSize,
@@ -259,9 +260,47 @@ private fun ColorSplashContent(
             range = MaskBrushSizeRange,
             referenceValue = MaskBrushSizeRange.start,
             onDraggingChange = { isAdjustingBrush = it },
+            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+            fillColor = scheme.primary,
+            thumbColor = scheme.primary,
+            thumbWidth = 26.dp,
+            thumbHeight = 14.dp,
+            horizontalPadding = 12.dp,
+            glassThumb = true,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+private val SquareButtonShape = RoundedCornerShape(10.dp)
+
+/** Outlined rounded-square undo/redo button with a faint fill; dims outline and glyph when disabled. */
+@Composable
+private fun OutlinedSquareIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val tint = if (enabled) onSurface else onSurface.copy(alpha = 0.35f)
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(SquareButtonShape)
+            .background(onSurface.copy(alpha = 0.03f))
+            .border(width = 1.dp, color = onSurface.copy(alpha = if (enabled) 0.6f else 0.25f), shape = SquareButtonShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

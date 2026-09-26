@@ -6,6 +6,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to your photo library to pick images for editing and collages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow access to save your edited photos and collages to your photo library.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- The template server is plain HTTP on an IP address; allow cleartext to reach it. -->

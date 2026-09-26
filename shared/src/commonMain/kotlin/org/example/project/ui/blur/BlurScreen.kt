@@ -2,6 +2,8 @@ package org.example.project.ui.blur
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,13 +22,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,27 +41,25 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlin.math.min
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorCircleIconButton
-import org.example.project.ui.common.EditorControlBackground
+import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_undo
 
 /** The blur level and completed erase strokes together form one undo/redo checkpoint. */
 private data class BlurEdit(val blurLevel: Int, val strokes: List<BlurStroke>)
@@ -131,113 +128,117 @@ private fun BlurContent(
         sourceImage?.let { copyBitmap(it) }
     }
 
+    val scheme = MaterialTheme.colorScheme
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        BlurTopBar(
-            onBack = onBack,
+        ToolTopBar(
+            title = "Blur",
+            onClose = onBack,
             onDone = { onDone(edit.blurLevel, edit.strokes) },
             doneEnabled = sourceImage != null,
         )
 
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(EditorCanvasBackground),
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (sourceImage != null && blurredImage != null && sharpImage != null) {
-                val density = LocalDensity.current
-                val boxWidthPx = with(density) { maxWidth.toPx() }
-                val boxHeightPx = with(density) { maxHeight.toPx() }
-                val bitmapWidth = sourceImage.width.toFloat()
-                val bitmapHeight = sourceImage.height.toFloat()
-                val fitScale = min(boxWidthPx / bitmapWidth, boxHeightPx / bitmapHeight)
-                val imageWidthPx = bitmapWidth * fitScale
-                val imageHeightPx = bitmapHeight * fitScale
-                val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
-                val imageSizePx = Size(imageWidthPx, imageHeightPx)
-                val brushRadiusPx = brushRadiusFraction(brushSize) * imageWidthPx
-                val imageCenterPx = imageOffsetPx + Offset(imageWidthPx / 2f, imageHeightPx / 2f)
-
-                fun fractionFor(positionInBox: Offset): Offset = Offset(
-                    ((positionInBox.x - imageOffsetPx.x) / imageWidthPx).coerceIn(0f, 1f),
-                    ((positionInBox.y - imageOffsetPx.y) / imageHeightPx).coerceIn(0f, 1f),
-                )
-
-                Canvas(
+                // aspectRatio sizes the canvas to the photo itself, so the rounded clip follows the
+                // photo's edges and stroke fractions map straight onto the canvas with no letterbox.
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(imageOffsetPx, imageWidthPx, imageHeightPx) {
-                            detectDragGestures(
-                                onDragStart = { position ->
-                                    isDragging = true
-                                    cursorPositionPx = position
-                                    currentStroke = listOf(fractionFor(position))
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                    if (currentStroke.isNotEmpty()) {
-                                        val stroke = BlurStroke(currentStroke, brushRadiusFraction(brushSize))
-                                        commit(edit.copy(strokes = edit.strokes + stroke))
-                                    }
-                                    currentStroke = emptyList()
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                    currentStroke = emptyList()
-                                },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    cursorPositionPx = change.position
-                                    currentStroke = currentStroke + fractionFor(change.position)
-                                },
-                            )
-                        },
+                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                        .clip(RoundedCornerShape(16.dp)),
                 ) {
-                    val committedPaths = edit.strokes.map { stroke -> buildStrokePath(stroke, imageOffsetPx, imageSizePx) }
-                    val livePath = if (currentStroke.isNotEmpty()) {
-                        listOf(buildStrokePath(currentStroke, imageOffsetPx, imageSizePx, brushRadiusPx))
-                    } else {
-                        emptyList()
-                    }
-                    drawBlurWithReveal(
-                        sharpImage = sharpImage,
-                        blurredImage = blurredImage,
-                        imageOffset = imageOffsetPx,
-                        imageSize = imageSizePx,
-                        revealPaths = committedPaths + livePath,
+                    val density = LocalDensity.current
+                    val imageWidthPx = with(density) { maxWidth.toPx() }
+                    val imageHeightPx = with(density) { maxHeight.toPx() }
+                    val imageSizePx = Size(imageWidthPx, imageHeightPx)
+                    val brushRadiusPx = brushRadiusFraction(brushSize) * imageWidthPx
+                    val imageCenterPx = Offset(imageWidthPx / 2f, imageHeightPx / 2f)
+
+                    fun fractionFor(position: Offset): Offset = Offset(
+                        (position.x / imageWidthPx).coerceIn(0f, 1f),
+                        (position.y / imageHeightPx).coerceIn(0f, 1f),
                     )
-                    if (isDragging || isAdjustingBrush) {
-                        drawCircle(
-                            color = Color.White,
-                            radius = brushRadiusPx,
-                            center = if (isDragging) cursorPositionPx else imageCenterPx,
-                            style = Stroke(width = 2.dp.toPx()),
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(imageWidthPx, imageHeightPx) {
+                                detectDragGestures(
+                                    onDragStart = { position ->
+                                        isDragging = true
+                                        cursorPositionPx = position
+                                        currentStroke = listOf(fractionFor(position))
+                                    },
+                                    onDragEnd = {
+                                        isDragging = false
+                                        if (currentStroke.isNotEmpty()) {
+                                            val stroke = BlurStroke(currentStroke, brushRadiusFraction(brushSize))
+                                            commit(edit.copy(strokes = edit.strokes + stroke))
+                                        }
+                                        currentStroke = emptyList()
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
+                                        currentStroke = emptyList()
+                                    },
+                                    onDrag = { change, _ ->
+                                        change.consume()
+                                        cursorPositionPx = change.position
+                                        currentStroke = currentStroke + fractionFor(change.position)
+                                    },
+                                )
+                            },
+                    ) {
+                        val committedPaths = edit.strokes.map { stroke -> buildStrokePath(stroke, Offset.Zero, imageSizePx) }
+                        val livePath = if (currentStroke.isNotEmpty()) {
+                            listOf(buildStrokePath(currentStroke, Offset.Zero, imageSizePx, brushRadiusPx))
+                        } else {
+                            emptyList()
+                        }
+                        drawBlurWithReveal(
+                            sharpImage = sharpImage,
+                            blurredImage = blurredImage,
+                            imageOffset = Offset.Zero,
+                            imageSize = imageSizePx,
+                            revealPaths = committedPaths + livePath,
                         )
+                        if (isDragging || isAdjustingBrush) {
+                            drawCircle(
+                                color = Color.White,
+                                radius = brushRadiusPx,
+                                center = if (isDragging) cursorPositionPx else imageCenterPx,
+                                style = Stroke(width = 2.dp.toPx()),
+                            )
+                        }
                     }
                 }
             } else {
                 Text(
                     text = "No image to blur",
-                    color = Color.White,
+                    color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         BlurLevelStepper(
             value = edit.blurLevel,
             onValueChange = { commit(edit.copy(blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax))) },
         )
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         UndoRedoRow(
             undoEnabled = undoStack.isNotEmpty(),
@@ -246,54 +247,32 @@ private fun BlurContent(
             onRedo = ::redo,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        BrushSizeControlRow(value = brushSize)
+        BrushSizeLabelRow(value = brushSize)
         CenterFillSlider(
             value = brushSize,
             onValueChange = { brushSize = it },
             range = BrushSizeRange,
             referenceValue = BrushSizeRange.start,
             onDraggingChange = { isAdjustingBrush = it },
+            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+            fillColor = scheme.primary,
+            thumbColor = scheme.primary,
+            thumbWidth = 26.dp,
+            thumbHeight = 14.dp,
+            horizontalPadding = 12.dp,
+            glassThumb = true,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
+/** `−  N  +` stepper for the blur level; also used by the s-Blur shape-reveal tool. */
 @Composable
-private fun BlurTopBar(onBack: () -> Unit, onDone: () -> Unit, doneEnabled: Boolean) {
+internal fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
-
-        Text(
-            text = "Blur",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp),
-        )
-
-        AccentPillButton(text = "Done", onClick = onDone, enabled = doneEnabled)
-    }
-}
-
-@Composable
-private fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -304,14 +283,14 @@ private fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit) {
             onClick = { onValueChange(value - 1) },
         )
         Box(
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.width(48.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "$value",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         StepperButton(
@@ -323,6 +302,9 @@ private fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit) {
     }
 }
 
+private val StepperShape = RoundedCornerShape(10.dp)
+
+/** Outlined rounded-square button; dims both outline and glyph when disabled. */
 @Composable
 private fun StepperButton(
     icon: ImageVector,
@@ -330,18 +312,21 @@ private fun StepperButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val tint = if (enabled) onSurface else onSurface.copy(alpha = 0.3f)
+    Box(
         modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(EditorControlBackground),
+            .size(40.dp)
+            .clip(StepperShape)
+            .border(width = 1.dp, color = tint.copy(alpha = if (enabled) 0.7f else 0.3f), shape = StepperShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) Color.White else Color.White.copy(alpha = 0.35f),
+            tint = tint,
+            modifier = Modifier.size(24.dp),
         )
     }
 }
@@ -349,18 +334,20 @@ private fun StepperButton(
 @Composable
 private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -> Unit, onRedo: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
-        EditorCircleIconButton(
-            icon = Icons.AutoMirrored.Filled.Undo,
+        PlainIconButton(
+            icon = vectorResource(Res.drawable.ic_undo),
             contentDescription = "Undo",
             enabled = undoEnabled,
             onClick = onUndo,
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        EditorCircleIconButton(
-            icon = Icons.AutoMirrored.Filled.Redo,
+        Spacer(modifier = Modifier.width(4.dp))
+        PlainIconButton(
+            icon = vectorResource(Res.drawable.ic_redo),
             contentDescription = "Redo",
             enabled = redoEnabled,
             onClick = onRedo,
@@ -369,25 +356,45 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
 }
 
 @Composable
-private fun BrushSizeControlRow(value: Float) {
+private fun PlainIconButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) onSurface else onSurface.copy(alpha = 0.3f),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun BrushSizeLabelRow(value: Float) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = "Brush Size",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = "${value.roundToInt()}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = EditorAccent,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.primary,
         )
     }
 }

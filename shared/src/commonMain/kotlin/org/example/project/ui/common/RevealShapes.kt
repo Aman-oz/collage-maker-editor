@@ -13,10 +13,22 @@ import kotlin.math.sin
  * The reveal shapes for the s-Blur / s-Splash tools — the KMP stand-in for the LAS shape-mask PNGs
  * (`square/mask/mN.png`). Each is built procedurally as a Compose [Path] so no binary mask assets
  * are needed and the same shape renders crisply at any size (preview or full-resolution bake).
+ *
+ * Entries with a [glyph] are letter/digit shapes. Compose exposes no glyph outlines in common code,
+ * so those are not built as a [Path]: they are drawn as text and used as an alpha mask instead.
  */
-enum class RevealShape { Circle, Square, Rounded, Triangle, Diamond, Hexagon, Star, Heart }
+enum class RevealShape(val glyph: String? = null) {
+    Circle, Square, Rounded, Triangle, Diamond, Hexagon, Star, Heart,
+    LetterA("A"), LetterB("B"), LetterC("C"), LetterD("D"), LetterE("E"), LetterF("F"), LetterG("G"),
+    LetterH("H"), LetterJ("J"), LetterK("K"), LetterL("L"), LetterM("M"), LetterS("S"), LetterU("U"),
+    Digit1("1"), Digit2("2"), Digit3("3"), Digit4("4"), Digit5("5"), Digit6("6"), Digit7("7"),
+    Digit8("8"), Digit9("9"),
+}
 
-/** Builds [shape] as a path filling a [size] x [size] box whose top-left is the origin. */
+/**
+ * Builds [shape] as a path filling a [size] x [size] box whose top-left is the origin.
+ * Glyph shapes (see [RevealShape.glyph]) have no path and must be drawn as text by the caller.
+ */
 internal fun buildShapePath(shape: RevealShape, size: Float): Path {
     val p = Path()
     when (shape) {
@@ -46,6 +58,7 @@ internal fun buildShapePath(shape: RevealShape, size: Float): Path {
             p.cubicTo(size * 0.8f, size * 0.08f, size * 0.95f, size * 0.55f, size * 0.5f, size * 0.9f)
             p.close()
         }
+        else -> error("$shape is a glyph shape; draw it as text")
     }
     return p
 }
