@@ -15,9 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.copyBitmap
+import org.example.project.ui.templates.SlotTransform
 
 sealed interface CollageEditorUiState {
     data object Loading : CollageEditorUiState
@@ -44,7 +46,11 @@ class CollageEditorViewModel(
     private val imagePaths: List<String>,
     private val session: ImageEditSession,
     private val catalog: CollageCatalog,
+    private val settings: AppSettings,
 ) : ViewModel() {
+
+    /** Subscribers can apply premium layouts; the screen sends everyone else to the paywall. */
+    val isPremium: StateFlow<Boolean> = settings.isPremium
 
     private val _uiState = MutableStateFlow<CollageEditorUiState>(CollageEditorUiState.Loading)
     val uiState: StateFlow<CollageEditorUiState> = _uiState.asStateFlow()
@@ -107,15 +113,16 @@ class CollageEditorViewModel(
     }
 
     fun applyTemplate(template: TemplateItem) {
-        if (template.isPremium) {
+        if (template.isPremium && !settings.isPremium.value) {
             _messages.tryEmit("“${template.title}” is a premium layout")
             return
         }
         _pickerState.value = _pickerState.value.copy(selectedTemplateId = template.id)
         updateReady { state ->
-            // Keep photos already placed; drop any whose slot no longer exists in the new layout.
+            // Keep photos already placed; drop any whose slot no longer exists in the new layout. The
+            // pan/zoom was framed for the old slot shapes, so every photo starts from the fit again.
             val kept = state.images.filterKeys { it < template.imageCount }
-            state.copy(template = template, images = kept)
+            state.copy(template = template, images = kept, transforms = emptyMap())
         }
     }
 
@@ -126,7 +133,7 @@ class CollageEditorViewModel(
             val images = state.images.toMutableMap()
             if (to != null) images[fromIndex] = to else images.remove(fromIndex)
             if (from != null) images[toIndex] = from else images.remove(toIndex)
-            state.copy(images = images)
+            state.copy(images = images, transforms = state.transforms - fromIndex - toIndex)
         }
     }
 
@@ -134,9 +141,28 @@ class CollageEditorViewModel(
         viewModelScope.launch {
             runCatching { copyBitmap(PlatformFile(path).toImageBitmap()) }
                 .onSuccess { image ->
-                    updateReady { state -> state.copy(images = state.images + (slotIndex to image)) }
+                    // A replaced photo starts from the fit again; the old zoom was framed for another picture.
+                    updateReady { state ->
+                        state.copy(images = state.images + (slotIndex to image), transforms = state.transforms - slotIndex)
+                    }
                 }
                 .onFailure { _messages.tryEmit("Couldn't open that photo") }
+        }
+    }
+
+    /** Applies one pinch/drag step to the photo in [slotIndex], measured in a [slotWidth]x[slotHeight] px slot. */
+    fun transformSlot(slotIndex: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) {
+        updateReady { state ->
+            val image = state.images[slotIndex] ?: return
+            val current = state.transforms[slotIndex] ?: SlotTransform()
+            val next = current.applyCollageGesture(
+                panX, panY, zoom,
+                imageW = image.width.toFloat(),
+                imageH = image.height.toFloat(),
+                slotW = slotWidth,
+                slotH = slotHeight,
+            )
+            state.copy(transforms = state.transforms + (slotIndex to next))
         }
     }
 

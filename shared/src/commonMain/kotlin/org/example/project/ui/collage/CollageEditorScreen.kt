@@ -8,6 +8,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,14 +55,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +79,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.NetworkImage
@@ -154,6 +164,7 @@ fun CollageEditorScreen(
     viewModel: CollageEditorViewModel = koinViewModel { parametersOf(imagePaths) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()
     var pendingSlotIndex by remember { mutableStateOf<Int?>(null) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
@@ -176,8 +187,12 @@ fun CollageEditorScreen(
                 viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)
                 onOpenEditor()
             },
-            onTemplateSelected = viewModel::applyTemplate,
+            // A premium layout opens the paywall unless the user already subscribes.
+            onTemplateSelected = { template ->
+                if (template.isPremium && !isPremium) onPremium() else viewModel.applyTemplate(template)
+            },
             onSwapImages = viewModel::swapImages,
+            onSlotTransform = viewModel::transformSlot,
             onRequestSlotImage = { slotIndex ->
                 pendingSlotIndex = slotIndex
                 slotImagePicker.launch()
@@ -205,6 +220,7 @@ private fun CollageEditorContent(
     onDone: (canvasWidthPx: Float, spacePx: Float, cornerPx: Float) -> Unit,
     onTemplateSelected: (TemplateItem) -> Unit,
     onSwapImages: (Int, Int) -> Unit,
+    onSlotTransform: (index: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) -> Unit,
     onRequestSlotImage: (Int) -> Unit,
     onSpaceChange: (Float) -> Unit,
     onCornerChange: (Float) -> Unit,
@@ -269,7 +285,13 @@ private fun CollageEditorContent(
                             }
                         }
                     },
-                    onSlotLongPress = onRequestSlotImage,
+                    // Double tap replaces the slot's photo; the selection is dropped so a stale one can't
+                    // swap the new photo away on the next tap.
+                    onSlotDoubleTap = { index ->
+                        selectedSlot = null
+                        onRequestSlotImage(index)
+                    },
+                    onSlotTransform = onSlotTransform,
                 )
 
                 is CollageEditorUiState.Error -> Text(
@@ -326,9 +348,16 @@ private fun CollagePreview(
     selectedSlot: Int?,
     onCanvasWidthPxChanged: (Float) -> Unit,
     onSlotTap: (Int) -> Unit,
-    onSlotLongPress: (Int) -> Unit,
+    onSlotDoubleTap: (Int) -> Unit,
+    onSlotTransform: (index: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The pointerInput blocks outlive recompositions, so read the latest values through state.
+    val currentImages by rememberUpdatedState(state.images)
+    val currentOnSlotTap by rememberUpdatedState(onSlotTap)
+    val currentOnSlotDoubleTap by rememberUpdatedState(onSlotDoubleTap)
+    val currentOnSlotTransform by rememberUpdatedState(onSlotTransform)
+
     BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val density = LocalDensity.current
         val (widthPx, heightPx) = fitAspect(
@@ -350,14 +379,22 @@ private fun CollagePreview(
                     .fillMaxSize()
                     .pointerInput(geometries) {
                         detectTapGestures(
-                            onTap = { pos -> hitTestSlot(geometries, pos)?.let { onSlotTap(it.item.index) } },
-                            onLongPress = { pos -> hitTestSlot(geometries, pos)?.let { onSlotLongPress(it.item.index) } },
+                            onTap = { pos -> hitTestSlot(geometries, pos)?.let { currentOnSlotTap(it.item.index) } },
+                            onDoubleTap = { pos -> hitTestSlot(geometries, pos)?.let { currentOnSlotDoubleTap(it.item.index) } },
+                        )
+                    }
+                    .pointerInput(geometries) {
+                        detectSlotTransformGestures(
+                            geometries = geometries,
+                            hasImage = { index -> index in currentImages },
+                            onTransform = { g, pan, zoom -> currentOnSlotTransform(g.item.index, pan.x, pan.y, zoom, g.wPx, g.hPx) },
                         )
                     },
             ) {
                 drawCollage(
                     geometries = geometries,
                     images = state.images,
+                    transforms = state.transforms,
                     background = state.backgroundColor,
                     canvasW = widthPx,
                     canvasH = heightPx,
@@ -386,6 +423,45 @@ private fun CollagePreview(
                 }
             }
         }
+    }
+}
+
+/**
+ * Pinch-to-zoom and drag for the photo in whichever slot the gesture starts on. It is
+ * `detectTransformGestures` with the target slot fixed at the first touch, so a drag that wanders
+ * across a border keeps moving the same photo. Past touch slop it consumes the moves, which cancels
+ * the tap detector — a drag never also selects or swaps. Gestures on empty slots are left alone.
+ */
+private suspend fun PointerInputScope.detectSlotTransformGestures(
+    geometries: List<SlotGeometry>,
+    hasImage: (Int) -> Boolean,
+    onTransform: (slot: SlotGeometry, pan: Offset, zoom: Float) -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val slot = hitTestSlot(geometries, down.position) ?: return@awaitEachGesture
+        if (!hasImage(slot.item.index)) return@awaitEachGesture
+
+        val touchSlop = viewConfiguration.touchSlop
+        var pastTouchSlop = false
+        var zoomSoFar = 1f
+        var panSoFar = Offset.Zero
+        do {
+            val event = awaitPointerEvent()
+            if (event.changes.any { it.isConsumed }) break
+            val zoom = event.calculateZoom()
+            val pan = event.calculatePan()
+            if (!pastTouchSlop) {
+                zoomSoFar *= zoom
+                panSoFar += pan
+                val zoomMotion = abs(1f - zoomSoFar) * event.calculateCentroidSize(useCurrent = false)
+                pastTouchSlop = zoomMotion > touchSlop || panSoFar.getDistance() > touchSlop
+            }
+            if (pastTouchSlop) {
+                if (zoom != 1f || pan != Offset.Zero) onTransform(slot, pan, zoom)
+                event.changes.forEach { if (it.positionChanged()) it.consume() }
+            }
+        } while (event.changes.any { it.pressed })
     }
 }
 
@@ -745,6 +821,7 @@ private fun CollageEditorScreenPreview() {
             onDone = { _, _, _ -> },
             onTemplateSelected = {},
             onSwapImages = { _, _ -> },
+            onSlotTransform = { _, _, _, _, _, _ -> },
             onRequestSlotImage = {},
             onSpaceChange = {},
             onCornerChange = {},

@@ -43,16 +43,19 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +68,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -81,6 +85,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.data.billing.BillingStatus
+import org.example.project.data.billing.SubscriptionPlan
+import org.example.project.data.billing.SubscriptionProduct
+import org.koin.compose.viewmodel.koinViewModel
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.settings.SettingsAccent
 import org.example.project.ui.settings.SettingsLinks
@@ -113,17 +122,25 @@ private val StartPremiumGradient = Brush.horizontalGradient(
 private val PlanShape = RoundedCornerShape(16.dp)
 private val StartButtonShape = RoundedCornerShape(percent = 50)
 
+/**
+ * How each plan is presented. Prices, periods and trials are not here: they come from the store
+ * ([SubscriptionProduct]), localized for the user, so the paywall can never show a price the store
+ * won't charge. [fallbackUnit] only labels the period until the store answers.
+ */
 internal enum class PremiumPlan(
+    val plan: SubscriptionPlan,
     val title: String,
-    val subtitle: String,
-    val price: String,
-    val period: String,
+    val fallbackUnit: String,
     val badge: String? = null,
-    val trial: String? = null,
 ) {
-    Weekly("Weekly", "Then \$4.99/week", "\$4.99", "/week", badge = "Most Popular", trial = "3-Day Free Trial"),
-    Monthly("Monthly", "\$9.99 / month", "\$9.99", "/month"),
-    Annual("Annual", "\$49.99 / year", "\$49.99", "/year", badge = "Best Value"),
+    Weekly(SubscriptionPlan.Weekly, "Weekly", "week", badge = "Most Popular"),
+    Monthly(SubscriptionPlan.Monthly, "Monthly", "month"),
+    Annual(SubscriptionPlan.Yearly, "Annual", "year", badge = "Best Value"),
+    ;
+
+    companion object {
+        fun of(plan: SubscriptionPlan): PremiumPlan = entries.first { it.plan == plan }
+    }
 }
 
 private class PremiumFeature(val icon: ImageVector, val label: String)
@@ -144,7 +161,9 @@ private const val FeaturesPerRow = 4
 fun PremiumScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: PremiumViewModel = koinViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -155,12 +174,22 @@ fun PremiumScreen(
         }
     }
 
-    // Billing is not wired up yet; every purchase action explains itself instead of doing nothing.
+    val currentOnClose by rememberUpdatedState(onClose)
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is PremiumEvent.Message -> showMessage(event.text)
+                PremiumEvent.Unlocked -> currentOnClose()
+            }
+        }
+    }
+
     PremiumContent(
+        uiState = uiState,
         snackbarHostState = snackbarHostState,
         onClose = onClose,
-        onStart = { plan -> showMessage("${plan.title} plan purchase is coming soon") },
-        onRestore = { showMessage("Restore purchase is coming soon") },
+        onStart = { plan -> viewModel.purchase(plan.plan) },
+        onRestore = viewModel::restore,
         onTermsAndPrivacy = {
             val url = SettingsLinks.PrivacyPolicyUrl.ifBlank { SettingsLinks.TermsOfUseUrl }
             if (url.isBlank()) showMessage("Terms & Privacy is coming soon") else uriHandler.openUri(url)
@@ -171,6 +200,7 @@ fun PremiumScreen(
 
 @Composable
 private fun PremiumContent(
+    uiState: PremiumUiState,
     snackbarHostState: SnackbarHostState,
     onClose: () -> Unit,
     onStart: (PremiumPlan) -> Unit,
@@ -181,6 +211,11 @@ private fun PremiumContent(
     // Saved by name: an enum is not saveable on every platform, a String is.
     var selectedName by rememberSaveable { mutableStateOf(PremiumPlan.Weekly.name) }
     val selected = PremiumPlan.valueOf(selectedName)
+    val activePlan = uiState.billing.activePlan?.let(PremiumPlan::of)
+    // A subscriber opens on the plan they already have.
+    LaunchedEffect(activePlan) {
+        if (activePlan != null) selectedName = activePlan.name
+    }
 
     val background = MaterialTheme.colorScheme.background
     // A light background washes the glow out less, so it needs far less of it.
@@ -218,12 +253,23 @@ private fun PremiumContent(
                 PremiumPlan.entries.forEach { plan ->
                     PlanCard(
                         plan = plan,
+                        product = uiState.billing.products[plan.plan],
+                        loading = uiState.billing.status == BillingStatus.Connecting,
+                        isCurrent = plan == activePlan,
                         selected = plan == selected,
                         onSelect = { selectedName = plan.name },
                     )
                 }
             }
             PremiumFooter(
+                startLabel = when {
+                    selected == activePlan -> "Current Plan"
+                    activePlan != null -> "Switch Plan"
+                    uiState.billing.products[selected.plan]?.freeTrial != null -> "Start Free Trial"
+                    else -> "Start Premium"
+                },
+                startEnabled = selected != activePlan,
+                busy = uiState.busy,
                 onStart = { onStart(selected) },
                 onRestore = onRestore,
                 onTermsAndPrivacy = onTermsAndPrivacy,
@@ -394,7 +440,22 @@ private fun FeatureItem(feature: PremiumFeature, modifier: Modifier = Modifier) 
 }
 
 @Composable
-private fun PlanCard(plan: PremiumPlan, selected: Boolean, onSelect: () -> Unit) {
+private fun PlanCard(
+    plan: PremiumPlan,
+    product: SubscriptionProduct?,
+    loading: Boolean,
+    isCurrent: Boolean,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    val trial = product?.freeTrial?.trialLabel
+    val unit = product?.billingPeriod?.unitLabel ?: plan.fallbackUnit
+    val subtitle = when {
+        product == null -> if (loading) "Loading price…" else "Price unavailable"
+        trial != null -> "Then ${product.formattedPrice} / $unit"
+        else -> "${product.formattedPrice} / $unit"
+    }
+    val badge = if (isCurrent) "Current Plan" else plan.badge
     val surface = MaterialTheme.colorScheme.surface
     val borderColor by animateColorAsState(if (selected) PremiumPrimary else PremiumText.copy(alpha = 0.14f))
     val borderWidth by animateDpAsState(if (selected) 2.dp else 1.dp)
@@ -411,8 +472,8 @@ private fun PlanCard(plan: PremiumPlan, selected: Boolean, onSelect: () -> Unit)
                 .fillMaxWidth()
                 .height(
                     when {
-                        plan.trial != null -> 88.dp
-                        plan.badge != null -> 80.dp
+                        trial != null -> 88.dp
+                        badge != null -> 80.dp
                         else -> 72.dp
                     },
                 )
@@ -428,11 +489,11 @@ private fun PlanCard(plan: PremiumPlan, selected: Boolean, onSelect: () -> Unit)
             Column(modifier = Modifier.weight(1f)) {
                 Text(plan.title, color = PremiumText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(3.dp))
-                if (plan.trial != null) {
-                    TrialChip(plan.trial)
+                if (trial != null) {
+                    TrialChip(trial)
                     Spacer(Modifier.height(3.dp))
                 }
-                Text(plan.subtitle, color = PremiumSubtext, fontSize = 12.sp)
+                Text(subtitle, color = PremiumSubtext, fontSize = 12.sp)
             }
             Box(
                 Modifier
@@ -442,15 +503,15 @@ private fun PlanCard(plan: PremiumPlan, selected: Boolean, onSelect: () -> Unit)
                     .background(PremiumDivider),
             )
             // The badge's lower half hangs into the card above the price, so push the price below it.
-            Column(modifier = Modifier.width(90.dp).padding(top = if (plan.badge != null) 14.dp else 0.dp)) {
-                Text(plan.price, color = PremiumText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(plan.period, color = PremiumSubtext, fontSize = 12.sp)
+            Column(modifier = Modifier.width(90.dp).padding(top = if (badge != null) 14.dp else 0.dp)) {
+                Text(product?.formattedPrice ?: "—", color = PremiumText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("/$unit", color = PremiumSubtext, fontSize = 12.sp)
             }
         }
-        if (plan.badge != null) {
+        if (badge != null) {
             PlanBadge(
-                text = plan.badge,
-                showStar = plan == PremiumPlan.Weekly,
+                text = badge,
+                showStar = !isCurrent && plan == PremiumPlan.Weekly,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(end = 12.dp)
@@ -510,26 +571,43 @@ private fun PlanBadge(text: String, showStar: Boolean, modifier: Modifier = Modi
 }
 
 @Composable
-private fun PremiumFooter(onStart: () -> Unit, onRestore: () -> Unit, onTermsAndPrivacy: () -> Unit) {
+private fun PremiumFooter(
+    startLabel: String,
+    startEnabled: Boolean,
+    busy: Boolean,
+    onStart: () -> Unit,
+    onRestore: () -> Unit,
+    onTermsAndPrivacy: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(12.dp))
-        StartPremiumButton(onClick = onStart)
+        StartPremiumButton(label = startLabel, enabled = startEnabled && !busy, busy = busy, onClick = onStart)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = PremiumPrimary, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
             Text("Cancel anytime  •  100% secure payment", color = PremiumSubtext, fontSize = 12.sp)
         }
+        Spacer(Modifier.height(6.dp))
+        // Both stores require auto-renewal terms beside the purchase button.
+        Text(
+            text = "Subscriptions renew automatically unless cancelled at least 24 hours before the end " +
+                "of the current period. Manage or cancel anytime in your store account settings.",
+            color = PremiumSubtext,
+            fontSize = 10.sp,
+            lineHeight = 13.sp,
+            textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(PremiumDivider))
         Row(
             modifier = Modifier.fillMaxWidth().height(44.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FooterLink(Icons.Outlined.Restore, "Restore Purchase", onRestore, Modifier.weight(1f))
+            FooterLink(Icons.Outlined.Restore, "Restore Purchase", { if (!busy) onRestore() }, Modifier.weight(1f))
             Box(Modifier.width(1.dp).height(20.dp).background(PremiumDivider))
             FooterLink(Icons.Outlined.Shield, "Terms & Privacy", onTermsAndPrivacy, Modifier.weight(1f), showChevron = true)
         }
@@ -537,7 +615,7 @@ private fun PremiumFooter(onStart: () -> Unit, onRestore: () -> Unit, onTermsAnd
 }
 
 @Composable
-private fun StartPremiumButton(onClick: () -> Unit) {
+private fun StartPremiumButton(label: String, enabled: Boolean, busy: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -545,13 +623,19 @@ private fun StartPremiumButton(onClick: () -> Unit) {
             .shadow(elevation = 14.dp, shape = StartButtonShape, ambientColor = PremiumPrimary, spotColor = Color(0xFFFFA62B))
             .clip(StartButtonShape)
             .background(StartPremiumGradient)
-            .clickable(role = Role.Button, onClick = onClick),
+            // Dimmed rather than greyed, so the brand gradient stays recognisable.
+            .graphicsLayer { alpha = if (enabled || busy) 1f else 0.55f }
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (busy) {
+            CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(24.dp))
+            return@Row
+        }
         // The gradient ends in pale yellow; a soft shadow keeps the white label readable there.
         Text(
-            text = "Start Premium",
+            text = label,
             style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.3f), Offset(0f, 2f), blurRadius = 6f)),
             color = Color.White,
             fontSize = 18.sp,
@@ -594,6 +678,7 @@ private fun FooterLink(
 private fun PremiumScreenPreview() {
     ThemePreviews {
         PremiumContent(
+            uiState = PremiumUiState(),
             snackbarHostState = remember { SnackbarHostState() },
             onClose = {},
             onStart = {},

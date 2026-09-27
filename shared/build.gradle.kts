@@ -47,6 +47,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             // Ktor engine backing the shared HttpClient on Android.
             implementation(libs.ktor.client.okhttp)
+            // Google Play Billing, behind the shared AppBillingWrapper.
+            implementation(libs.google.billing)
         }
         iosMain.dependencies {
             // Ktor engine backing the shared HttpClient on iOS.
@@ -94,6 +96,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

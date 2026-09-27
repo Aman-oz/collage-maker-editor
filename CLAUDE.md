@@ -89,6 +89,25 @@ is a small in-house URL→`ImageBitmap` memo cache, not an image library. It dec
 `expect fun decodeImageBitmap` because FileKit only decodes files on disk. Compose code uses
 `ui/common/NetworkImage.kt`.
 
+### Billing — `AppBillingWrapper`
+
+`data/billing/` holds the subscriptions. `BillingProductIds` has the three store product IDs
+(`weekly_subscription`, `monthly_subscription`, `yearly_subscription`), which must match Play
+Console and App Store Connect exactly. `AppBillingWrapper` (a Koin singleton with
+`createdAtStart = true`) loads prices, tracks the active plan and runs purchase/restore. It is the
+only thing that writes `AppSettings.isPremium`, and only from a successful store answer, so an
+offline launch keeps the cached state.
+
+The store sits behind `BillingClientAdapter`, bound per platform by `billingPlatformModule()`:
+- Android: `PlayBillingClientAdapter` (Play Billing 9). It needs the foreground Activity to launch
+  a purchase, which its lifecycle tracker only sees if it is created before the first activity
+  resumes. That is why the wrapper is eager.
+- iOS: `StoreKitBillingAdapter` over the Kotlin `StoreKitBridge` interface, which is implemented
+  in Swift on StoreKit 2 (`iosApp/iosApp/StoreKitBridge.swift`) and passed into
+  `MainViewController(storeKitBridge:)`. StoreKit 2 is Swift-only, so that half can't live in Kotlin.
+
+There is no server-side receipt verification yet.
+
 ### DI — Koin
 
 `di/AppModule.kt` declares `coreModule` (Platform, `ImageEditSession`, the HttpClient,

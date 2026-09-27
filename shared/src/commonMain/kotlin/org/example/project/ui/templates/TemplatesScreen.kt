@@ -1,8 +1,5 @@
 package org.example.project.ui.templates
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,11 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,7 +43,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.templateFrameKey
@@ -63,30 +55,25 @@ private val PremiumGold = Color(0xFFFFB300)
 fun TemplatesScreen(
     onBack: () -> Unit,
     onOpenEditor: (TemplateFrame) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TemplatesViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var toastMessage by remember { mutableStateOf<String?>(null) }
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
 
-    Box(modifier = modifier.fillMaxSize()) {
-        TemplatesContent(
-            uiState = uiState,
-            onBack = onBack,
-            onCategorySelected = viewModel::selectCategory,
-            // Premium templates only raise a toast; free ones open the editor with the selection.
-            onFrameClick = { frame ->
-                if (frame.isPremium) toastMessage = "This is a premium template" else onOpenEditor(frame)
-            },
-            onGoPro = { toastMessage = "Go Premium — coming soon" },
-            onRetry = viewModel::retry,
-        )
-        TemplatesToast(
-            message = toastMessage,
-            onDismissed = { toastMessage = null },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
-    }
+    TemplatesContent(
+        uiState = uiState,
+        onBack = onBack,
+        onCategorySelected = viewModel::selectCategory,
+        // A premium template opens the paywall unless the user already subscribes.
+        onFrameClick = { frame ->
+            if (frame.isPremium && !isPremium) onOpenPremium() else onOpenEditor(frame)
+        },
+        onGoPro = onOpenPremium,
+        onRetry = viewModel::retry,
+        modifier = modifier,
+    )
 }
 
 /**
@@ -285,31 +272,6 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
             Icon(Icons.Filled.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.size(6.dp))
             Text("Retry", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-internal fun TemplatesToast(message: String?, onDismissed: () -> Unit, modifier: Modifier = Modifier) {
-    LaunchedEffect(message) {
-        if (message != null) {
-            delay(2200)
-            onDismissed()
-        }
-    }
-    AnimatedVisibility(
-        visible = message != null,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = modifier.padding(bottom = 48.dp, start = 24.dp, end = 24.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(Color.Black.copy(alpha = 0.85f))
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-        ) {
-            Text(message.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
         }
     }
 }

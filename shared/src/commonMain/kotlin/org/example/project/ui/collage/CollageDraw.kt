@@ -17,7 +17,8 @@ import org.example.project.ui.collage.geom.GeometryUtils
 import org.example.project.ui.collage.geom.PhotoItem
 import org.example.project.ui.collage.geom.PointF
 import org.example.project.ui.collage.geom.RectF
-import org.example.project.ui.common.drawImageCropped
+import org.example.project.ui.common.drawImageScaled
+import org.example.project.ui.templates.SlotTransform
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -272,13 +273,14 @@ private fun buildRealClearPath(viewWidth: Float, viewHeight: Float, item: PhotoI
 }
 
 /**
- * Draws the whole collage: [background] fill, then each slot's photo center-cropped and clipped to
- * its polygon. [selectedIndex] (if any) is outlined, and empty slots get a faint fill so the user
+ * Draws the whole collage: [background] fill, then each slot's photo cover-fitted, moved by its
+ * [transforms] entry and clipped to its polygon. [selectedIndex] (if any) is outlined, and empty slots get a faint fill so the user
  * sees where to tap. Shared by the on-screen preview and the final bake.
  */
 internal fun DrawScope.drawCollage(
     geometries: List<SlotGeometry>,
     images: Map<Int, ImageBitmap>,
+    transforms: Map<Int, SlotTransform>,
     background: Color,
     canvasW: Float,
     canvasH: Float,
@@ -292,11 +294,7 @@ internal fun DrawScope.drawCollage(
             clipPath(g.clipPath) {
                 val image = images[g.item.index]
                 if (image != null) {
-                    drawImageCropped(
-                        image = image,
-                        dstOffset = IntOffset.Zero,
-                        dstSize = IntSize(g.wPx.roundToInt().coerceAtLeast(1), g.hPx.roundToInt().coerceAtLeast(1)),
-                    )
+                    drawSlotPhoto(image, transforms[g.item.index] ?: SlotTransform(), g.wPx, g.hPx)
                 } else {
                     drawRect(color = emptySlotColor, size = Size(g.wPx, g.hPx))
                 }
@@ -306,6 +304,24 @@ internal fun DrawScope.drawCollage(
             }
         }
     }
+}
+
+/**
+ * Draws [image] into a slot-local [slotW]x[slotH] box: scaled about the slot center, then shifted by
+ * the (re-clamped) [transform] offsets. Overhang is cut off by the caller's slot clip.
+ */
+private fun DrawScope.drawSlotPhoto(image: ImageBitmap, transform: SlotTransform, slotW: Float, slotH: Float) {
+    val imageW = image.width.toFloat()
+    val imageH = image.height.toFloat()
+    val t = transform.clampedToSlot(imageW, imageH, slotW, slotH)
+    val (drawnW, drawnH) = slotPhotoSize(imageW, imageH, slotW, slotH, t.scale)
+    val left = (slotW - drawnW) / 2f + t.offsetX * slotW
+    val top = (slotH - drawnH) / 2f + t.offsetY * slotH
+    drawImageScaled(
+        image = image,
+        dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+        dstSize = IntSize(drawnW.roundToInt().coerceAtLeast(1), drawnH.roundToInt().coerceAtLeast(1)),
+    )
 }
 
 /** Which slot (topmost first) contains the canvas-space point, or `null`. */

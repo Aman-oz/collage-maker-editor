@@ -180,6 +180,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             TemplatesScreen(
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
+                                onOpenPremium = { backStack.add(Destination.Premium) },
                             )
                         }
                     }
@@ -201,6 +202,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             FramesScreen(
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
+                                onOpenPremium = { backStack.add(Destination.Premium) },
                             )
                         }
                     }
@@ -242,6 +244,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // The baked collage is already in the session; the collage stays underneath so
                             // Back from the editor returns to it for further layout tweaks.
                             onOpenEditor = { backStack.add(Destination.Editor()) },
+                            onPremium = { backStack.add(Destination.Premium) },
                         )
                     }
 

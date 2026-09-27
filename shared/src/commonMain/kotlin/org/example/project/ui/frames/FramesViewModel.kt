@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplatesUiState
 
@@ -15,7 +16,13 @@ import org.example.project.ui.templates.TemplatesUiState
  * the same flow: fetch the categories, auto-load the first one's frames, and reload on selection.
  * It shares [TemplatesUiState] because both screens render through the same content composable.
  */
-class FramesViewModel(private val repository: FramesRepository) : ViewModel() {
+class FramesViewModel(
+    private val repository: FramesRepository,
+    private val settings: AppSettings,
+) : ViewModel() {
+
+    /** Subscribers get premium frames; everyone else is sent to the paywall. */
+    val isPremium: StateFlow<Boolean> = settings.isPremium
 
     private val _uiState = MutableStateFlow(TemplatesUiState())
     val uiState: StateFlow<TemplatesUiState> = _uiState.asStateFlow()

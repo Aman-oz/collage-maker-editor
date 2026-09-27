@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 
 /**
  * Screen state for the Templates browser.
@@ -27,7 +28,13 @@ data class TemplatesUiState(
  * Loads the template catalog exactly like the LAS `TemplatesViewModel`: fetch the categories, then
  * auto-load the first category's templates; selecting another category reloads its templates.
  */
-class TemplatesViewModel(private val repository: TemplatesRepository) : ViewModel() {
+class TemplatesViewModel(
+    private val repository: TemplatesRepository,
+    private val settings: AppSettings,
+) : ViewModel() {
+
+    /** Subscribers get premium templates; everyone else is sent to the paywall. */
+    val isPremium: StateFlow<Boolean> = settings.isPremium
 
     private val _uiState = MutableStateFlow(TemplatesUiState())
     val uiState: StateFlow<TemplatesUiState> = _uiState.asStateFlow()

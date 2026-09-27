@@ -4,6 +4,8 @@ import org.example.project.Platform
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.ProjectsRepository
+import org.example.project.data.billing.AppBillingWrapper
+import org.example.project.data.billing.billingPlatformModule
 import org.example.project.data.createKeyValueStore
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
@@ -25,6 +27,7 @@ import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
 import org.example.project.ui.overlay.OverlayViewModel
+import org.example.project.ui.premium.PremiumViewModel
 import org.example.project.ui.projects.PreviewViewModel
 import org.example.project.ui.projects.ProjectsViewModel
 import org.example.project.ui.ratio.RatioViewModel
@@ -63,6 +66,9 @@ val coreModule: Module = module {
     single { FramesRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
+    // Subscriptions. Created at startup so the entitlement check runs on every launch and, on
+    // Android, so its activity tracker is registered before the first activity resumes.
+    single(createdAtStart = true) { AppBillingWrapper(get(), get()) }
 }
 
 /** ViewModels, scoped to their Navigation 3 entry. */
@@ -74,7 +80,7 @@ val viewModelModule: Module = module {
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get()) }
     // The image paths come from the navigation key, so they are passed in as a runtime parameter.
-    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get()) }
+    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get()) }
     viewModelOf(::AutoViewModel)
     viewModelOf(::CropViewModel)
@@ -98,8 +104,9 @@ val viewModelModule: Module = module {
     viewModelOf(::RevealEditViewModel)
     viewModelOf(::TemplatesViewModel)
     viewModelOf(::FramesViewModel)
+    viewModelOf(::PremiumViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get()) }
 }
 
-val appModules: List<Module> = listOf(coreModule, viewModelModule)
+val appModules: List<Module> = listOf(coreModule, viewModelModule, billingPlatformModule())

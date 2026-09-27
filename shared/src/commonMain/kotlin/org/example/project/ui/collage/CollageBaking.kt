@@ -39,6 +39,7 @@ internal fun bakeCollage(
         drawCollage(
             geometries = geometries,
             images = state.images,
+            transforms = state.transforms,
             background = state.backgroundColor,
             canvasW = size.width,
             canvasH = size.height,
