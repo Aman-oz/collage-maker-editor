@@ -41,6 +41,10 @@ sealed interface Destination : NavKey {
     @Serializable
     data object Settings : Destination
 
+    /** Premium paywall: feature list and plan picker. Opened from [Home], [Settings] and [SaveImage]. */
+    @Serializable
+    data object Premium : Destination
+
     /**
      * In-app photo library picker, gated behind an explicit permission request.
      *
@@ -167,6 +171,15 @@ sealed interface Destination : NavKey {
      */
     @Serializable
     data class ShareImage(val imagePath: String) : Destination
+
+    /**
+     * Full-screen view of a saved project, opened from Home's Projects tab with a shared-element
+     * transition from its grid thumbnail.
+     *
+     * @param imagePath absolute path of the project's JPEG in the app's private files directory.
+     */
+    @Serializable
+    data class Preview(val imagePath: String) : Destination
 
     /** Rotate tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable

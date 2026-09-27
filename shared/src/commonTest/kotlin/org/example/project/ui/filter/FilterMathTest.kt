@@ -41,4 +41,36 @@ class FilterMathTest {
         assertContentEquals(filter, blendWithIdentity(filter, 3f))
         assertContentEquals(identity, blendWithIdentity(filter, -1f))
     }
+
+    @Test
+    fun concatColorMatrices_identityIsNeutral() {
+        assertContentEquals(filter, concatColorMatrices(identity, filter))
+        assertContentEquals(filter, concatColorMatrices(filter, identity))
+    }
+
+    @Test
+    fun concatColorMatrices_appliesFirstThenNext() {
+        val doubleRed = floatArrayOf(
+            2f, 0f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f, 0f,
+            0f, 0f, 1f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        )
+        val addRed = floatArrayOf(
+            1f, 0f, 0f, 0f, 10f,
+            0f, 1f, 0f, 0f, 0f,
+            0f, 0f, 1f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        )
+        // Offset then scale doubles the offset too: 2 * (r + 10).
+        assertContentEquals(
+            floatArrayOf(2f, 0f, 0f, 0f, 20f),
+            concatColorMatrices(addRed, doubleRed).copyOfRange(0, 5),
+        )
+        // Scale then offset leaves it alone: 2r + 10.
+        assertContentEquals(
+            floatArrayOf(2f, 0f, 0f, 0f, 10f),
+            concatColorMatrices(doubleRed, addRed).copyOfRange(0, 5),
+        )
+    }
 }

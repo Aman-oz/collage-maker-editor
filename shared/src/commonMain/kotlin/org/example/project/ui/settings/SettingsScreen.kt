@@ -93,6 +93,7 @@ private enum class SettingsDialog { None, Theme, RateUs }
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenLanguage: () -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
@@ -116,7 +117,7 @@ fun SettingsScreen(
         themeMode = themeMode,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
-        onPremium = { showMessage("Premium is coming soon") },
+        onPremium = onOpenPremium,
         onOpenLanguage = onOpenLanguage,
         onApplyTheme = viewModel::setThemeMode,
         onRate = { rating ->

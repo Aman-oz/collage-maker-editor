@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,9 +55,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.preview.ThemePreviews
+import org.example.project.ui.projects.ProjectsTabContent
+import org.example.project.ui.projects.ProjectsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import photocollagemaker.shared.generated.resources.Res
@@ -70,7 +75,6 @@ import photocollagemaker.shared.generated.resources.ic_pip_icon
 import photocollagemaker.shared.generated.resources.ic_premium_icon
 import photocollagemaker.shared.generated.resources.ic_settings_icon
 import photocollagemaker.shared.generated.resources.ic_template_icon
-import photocollagemaker.shared.generated.resources.img_no_projects
 
 /** Brand purple for the "+" button and the selected tab; matches Splash/Onboarding. */
 internal val HomeAccent = Color(0xFF8B5CF6)
@@ -90,8 +94,13 @@ fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPremium: () -> Unit,
+    onOpenProject: (imagePath: String) -> Unit,
     modifier: Modifier = Modifier,
+    projectsViewModel: ProjectsViewModel = koinViewModel(),
 ) {
+    val projects by projectsViewModel.projects.collectAsStateWithLifecycle()
+    val thumbnails by projectsViewModel.thumbnails.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val openEditor = { onOpenGallery(1, GalleryTarget.Editor) }
@@ -105,6 +114,11 @@ fun HomeScreen(
         onOpenFilters = openEditor,
         onOpenFrames = openEditor,
         onOpenSettings = onOpenSettings,
+        onOpenPremium = onOpenPremium,
+        projects = projects,
+        thumbnails = thumbnails,
+        onRequestThumbnail = projectsViewModel::loadThumbnail,
+        onOpenProject = onOpenProject,
         onComingSoon = { feature ->
             scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -125,6 +139,11 @@ private fun HomeContent(
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPremium: () -> Unit,
+    projects: List<String>?,
+    thumbnails: Map<String, ImageBitmap>,
+    onRequestThumbnail: (path: String) -> Unit,
+    onOpenProject: (path: String) -> Unit,
     onComingSoon: (feature: String) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: HomeTab = HomeTab.Home,
@@ -144,7 +163,7 @@ private fun HomeContent(
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             HomeTopBar(
-                onPremium = { onComingSoon("Premium") },
+                onPremium = onOpenPremium,
                 onSettings = onOpenSettings,
             )
             when (selectedTab) {
@@ -159,7 +178,13 @@ private fun HomeContent(
                     onOpenFrames = onOpenFrames,
                     modifier = Modifier.weight(1f),
                 )
-                HomeTab.Projects -> ProjectsTabContent(modifier = Modifier.weight(1f))
+                HomeTab.Projects -> ProjectsTabContent(
+                    projects = projects,
+                    thumbnails = thumbnails,
+                    onRequestThumbnail = onRequestThumbnail,
+                    onOpenProject = onOpenProject,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
@@ -397,37 +422,6 @@ private fun RowScope.ToolItem(label: String, icon: DrawableResource, onClick: ()
 }
 
 @Composable
-private fun ProjectsTabContent(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 32.dp, end = 32.dp, bottom = 120.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Image(
-            painter = painterResource(Res.drawable.img_no_projects),
-            contentDescription = "No projects yet",
-            modifier = Modifier.size(84.dp),
-        )
-        Text(
-            text = "No projects yet",
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        Text(
-            text = "Your saved collages and edits will show up here.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
-}
-
-@Composable
 private fun HomeContentPreview(initialTab: HomeTab) {
     ThemePreviews {
         HomeContent(
@@ -439,6 +433,11 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenFilters = {},
             onOpenFrames = {},
             onOpenSettings = {},
+            onOpenPremium = {},
+            projects = emptyList(),
+            thumbnails = emptyMap(),
+            onRequestThumbnail = {},
+            onOpenProject = {},
             onComingSoon = {},
             initialTab = initialTab,
         )

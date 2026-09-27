@@ -24,6 +24,19 @@ class AppSettings(private val store: KeyValueStore) {
         _themeMode.value = mode
     }
 
+    private val _isPremium = MutableStateFlow(store.getString(KeyPremium).toBoolean())
+
+    /**
+     * Whether the user has an active premium subscription. Nothing sets this until billing is
+     * wired up; the purchase / restore flow should call [setPremium] with the store's answer.
+     */
+    val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
+
+    fun setPremium(premium: Boolean) {
+        store.putString(KeyPremium, premium.toString())
+        _isPremium.value = premium
+    }
+
     /** Language code picked on the language screen, or `null` if the user never picked one. */
     var languageCode: String?
         get() = store.getString(KeyLanguageCode)
@@ -34,5 +47,6 @@ class AppSettings(private val store: KeyValueStore) {
     private companion object {
         const val KeyThemeMode = "theme_mode"
         const val KeyLanguageCode = "language_code"
+        const val KeyPremium = "is_premium"
     }
 }

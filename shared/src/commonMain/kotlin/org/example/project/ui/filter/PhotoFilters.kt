@@ -54,14 +54,133 @@ private fun fadeMatrix(): FloatArray = saturationMatrix(0.75f).also { m ->
     m[14] += 18f
 }
 
+/** Scales each channel around mid-gray, so `> 1` deepens blacks and whites and `< 1` flattens. */
+private fun contrastMatrix(contrast: Float): FloatArray {
+    val offset = 127.5f * (1f - contrast)
+    return floatArrayOf(
+        contrast, 0f, 0f, 0f, offset,
+        0f, contrast, 0f, 0f, offset,
+        0f, 0f, contrast, 0f, offset,
+        0f, 0f, 0f, 1f, 0f,
+    )
+}
+
+/**
+ * Adds a constant (0..255 scale) to each channel. Used after the other steps to tint the shadows,
+ * since an offset shows most where the channel is otherwise near zero.
+ */
+private fun offsetMatrix(red: Float, green: Float, blue: Float): FloatArray = floatArrayOf(
+    1f, 0f, 0f, 0f, red,
+    0f, 1f, 0f, 0f, green,
+    0f, 0f, 1f, 0f, blue,
+    0f, 0f, 0f, 1f, 0f,
+)
+
 internal val PhotoFilters: List<PhotoFilter> = listOf(
     PhotoFilter("None", matrix = null, isNoneOption = true),
-    PhotoFilter("F1", saturationMatrix(1.45f)),
-    PhotoFilter("F2", tintMatrix(1.18f, 1.02f, 0.82f)),
-    PhotoFilter("F3", tintMatrix(0.85f, 1.0f, 1.2f)),
-    PhotoFilter("F4", saturationMatrix(0f)),
-    PhotoFilter("F5", SepiaMatrix),
-    PhotoFilter("F6", fadeMatrix()),
+    PhotoFilter("Vivid", saturationMatrix(1.45f)),
+    // Warm highlights over teal-lifted shadows, the classic film-grade look.
+    PhotoFilter(
+        "Cinema",
+        concatColorMatrices(
+            contrastMatrix(1.12f),
+            tintMatrix(1.06f, 1.0f, 0.88f),
+            offsetMatrix(-4f, 2f, 14f),
+        ),
+    ),
+    PhotoFilter(
+        "Golden",
+        concatColorMatrices(
+            saturationMatrix(1.1f),
+            tintMatrix(1.12f, 1.04f, 0.86f),
+            offsetMatrix(8f, 4f, -6f),
+        ),
+    ),
+    PhotoFilter(
+        "Blush",
+        concatColorMatrices(
+            saturationMatrix(0.95f),
+            tintMatrix(1.06f, 0.97f, 1.0f),
+            offsetMatrix(14f, 4f, 10f),
+        ),
+    ),
+    PhotoFilter(
+        "Lush",
+        concatColorMatrices(
+            saturationMatrix(1.2f),
+            tintMatrix(0.96f, 1.1f, 0.94f),
+            contrastMatrix(1.05f),
+        ),
+    ),
+    PhotoFilter(
+        "Dusk",
+        concatColorMatrices(
+            tintMatrix(1.04f, 0.9f, 1.12f),
+            contrastMatrix(1.05f),
+            offsetMatrix(8f, 0f, 14f),
+        ),
+    ),
+    PhotoFilter(
+        "Arctic",
+        concatColorMatrices(
+            saturationMatrix(0.7f),
+            tintMatrix(0.92f, 1.0f, 1.1f),
+            offsetMatrix(0f, 6f, 14f),
+        ),
+    ),
+    PhotoFilter("Warm", tintMatrix(1.18f, 1.02f, 0.82f)),
+    PhotoFilter("Cool", tintMatrix(0.85f, 1.0f, 1.2f)),
+    PhotoFilter("Chrome", concatColorMatrices(saturationMatrix(1.2f), contrastMatrix(1.2f))),
+    PhotoFilter(
+        "Lomo",
+        concatColorMatrices(
+            saturationMatrix(1.35f),
+            contrastMatrix(1.3f),
+            tintMatrix(1.05f, 1.02f, 0.9f),
+        ),
+    ),
+    // Contrast below 1 lifts blacks and dims whites on its own, giving the flat matte finish.
+    PhotoFilter("Matte", concatColorMatrices(saturationMatrix(0.85f), contrastMatrix(0.8f))),
+    PhotoFilter(
+        "Retro",
+        concatColorMatrices(
+            saturationMatrix(0.85f),
+            tintMatrix(1.02f, 1.05f, 0.82f),
+            offsetMatrix(16f, 14f, 8f),
+        ),
+    ),
+    PhotoFilter(
+        "Vintage",
+        concatColorMatrices(
+            blendWithIdentity(SepiaMatrix, 0.6f),
+            contrastMatrix(0.9f),
+            offsetMatrix(10f, 6f, 0f),
+        ),
+    ),
+    PhotoFilter("Fade", fadeMatrix()),
+    PhotoFilter("Sepia", SepiaMatrix),
+    PhotoFilter("Mono", saturationMatrix(0f)),
+    PhotoFilter(
+        "Noir",
+        concatColorMatrices(saturationMatrix(0f), contrastMatrix(1.4f), offsetMatrix(-8f, -8f, -8f)),
+    ),
+    // Duotones: collapse to gray first so the tint maps luminance onto a single hue.
+    PhotoFilter(
+        "Bronze",
+        concatColorMatrices(
+            saturationMatrix(0f),
+            tintMatrix(1.12f, 0.96f, 0.78f),
+            contrastMatrix(1.1f),
+        ),
+    ),
+    PhotoFilter(
+        "Cyano",
+        concatColorMatrices(
+            saturationMatrix(0f),
+            tintMatrix(0.55f, 0.8f, 1.15f),
+            offsetMatrix(0f, 10f, 30f),
+        ),
+    ),
 )
 
 /** The filter's color filter at [intensity] (0..1), or `null` when it would change nothing. */

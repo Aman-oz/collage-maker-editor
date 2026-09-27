@@ -19,6 +19,7 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.Onboarding::class, Destination.Onboarding.serializer())
         subclass(Destination.Home::class, Destination.Home.serializer())
         subclass(Destination.Settings::class, Destination.Settings.serializer())
+        subclass(Destination.Premium::class, Destination.Premium.serializer())
         subclass(Destination.Gallery::class, Destination.Gallery.serializer())
         subclass(Destination.Editor::class, Destination.Editor.serializer())
         subclass(Destination.CollageEditor::class, Destination.CollageEditor.serializer())
@@ -43,6 +44,7 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.SaveImage::class, Destination.SaveImage.serializer())
         subclass(Destination.Rotate::class, Destination.Rotate.serializer())
         subclass(Destination.ShareImage::class, Destination.ShareImage.serializer())
+        subclass(Destination.Preview::class, Destination.Preview.serializer())
     }
 }
 

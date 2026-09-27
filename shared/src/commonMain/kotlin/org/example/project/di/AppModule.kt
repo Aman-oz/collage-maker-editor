@@ -3,6 +3,7 @@ package org.example.project.di
 import org.example.project.Platform
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.ProjectsRepository
 import org.example.project.data.createKeyValueStore
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
@@ -22,6 +23,8 @@ import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
 import org.example.project.ui.overlay.OverlayViewModel
+import org.example.project.ui.projects.PreviewViewModel
+import org.example.project.ui.projects.ProjectsViewModel
 import org.example.project.ui.ratio.RatioViewModel
 import org.example.project.ui.reveal.RevealEditViewModel
 import org.example.project.ui.rotate.RotateViewModel
@@ -54,6 +57,8 @@ val coreModule: Module = module {
     single { CollageCatalog() }
     // Fetches the server template catalog (categories + templates) for the Templates screen.
     single { TemplatesRepository(get()) }
+    // The user's saved creations, listed on Home's Projects tab.
+    single { ProjectsRepository() }
 }
 
 /** ViewModels, scoped to their Navigation 3 entry. */
@@ -80,6 +85,9 @@ val viewModelModule: Module = module {
     viewModelOf(::DrawViewModel)
     viewModelOf(::RotateViewModel)
     viewModelOf(::SaveImageViewModel)
+    viewModelOf(::ProjectsViewModel)
+    // The project file path comes from the navigation key, passed in as a runtime parameter.
+    viewModel { (imagePath: String) -> PreviewViewModel(imagePath, get()) }
     // The exported file path comes from the navigation key, passed in as a runtime parameter.
     viewModel { (imagePath: String) -> ShareImageViewModel(imagePath) }
     // Shared by the Splash / s-Blur / s-Splash reveal tools (one scoped instance per destination).

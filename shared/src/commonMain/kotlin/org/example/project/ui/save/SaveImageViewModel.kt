@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.ProjectsRepository
 import kotlin.time.Clock
 
 sealed interface SaveStatus {
@@ -31,7 +33,14 @@ sealed interface SaveStatus {
 private const val JpegQuality = 95
 
 /** Exports the session's finished image to the device photo library, optionally watermarked. */
-class SaveImageViewModel(private val session: ImageEditSession) : ViewModel() {
+class SaveImageViewModel(
+    private val session: ImageEditSession,
+    settings: AppSettings,
+    private val projects: ProjectsRepository,
+) : ViewModel() {
+
+    /** Premium users get no watermark, so the screen offers a single clean save. */
+    val isPremium: StateFlow<Boolean> = settings.isPremium
 
     /** Snapshot of the finished image. The screen is only reachable once this is non-null. */
     val image: ImageBitmap? get() = session.image.value
@@ -52,6 +61,7 @@ class SaveImageViewModel(private val session: ImageEditSession) : ViewModel() {
                 }
                 val filename = "collage_${Clock.System.now().toEpochMilliseconds()}.jpg"
                 FileKit.saveImageToGallery(bytes, filename).getOrThrow()
+                projects.add(bytes, filename)
                 // The gallery copy has no stable path we can share on both platforms, so keep our own.
                 val shareCopy = FileKit.cacheDir / filename
                 shareCopy.write(bytes)

@@ -48,9 +48,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,26 +70,36 @@ private val PremiumAccent = Color(0xFF8B5CF6)
 /** Fill of the "Remove watermark" hint bubble. */
 private val HintGreen = Color(0xFF1E7B3C)
 
+private val HintNotchWidth = 12.dp
+
+/** Space between the hint's notch and the watermark, enough to clear the ✕ badge on its corner. */
+private val HintGap = 8.dp
+
 private val PreviewShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun SaveImageScreen(
     onBack: () -> Unit,
     onSaved: (imagePath: String) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SaveImageViewModel = koinViewModel(),
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val watermark = imageResource(Res.drawable.app_icon)
 
     SaveImageContent(
         image = viewModel.image,
-        watermark = watermark,
+        // Premium images are saved clean, so there is no watermark to preview either.
+        watermark = watermark.takeUnless { isPremium },
+        isPremium = isPremium,
         status = status,
         onBack = onBack,
         onSaveWithWatermark = { viewModel.save(watermark) },
-        // No paywall exists yet, so removing the watermark just saves the clean image.
-        onRemoveWatermark = { viewModel.save(watermark = null) },
+        onSaveClean = { viewModel.save(watermark = null) },
+        // Removing the watermark is a premium feature: free users are sent to the paywall.
+        onRemoveWatermark = onOpenPremium,
         onStatusShown = viewModel::consumeStatus,
         onSaved = onSaved,
         modifier = modifier,
@@ -98,9 +110,11 @@ fun SaveImageScreen(
 private fun SaveImageContent(
     image: ImageBitmap?,
     watermark: ImageBitmap?,
+    isPremium: Boolean,
     status: SaveStatus,
     onBack: () -> Unit,
     onSaveWithWatermark: () -> Unit,
+    onSaveClean: () -> Unit,
     onRemoveWatermark: () -> Unit,
     onStatusShown: () -> Unit,
     onSaved: (imagePath: String) -> Unit,
@@ -140,41 +154,50 @@ private fun SaveImageContent(
                 if (saving) CircularProgressIndicator(color = PremiumAccent)
             }
 
-            RemoveWatermarkHint(
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 12.dp, end = 72.dp),
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onSaveWithWatermark,
-                    enabled = !saving && image != null,
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                ) {
-                    ButtonLabel(text = "Save with\nwatermark", color = MaterialTheme.colorScheme.onSurface)
-                }
+            if (isPremium) {
                 Button(
-                    onClick = onRemoveWatermark,
+                    onClick = onSaveClean,
                     enabled = !saving && image != null,
-                    modifier = Modifier.weight(1f).height(44.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp)
+                        .height(48.dp),
                     shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
                 ) {
-                    Image(
-                        painter = painterResource(Res.drawable.ic_premium_icon),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    ButtonLabel(text = "Remove\nwatermark", color = Color.White)
+                    Text(text = "Save Image", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onSaveWithWatermark,
+                        enabled = !saving && image != null,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) {
+                        ButtonLabel(text = "Save with\nwatermark", color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Button(
+                        onClick = onRemoveWatermark,
+                        enabled = !saving && image != null,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
+                    ) {
+                        Image(
+                            painter = painterResource(Res.drawable.ic_premium_icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        ButtonLabel(text = "Remove\nwatermark", color = Color.White)
+                    }
                 }
             }
         }
@@ -242,7 +265,8 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(corner))
-                        .border(1.5.dp, Color.White, RoundedCornerShape(corner)),
+                        .border(1.5.dp, Color.White, RoundedCornerShape(corner))
+                        .clickable(onClick = onRemoveWatermark),
                     contentScale = ContentScale.Crop,
                 )
                 Box(
@@ -263,23 +287,26 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                     )
                 }
             }
+            // Right-aligned with the watermark and just above it (clear of the ✕ badge), with the
+            // notch shifted so its tip lands on the watermark's center.
+            RemoveWatermarkHint(
+                notchEndPadding = (rect.width.dp - HintNotchWidth) / 2,
+                onClick = onRemoveWatermark,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = maxWidth - rect.right.dp, bottom = maxHeight - rect.top.dp + HintGap),
+            )
         }
     }
 }
 
-/** Green hint bubble whose notch points up toward the watermark. */
+/** Green hint bubble whose notch points down at the watermark below it. Tapping it opens the paywall. */
 @Composable
-private fun RemoveWatermarkHint(modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.End) {
-        Canvas(modifier = Modifier.padding(end = 8.dp).size(width = 12.dp, height = 6.dp)) {
-            val notch = Path().apply {
-                moveTo(0f, size.height)
-                lineTo(size.width / 2f, 0f)
-                lineTo(size.width, size.height)
-                close()
-            }
-            drawPath(notch, HintGreen)
-        }
+private fun RemoveWatermarkHint(notchEndPadding: Dp, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.End,
+    ) {
         Text(
             text = "Remove watermark",
             modifier = Modifier
@@ -289,6 +316,19 @@ private fun RemoveWatermarkHint(modifier: Modifier = Modifier) {
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
         )
+        Canvas(
+            modifier = Modifier
+                .padding(end = notchEndPadding.coerceAtLeast(0.dp))
+                .size(width = HintNotchWidth, height = 6.dp),
+        ) {
+            val notch = Path().apply {
+                moveTo(0f, 0f)
+                lineTo(size.width / 2f, size.height)
+                lineTo(size.width, 0f)
+                close()
+            }
+            drawPath(notch, HintGreen)
+        }
     }
 }
 
@@ -310,9 +350,11 @@ private fun SaveImageContentPreview() {
         SaveImageContent(
             image = ImageBitmap(300, 400),
             watermark = ImageBitmap(64, 64),
+            isPremium = false,
             status = SaveStatus.Idle,
             onBack = {},
             onSaveWithWatermark = {},
+            onSaveClean = {},
             onRemoveWatermark = {},
             onStatusShown = {},
             onSaved = {},
