@@ -13,11 +13,15 @@ sealed interface FreestyleContent {
 }
 
 /**
- * One item freely placed on the freestyle canvas. [offsetFraction] is its center as a 0f..1f
- * fraction of the square canvas; [scale] is a multiplier of its own natural base size (a bitmap's
- * width, a sticker/text's font size — see [FreestyleImageBaseWidthFraction] and friends), so every
+ * One item freely placed on the freestyle canvas. [offsetFraction] is its center as 0f..1f
+ * fractions of the canvas width and height; [scale] is a multiplier of its own natural base size (a
+ * bitmap's width, a sticker/text's font size — see [FreestyleImageBaseWidthFraction] and friends), so every
  * layer resizes consistently whether shown in the on-screen preview or baked at full resolution.
  * Layers later in [FreestyleState.layers] draw on top of earlier ones.
+ *
+ * [borderWidth] (a white frame) and [cornerRadius] only apply to [FreestyleContent.ImageContent]
+ * layers. Both are dp in the on-screen preview and deliberately don't grow with [scale], so a
+ * photo keeps the same frame however large it's pinched.
  */
 data class FreestyleLayer(
     val id: Long,
@@ -25,18 +29,17 @@ data class FreestyleLayer(
     val offsetFraction: Offset = Offset(0.5f, 0.5f),
     val scale: Float = 1f,
     val rotationDegrees: Float = 0f,
+    val borderWidth: Float = FreestyleDefaultBorderWidth,
+    val cornerRadius: Float = FreestyleDefaultCornerRadius,
 )
 
 /** Everything needed to render (and later bake) the freestyle canvas. */
 data class FreestyleState(
     val layers: List<FreestyleLayer> = emptyList(),
-    val backgroundColor: Color = Color(0xFF1C1C1E),
-    val borderWidth: Float = 0f,
-    val borderColor: Color = Color.White,
-    val cornerRadius: Float = 0f,
+    val backgroundColor: Color = FreestyleBackgroundColors[1],
 )
 
-/** An [FreestyleContent.ImageContent] layer's width at [FreestyleLayer.scale] == 1f, as a fraction of the canvas. */
+/** An [FreestyleContent.ImageContent] layer's width at [FreestyleLayer.scale] == 1f, as a fraction of the canvas width. */
 internal const val FreestyleImageBaseWidthFraction = 0.42f
 
 /** An [FreestyleContent.StickerContent] layer's font size at [FreestyleLayer.scale] == 1f. */
@@ -46,34 +49,24 @@ internal const val FreestyleStickerBaseSizeSp = 64f
 internal const val FreestyleTextBaseSizeSp = 40f
 
 internal val FreestyleLayerScaleRange = 0.25f..5f
-internal val FreestyleBorderWidthRange = 0f..30f
-internal val FreestyleCornerRadiusRange = 0f..48f
+internal val FreestyleBorderWidthRange = 0f..16f
+internal val FreestyleCornerRadiusRange = 0f..40f
+internal const val FreestyleDefaultBorderWidth = 3f
+internal const val FreestyleDefaultCornerRadius = 10f
+internal val FreestyleImageBorderColor = Color.White
 
+/**
+ * Background swatches. The Background panel is a two-row horizontal grid that fills column by
+ * column, so the list is ordered as (top, bottom) pairs.
+ */
 internal val FreestyleBackgroundColors = listOf(
-    Color(0xFF1C1C1E),
-    Color.White,
-    Color.Black,
-    Color(0xFFEF4444),
-    Color(0xFFFF8C42),
-    Color(0xFFFFB300),
-    Color(0xFF4CAF50),
-    Color(0xFF14B8A6),
-    Color(0xFF3B82F6),
-    Color(0xFF9333EA),
-    Color(0xFFEC4899),
-)
-
-internal val FreestyleBorderColors = listOf(
-    Color.White,
-    Color.Black,
-    Color(0xFFC0C0C8),
-    Color(0xFF8E8E93),
-    Color(0xFFEF4444),
-    Color(0xFFFF8C42),
-    Color(0xFFFFB300),
-    Color(0xFF4CAF50),
-    Color(0xFF14B8A6),
-    Color(0xFF3B82F6),
-    Color(0xFF9333EA),
-    Color(0xFFEC4899),
+    Color.White, Color(0xFFE5E5EA),
+    Color(0xFF1F2933), Color.Black,
+    Color(0xFF1A8FD1), Color(0xFF136C94),
+    Color(0xFF14204F), Color(0xFF050B4A),
+    Color(0xFFF25565), Color(0xFFCB1F2E),
+    Color(0xFF9747F5), Color(0xFFA35CF0),
+    Color(0xFFF6AE45), Color(0xFFC3BB91),
+    Color(0xFF4CAF50), Color(0xFF14B8A6),
+    Color(0xFFEC4899), Color(0xFFFFB300),
 )

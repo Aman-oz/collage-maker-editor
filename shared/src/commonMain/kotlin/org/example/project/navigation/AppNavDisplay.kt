@@ -225,6 +225,9 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         FreestyleEditorScreen(
                             imagePaths = key.imagePaths,
                             onBack = { backStack.removeLastOrNull() },
+                            // Same as Collage: the baked canvas is in the session, and the freestyle stays
+                            // underneath so Back from the editor returns to it for further tweaks.
+                            onOpenEditor = { backStack.add(Destination.Editor()) },
                         )
                     }
 

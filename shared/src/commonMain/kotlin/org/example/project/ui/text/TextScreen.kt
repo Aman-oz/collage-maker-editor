@@ -544,7 +544,7 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun FontRow(selected: TextFontStyleOption, onSelected: (TextFontStyleOption) -> Unit) {
+internal fun FontRow(selected: TextFontStyleOption, onSelected: (TextFontStyleOption) -> Unit) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -602,7 +602,7 @@ private fun FontChip(option: TextFontStyleOption, selected: Boolean, onClick: ()
 }
 
 @Composable
-private fun ColorRow(selected: Color, onSelected: (Color) -> Unit) {
+internal fun ColorRow(selected: Color, onSelected: (Color) -> Unit) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),

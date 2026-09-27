@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -224,25 +225,36 @@ private fun Modifier.pointerInputPressed(onPressedChange: (Boolean) -> Unit): Mo
         }
     }
 
+/**
+ * Keyed on Unit and reading the latest callbacks through state: keying on the callbacks themselves
+ * restarts the detectors whenever a caller passes a fresh lambda (e.g. one capturing the value being
+ * edited), which cancels the drag mid-gesture and leaves the thumb stuck.
+ */
+@Composable
 private fun Modifier.pointerInputDragAndTap(
     onDrag: (Float) -> Unit,
     onTap: (Float) -> Unit,
     onDraggingChange: (Boolean) -> Unit = {},
-): Modifier = this
-    .pointerInput(onDrag) {
-        detectDragGestures(
-            onDragStart = { pos ->
-                onDraggingChange(true)
-                onDrag(pos.x)
-            },
-            onDragEnd = { onDraggingChange(false) },
-            onDragCancel = { onDraggingChange(false) },
-            onDrag = { change, _ ->
-                change.consume()
-                onDrag(change.position.x)
-            },
-        )
-    }
-    .pointerInput(onTap) {
-        detectTapGestures(onTap = { pos -> onTap(pos.x) })
-    }
+): Modifier {
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnDraggingChange by rememberUpdatedState(onDraggingChange)
+    return this
+        .pointerInput(Unit) {
+            detectDragGestures(
+                onDragStart = { pos ->
+                    currentOnDraggingChange(true)
+                    currentOnDrag(pos.x)
+                },
+                onDragEnd = { currentOnDraggingChange(false) },
+                onDragCancel = { currentOnDraggingChange(false) },
+                onDrag = { change, _ ->
+                    change.consume()
+                    currentOnDrag(change.position.x)
+                },
+            )
+        }
+        .pointerInput(Unit) {
+            detectTapGestures(onTap = { pos -> currentOnTap(pos.x) })
+        }
+}

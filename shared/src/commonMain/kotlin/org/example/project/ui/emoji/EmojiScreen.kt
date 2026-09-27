@@ -368,7 +368,7 @@ private const val EmojiBoxToFontRatio = 1.4f
 private val HandleSize = 24.dp
 private val HandleHang = 10.dp
 
-private const val MaxRecentEmojis = 40
+internal const val MaxRecentEmojis = 40
 
 private val EmojiCategory.icon: ImageVector
     get() = when (this) {
@@ -384,7 +384,7 @@ private val EmojiCategory.icon: ImageVector
 
 /** One icon per category, Recent first; they all fit on a phone width so the row doesn't scroll. */
 @Composable
-private fun EmojiCategoryTabs(selected: EmojiCategory?, onSelected: (EmojiCategory?) -> Unit) {
+internal fun EmojiCategoryTabs(selected: EmojiCategory?, onSelected: (EmojiCategory?) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -429,11 +429,13 @@ private fun EmojiCategoryTab(icon: ImageVector, contentDescription: String, sele
     }
 }
 
+/** Also shown by the freestyle editor's Stickers panel, which passes its own height via [modifier]. */
 @Composable
-private fun EmojiGrid(emojis: List<String>, onEmojiTapped: (String) -> Unit) {
-    val modifier = Modifier
-        .fillMaxWidth()
-        .height(180.dp)
+internal fun EmojiGrid(
+    emojis: List<String>,
+    onEmojiTapped: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth().height(180.dp),
+) {
     if (emojis.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text(
