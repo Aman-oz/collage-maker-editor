@@ -73,6 +73,8 @@ fun TemplatesEditorScreen(
     onBack: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    // The Frames flow reuses this editor under its own name.
+    title: String = "Templates",
     viewModel: TemplatesEditorViewModel = koinViewModel { parametersOf(frame) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -100,6 +102,7 @@ fun TemplatesEditorScreen(
                 .safeDrawingPadding(),
         ) {
             EditorTopBar(
+                title = title,
                 onBack = onBack,
                 onDone = { if (viewModel.applyTemplate()) onDone() },
             )
@@ -303,7 +306,7 @@ private fun FramePlaceholder(frame: TemplateFrame) {
 }
 
 @Composable
-private fun EditorTopBar(onBack: () -> Unit, onDone: () -> Unit) {
+private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -312,7 +315,7 @@ private fun EditorTopBar(onBack: () -> Unit, onDone: () -> Unit) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
         }
         Text(
-            text = "Templates",
+            text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,

@@ -19,6 +19,8 @@ import org.example.project.ui.editor.EditorViewModel
 import org.example.project.ui.emoji.EmojiViewModel
 import org.example.project.ui.filter.FilterViewModel
 import org.example.project.ui.frame.FrameViewModel
+import org.example.project.ui.frames.FramesRepository
+import org.example.project.ui.frames.FramesViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
@@ -57,6 +59,8 @@ val coreModule: Module = module {
     single { CollageCatalog() }
     // Fetches the server template catalog (categories + templates) for the Templates screen.
     single { TemplatesRepository(get()) }
+    // Frames catalog; delegates to the Templates catalog until the Frames data is wired up.
+    single { FramesRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 }
@@ -93,6 +97,7 @@ val viewModelModule: Module = module {
     // Shared by the Splash / s-Blur / s-Splash reveal tools (one scoped instance per destination).
     viewModelOf(::RevealEditViewModel)
     viewModelOf(::TemplatesViewModel)
+    viewModelOf(::FramesViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get()) }
 }

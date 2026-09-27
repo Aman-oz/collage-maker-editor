@@ -93,6 +93,7 @@ private const val FreestyleMaxSelection = 12
 fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     onOpenTemplates: () -> Unit,
+    onOpenFrames: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     onOpenProject: (imagePath: String) -> Unit,
@@ -110,10 +111,10 @@ fun HomeScreen(
         onOpenFreestyle = { onOpenGallery(FreestyleMaxSelection, GalleryTarget.Freestyle) },
         onOpenTemplates = onOpenTemplates,
         onOpenEditor = openEditor,
-        // Filters and Frames are tools inside the photo editor, so they start from a photo pick.
-        // Filters goes one step further and opens the Filter tool over the editor straight away.
+        // Filters is a tool inside the photo editor, so it starts from a photo pick and opens the
+        // Filter tool over the editor straight away.
         onOpenFilters = { onOpenGallery(1, GalleryTarget.EditorFilter) },
-        onOpenFrames = openEditor,
+        onOpenFrames = onOpenFrames,
         onOpenSettings = onOpenSettings,
         onOpenPremium = onOpenPremium,
         projects = projects,

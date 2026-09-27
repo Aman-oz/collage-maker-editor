@@ -30,6 +30,7 @@ import org.example.project.ui.editor.EditorScreen
 import org.example.project.ui.emoji.EmojiScreen
 import org.example.project.ui.filter.FilterScreen
 import org.example.project.ui.frame.FrameScreen
+import org.example.project.ui.frames.FramesScreen
 import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
@@ -144,6 +145,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                     backStack.add(Destination.Gallery(maxSelection, target))
                                 },
                                 onOpenTemplates = { backStack.add(Destination.Templates) },
+                                onOpenFrames = { backStack.add(Destination.Frames) },
                                 onOpenSettings = { backStack.add(Destination.Settings) },
                                 onOpenPremium = { backStack.add(Destination.Premium) },
                                 onOpenProject = { imagePath -> backStack.add(Destination.Preview(imagePath)) },
@@ -189,6 +191,28 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 onBack = { backStack.removeLastOrNull() },
                                 // The baked template is already in the session; the template editor stays
                                 // underneath so Back from the editor returns to it for further tweaks.
+                                onDone = { backStack.add(Destination.Editor()) },
+                            )
+                        }
+                    }
+
+                    entry<Destination.Frames>(metadata = slideUpMetadata()) {
+                        WithNavAnimatedScope {
+                            FramesScreen(
+                                onBack = { backStack.removeLastOrNull() },
+                                onOpenEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
+                            )
+                        }
+                    }
+
+                    entry<Destination.FramesEditor> { key ->
+                        WithNavAnimatedScope {
+                            TemplatesEditorScreen(
+                                frame = key.frame,
+                                title = "Frames",
+                                onBack = { backStack.removeLastOrNull() },
+                                // Same as Templates: the baked frame is in the session and the frame editor
+                                // stays underneath, so Back from the editor returns to it.
                                 onDone = { backStack.add(Destination.Editor()) },
                             )
                         }

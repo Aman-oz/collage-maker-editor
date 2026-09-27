@@ -27,6 +27,8 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.ProEditor::class, Destination.ProEditor.serializer())
         subclass(Destination.Templates::class, Destination.Templates.serializer())
         subclass(Destination.TemplatesEditor::class, Destination.TemplatesEditor.serializer())
+        subclass(Destination.Frames::class, Destination.Frames.serializer())
+        subclass(Destination.FramesEditor::class, Destination.FramesEditor.serializer())
         subclass(Destination.Auto::class, Destination.Auto.serializer())
         subclass(Destination.Crop::class, Destination.Crop.serializer())
         subclass(Destination.Filter::class, Destination.Filter.serializer())

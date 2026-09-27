@@ -89,8 +89,12 @@ fun TemplatesScreen(
     }
 }
 
+/**
+ * The catalog browser: top bar, category pills and the masonry grid. Also rendered by the Frames
+ * screen, which passes its own [title] and [emptyMessage].
+ */
 @Composable
-private fun TemplatesContent(
+internal fun TemplatesContent(
     uiState: TemplatesUiState,
     onBack: () -> Unit,
     onCategorySelected: (TemplateCategory) -> Unit,
@@ -98,6 +102,8 @@ private fun TemplatesContent(
     onGoPro: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "Templates",
+    emptyMessage: String = "No templates in this category",
 ) {
     Column(
         modifier = modifier
@@ -105,7 +111,7 @@ private fun TemplatesContent(
             .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding(),
     ) {
-        TemplatesTopBar(onBack = onBack, onGoPro = onGoPro)
+        TemplatesTopBar(title = title, onBack = onBack, onGoPro = onGoPro)
 
         if (uiState.categories.isNotEmpty()) {
             CategoryRow(
@@ -128,7 +134,7 @@ private fun TemplatesContent(
 
                 uiState.frames.isEmpty() ->
                     Text(
-                        text = "No templates in this category",
+                        text = emptyMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -140,7 +146,7 @@ private fun TemplatesContent(
 }
 
 @Composable
-private fun TemplatesTopBar(onBack: () -> Unit, onGoPro: () -> Unit) {
+private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,7 +161,7 @@ private fun TemplatesTopBar(onBack: () -> Unit, onGoPro: () -> Unit) {
             )
         }
         Text(
-            text = "Templates",
+            text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -284,7 +290,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun TemplatesToast(message: String?, onDismissed: () -> Unit, modifier: Modifier = Modifier) {
+internal fun TemplatesToast(message: String?, onDismissed: () -> Unit, modifier: Modifier = Modifier) {
     LaunchedEffect(message) {
         if (message != null) {
             delay(2200)

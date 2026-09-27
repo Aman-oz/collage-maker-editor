@@ -112,6 +112,14 @@ sealed interface Destination : NavKey {
     @Serializable
     data class TemplatesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
 
+    /** Frames catalog browser; the same UI as [Templates], fed by its own repository. */
+    @Serializable
+    data object Frames : Destination
+
+    /** Editor for a frame picked in [Frames]. Carries the whole frame, like [TemplatesEditor]. */
+    @Serializable
+    data class FramesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
+
     /** Auto-enhance tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable
     data object Auto : Destination
