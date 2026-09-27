@@ -2,6 +2,7 @@ package org.example.project.ui.onboarding
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -33,16 +37,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.alexzhirkevich.compottie.Compottie
+import io.github.alexzhirkevich.compottie.LottieCompositionSpec
+import io.github.alexzhirkevich.compottie.rememberLottieComposition
+import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import kotlinx.coroutines.launch
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
@@ -60,28 +78,49 @@ private val OnboardingAccent = Color(0xFF8B5CF6)
 /**
  * One onboarding page.
  *
+ * @param animation a Lottie JSON under `composeResources/files/`, played in a loop in place of
+ * [image] when set.
+ * @param horizontalPadding the gap between the artwork and the screen edges.
+ * @param scrollable the artwork is taller than the pager: it is laid out at full width and its
+ * natural aspect ratio, and scrolls vertically instead of being scaled down or cropped.
  * @param invertInDark the artwork is dark line art on a transparent background, so it is inverted
  * under a dark theme to stay visible.
  */
 private data class OnboardingPage(
     val image: DrawableResource,
     val title: String,
+    val animation: String? = null,
     val contentScale: ContentScale = ContentScale.Fit,
+    val horizontalPadding: Dp = 2.dp,
+    val scrollable: Boolean = false,
     val invertInDark: Boolean = false,
 )
 
 private val OnboardingPages = listOf(
     OnboardingPage(Res.drawable.ic_onboarding_templates, "590+ Templates"),
-    // The layout grid is taller than the screen; it fills the width and bleeds off top and bottom.
     OnboardingPage(
         Res.drawable.ic_onboarding_collage_1,
         "500+ Layouts",
-        contentScale = ContentScale.Crop,
+        animation = "files/onboarding_layouts.json",
+        horizontalPadding = 8.dp,
+        scrollable = true,
         invertInDark = true,
     ),
-    OnboardingPage(Res.drawable.ic_onboarding_collage_2, "Easily Customizable"),
-    OnboardingPage(Res.drawable.ic_onboarding_freestyle, "Create Memories with Free Style"),
-    OnboardingPage(Res.drawable.ic_onboarding_editor, "Make Stories with Picture Editor!"),
+    OnboardingPage(
+        Res.drawable.ic_onboarding_collage_2,
+        "Easily Customizable",
+        animation = "files/collage_images_animation.json",
+    ),
+    OnboardingPage(
+        Res.drawable.ic_onboarding_freestyle,
+        "Create Memories with Free Style",
+        animation = "files/freestyle_animation.json",
+    ),
+    OnboardingPage(
+        Res.drawable.ic_onboarding_editor,
+        "Make Stories with Picture Editor!",
+        animation = "files/editor_animation.json",
+    ),
 )
 
 /** Inverts RGB and keeps alpha, turning black/grey strokes into white/grey ones. */
@@ -141,13 +180,46 @@ private fun OnboardingContent(
             modifier = Modifier.fillMaxWidth().weight(1f),
         ) { index ->
             val page = OnboardingPages[index]
-            Image(
-                painter = painterResource(page.image),
-                contentDescription = page.title,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                contentScale = page.contentScale,
-                colorFilter = if (page.invertInDark && isDark) InvertColorFilter else null,
-            )
+            val painter = page.animation?.let { rememberLoopingLottiePainter(it) }
+                ?: painterResource(page.image)
+            val imageModifier = if (page.scrollable) {
+                // A Lottie painter has no intrinsic size until its composition has parsed.
+                val size = painter.intrinsicSize
+                Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (size.isSpecified && size.height > 0f) {
+                            Modifier.aspectRatio(size.width / size.height)
+                        } else {
+                            Modifier
+                        },
+                    )
+            } else {
+                Modifier.fillMaxSize()
+            }
+            val scrollState = rememberScrollState()
+            // Hides the fade once the bottom is reached, so the last row isn't left faded out.
+            val fade by animateFloatAsState(if (scrollState.canScrollForward) 1f else 0f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (page.scrollable) {
+                            Modifier.bottomFade(height = 72.dp, strength = fade).verticalScroll(scrollState)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(horizontal = page.horizontalPadding),
+            ) {
+                Image(
+                    painter = painter,
+                    contentDescription = page.title,
+                    modifier = imageModifier,
+                    contentScale = page.contentScale,
+                    colorFilter = if (page.invertInDark && isDark) InvertColorFilter else null,
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -190,6 +262,45 @@ private fun OnboardingContent(
         Spacer(Modifier.height(16.dp))
     }
 }
+
+/**
+ * Loops the Lottie file at [path]. Draws nothing until the composition has parsed, which is a
+ * frame or two, so there is no placeholder.
+ */
+@Composable
+private fun rememberLoopingLottiePainter(path: String): Painter {
+    val composition by rememberLottieComposition(path) {
+        LottieCompositionSpec.JsonString(Res.readBytes(path).decodeToString())
+    }
+    return rememberLottiePainter(composition = composition, iterations = Compottie.IterateForever)
+}
+
+/**
+ * Fades the bottom [height] of the content out to transparent, hinting there is more below.
+ * [strength] 0 draws the content untouched, 1 fades it fully at the bottom edge.
+ *
+ * Masks with [BlendMode.DstIn] rather than painting the background colour over the edge, so it
+ * works on any background; that needs an offscreen layer or it would also punch through whatever
+ * is drawn behind.
+ */
+private fun Modifier.bottomFade(height: Dp, strength: Float): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        if (strength <= 0f) return@drawWithContent
+        val fadeHeight = height.toPx().coerceAtMost(size.height)
+        val top = size.height - fadeHeight
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color.Black, Color.Black.copy(alpha = 1f - strength)),
+                startY = top,
+                endY = size.height,
+            ),
+            topLeft = Offset(0f, top),
+            size = Size(size.width, fadeHeight),
+            blendMode = BlendMode.DstIn,
+        )
+    }
 
 /** Row of dots; the current page's dot is accent-colored and slightly larger. */
 @Composable

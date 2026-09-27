@@ -85,6 +85,9 @@ kotlin {
             // Liquid Glass effect (reusable GlassBottomNav module)
             implementation(libs.liquid)
 
+            // Lottie playback for the onboarding animations
+            implementation(libs.compottie)
+
             implementation(libs.kotlinx.coroutines.core)
 
             // Networking — fetch collage layouts (and their frame/thumbnail images) from the server.
