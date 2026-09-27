@@ -1,7 +1,9 @@
 package org.example.project.di
 
 import org.example.project.Platform
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.createKeyValueStore
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
 import org.example.project.getPlatform
@@ -24,6 +26,7 @@ import org.example.project.ui.ratio.RatioViewModel
 import org.example.project.ui.reveal.RevealEditViewModel
 import org.example.project.ui.rotate.RotateViewModel
 import org.example.project.ui.save.SaveImageViewModel
+import org.example.project.ui.settings.SettingsViewModel
 import org.example.project.ui.share.ShareImageViewModel
 import org.example.project.ui.templates.TemplateFrame
 import org.example.project.ui.templates.TemplatesEditorViewModel
@@ -42,6 +45,8 @@ val coreModule: Module = module {
     // Shared working copy of the photo being edited, so the editor and its tool screens (crop,
     // filter, ...) stay in sync without passing image data through navigation arguments.
     single { ImageEditSession() }
+    // Persisted user preferences (theme, language); App observes the theme from here.
+    single { AppSettings(createKeyValueStore()) }
     // Ktor client + loader for the remote collage layout thumbnails (collages.json preview URLs).
     single { createHttpClient() }
     single { NetworkImageLoader(get()) }
@@ -55,6 +60,7 @@ val coreModule: Module = module {
 val viewModelModule: Module = module {
     viewModelOf(::SplashViewModel)
     viewModelOf(::LanguageViewModel)
+    viewModelOf(::SettingsViewModel)
     viewModelOf(::GalleryViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get()) }

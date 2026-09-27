@@ -38,6 +38,7 @@ import org.example.project.ui.rotate.RotateScreen
 import org.example.project.ui.home.CollageMaxSelection
 import org.example.project.ui.save.SaveImageScreen
 import org.example.project.ui.share.ShareImageScreen
+import org.example.project.ui.settings.SettingsScreen
 import org.example.project.ui.shapereveal.SelectiveBlurScreen
 import org.example.project.ui.shapereveal.SelectiveSplashScreen
 import org.example.project.ui.splash.SplashScreen
@@ -95,17 +96,23 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
             entry<Destination.Splash> {
                 SplashScreen(
                     onGetStarted = {
-                        backStack.add(Destination.Language)
+                        backStack.add(Destination.Language())
                         backStack.remove(Destination.Splash)
                     },
                 )
             }
 
-            entry<Destination.Language> {
+            entry<Destination.Language> { key ->
                 LanguageScreen(
+                    showBack = key.fromSettings,
+                    onBack = { backStack.removeLastOrNull() },
                     onDone = {
-                        backStack.add(Destination.Onboarding)
-                        backStack.remove(Destination.Language)
+                        if (key.fromSettings) {
+                            backStack.removeLastOrNull()
+                        } else {
+                            backStack.add(Destination.Onboarding)
+                            backStack.remove(key)
+                        }
                     },
                 )
             }
@@ -125,6 +132,14 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         backStack.add(Destination.Gallery(maxSelection, target))
                     },
                     onOpenTemplates = { backStack.add(Destination.Templates) },
+                    onOpenSettings = { backStack.add(Destination.Settings) },
+                )
+            }
+
+            entry<Destination.Settings> {
+                SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenLanguage = { backStack.add(Destination.Language(fromSettings = true)) },
                 )
             }
 

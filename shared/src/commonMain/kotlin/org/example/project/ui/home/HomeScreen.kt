@@ -89,6 +89,7 @@ private const val FreestyleMaxSelection = 12
 fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     onOpenTemplates: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -103,6 +104,7 @@ fun HomeScreen(
         // Filters and Frames are tools inside the photo editor, so they start from a photo pick.
         onOpenFilters = openEditor,
         onOpenFrames = openEditor,
+        onOpenSettings = onOpenSettings,
         onComingSoon = { feature ->
             scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -122,6 +124,7 @@ private fun HomeContent(
     onOpenEditor: () -> Unit,
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
+    onOpenSettings: () -> Unit,
     onComingSoon: (feature: String) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: HomeTab = HomeTab.Home,
@@ -142,7 +145,7 @@ private fun HomeContent(
         ) {
             HomeTopBar(
                 onPremium = { onComingSoon("Premium") },
-                onSettings = { onComingSoon("Settings") },
+                onSettings = onOpenSettings,
             )
             when (selectedTab) {
                 HomeTab.Home -> HomeTabContent(
@@ -435,6 +438,7 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenEditor = {},
             onOpenFilters = {},
             onOpenFrames = {},
+            onOpenSettings = {},
             onComingSoon = {},
             initialTab = initialTab,
         )

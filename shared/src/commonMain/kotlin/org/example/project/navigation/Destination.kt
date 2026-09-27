@@ -20,9 +20,14 @@ sealed interface Destination : NavKey {
     @Serializable
     data object Splash : Destination
 
-    /** Language picker shown after [Splash]'s Get started; Done continues to [Onboarding]. */
+    /**
+     * Language picker.
+     *
+     * @param fromSettings `true` when opened from [Settings]: Done (or back) returns there. `false`
+     * for the first-run flow after [Splash]'s Get started, where Done continues to [Onboarding].
+     */
     @Serializable
-    data object Language : Destination
+    data class Language(val fromSettings: Boolean = false) : Destination
 
     /** Feature walkthrough pager shown after [Language]; Continue on the last page (or close) goes to [Home]. */
     @Serializable
@@ -31,6 +36,10 @@ sealed interface Destination : NavKey {
     /** Landing screen with the entry points into the different editors. */
     @Serializable
     data object Home : Destination
+
+    /** App settings: language, theme, rate/share and the about/legal links. Opened from [Home]. */
+    @Serializable
+    data object Settings : Destination
 
     /**
      * In-app photo library picker, gated behind an explicit permission request.

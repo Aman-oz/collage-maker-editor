@@ -25,8 +25,12 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +59,8 @@ private val CardShape = RoundedCornerShape(percent = 50)
 fun LanguageScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    showBack: Boolean = false,
+    onBack: () -> Unit = {},
     viewModel: LanguageViewModel = koinViewModel(),
 ) {
     val selectedCode by viewModel.selectedCode.collectAsStateWithLifecycle()
@@ -63,7 +69,12 @@ fun LanguageScreen(
         languages = viewModel.languages,
         selectedCode = selectedCode,
         onSelect = viewModel::select,
-        onDone = onDone,
+        onDone = {
+            viewModel.save()
+            onDone()
+        },
+        showBack = showBack,
+        onBack = onBack,
         modifier = modifier,
     )
 }
@@ -75,6 +86,8 @@ private fun LanguageContent(
     onSelect: (String) -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    showBack: Boolean = false,
+    onBack: () -> Unit = {},
 ) {
     val background = MaterialTheme.colorScheme.background
 
@@ -95,7 +108,7 @@ private fun LanguageContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "header") {
-                LanguageHeader(onDone = onDone)
+                LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
             }
             items(languages, key = { it.code }) { language ->
                 LanguageRow(
@@ -118,11 +131,20 @@ private fun LanguageContent(
 }
 
 @Composable
-private fun LanguageHeader(onDone: () -> Unit) {
+private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 6.dp, top = 8.dp, bottom = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = if (showBack) 0.dp else 6.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (showBack) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                )
+            }
+        }
         Text(
             text = "Select Language",
             modifier = Modifier.weight(1f),
