@@ -128,9 +128,11 @@ as the source of a scaling draw; copying once through an in-memory canvas fixes 
 
 ### Theming
 
-Two palettes coexist deliberately: `ui/theme/Theme.kt` (`AppTheme`, Material 3 light/dark) for
-splash and home, and the hardcoded dark chrome in `ui/common/EditorPalette.kt`
-(`EditorBackground`, `EditorAccent`, …) for the editor and all tool screens, which are always dark.
+Screens follow `ui/theme/Theme.kt` (`AppTheme`, Material 3 light/dark): tool screens use the
+theme-aware `ToolTopBar`, and the photo/collage/freestyle editors each derive a small private
+`*Chrome` from `MaterialTheme`. The hardcoded dark chrome in `ui/common/EditorPalette.kt`
+(`EditorBackground`, `EditorAccent`, …) is now only used by the always-dark project Preview and
+ProEditor showcase, and as `CenterFillSlider`'s default colors (every tool screen overrides them).
 Shared editor widgets live in `ui/common/EditorControls.kt` and `EditorSlider.kt`.
 
 ### Photo picking — two mechanisms

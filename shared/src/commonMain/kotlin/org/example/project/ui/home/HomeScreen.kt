@@ -223,9 +223,12 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
             )
         }
         IconButton(onClick = onSettings) {
-            Image(
+            // Tinted rather than drawn as-is: the vector's own fill is a fixed dark grey that
+            // disappears on the dark theme.
+            Icon(
                 painter = painterResource(Res.drawable.ic_settings_icon),
                 contentDescription = "Settings",
+                tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(24.dp),
             )
         }

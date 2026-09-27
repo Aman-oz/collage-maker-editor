@@ -426,12 +426,14 @@ private fun GalleryTopBar(
         GlassSegmentedTabs(liquidState = liquidState, selectedTab = selectedTab, onTabSelected = onTabSelected)
         Spacer(modifier = Modifier.weight(1f))
 
-        // Disabled glass until something is picked, then a filled primary button.
+        // Disabled glass until something is picked, then a filled primary button. The fill is a
+        // solid layer over the glass: the glass tint alone renders too faint to read as "enabled".
         GlassCircleButton(
             liquidState = liquidState,
             onClick = onConfirm,
             enabled = canConfirm,
-            tint = if (canConfirm) MaterialTheme.colorScheme.primary else glassTint(),
+            tint = glassTint(),
+            fill = if (canConfirm) MaterialTheme.colorScheme.primary else null,
         ) {
             Icon(
                 Icons.Filled.Check,
@@ -452,12 +454,14 @@ private fun GlassCircleButton(
     onClick: () -> Unit,
     tint: Color,
     enabled: Boolean = true,
+    fill: Color? = null,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .size(CircleButtonSize)
             .galleryGlass(liquidState, CircleShape, tint)
+            .then(if (fill != null) Modifier.background(fill, CircleShape) else Modifier)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -44,13 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.AccentPillButton
-import org.example.project.ui.common.EditorAccent
-import org.example.project.ui.common.EditorBackground
-import org.example.project.ui.common.EditorCanvasBackground
-import org.example.project.ui.common.EditorControlBackground
-import org.example.project.ui.common.EditorIconTint
-import org.example.project.ui.common.EditorLabelTint
-import org.example.project.ui.common.EditorOnAccent
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.DrawableResource
@@ -92,6 +88,36 @@ private enum class EditorTool(val label: String, val icon: DrawableResource) {
     SelectiveSplash("s-Splash", Res.drawable.ic_s_splash_editor),
     Draw("Draw", Res.drawable.ic_draw_editor),
     Frame("Frame", Res.drawable.ic_frame_editor),
+}
+
+/**
+ * Chrome colors for the photo editor. It follows the app's light/dark [MaterialTheme] like the
+ * collage and freestyle editors, instead of the always-dark `EditorPalette` the tool screens use.
+ */
+@Immutable
+private data class EditorChrome(
+    val background: Color,
+    val canvas: Color,
+    val control: Color,
+    val icon: Color,
+    val label: Color,
+    val accent: Color,
+    val onAccent: Color,
+)
+
+@Composable
+private fun editorChrome(): EditorChrome {
+    val scheme = MaterialTheme.colorScheme
+    val isLight = scheme.background.luminance() > 0.5f
+    return EditorChrome(
+        background = scheme.surface,
+        canvas = if (isLight) Color(0xFFE6E6EB) else Color(0xFF1C1C1E),
+        control = if (isLight) Color(0xFFF1F1F4) else Color(0xFF2C2C2E),
+        icon = scheme.onSurface,
+        label = scheme.onSurface.copy(alpha = 0.7f),
+        accent = scheme.primary,
+        onAccent = scheme.onPrimary,
+    )
 }
 
 @Composable
@@ -180,15 +206,17 @@ private fun EditorContent(
     modifier: Modifier = Modifier,
 ) {
     var selectedTool by rememberSaveable { mutableStateOf<EditorTool?>(null) }
+    val chrome = editorChrome()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(EditorBackground)
+            .background(chrome.background)
             .safeDrawingPadding(),
     ) {
         val ready = uiState as? EditorUiState.Ready
         EditorTopBar(
+            chrome = chrome,
             canUndo = ready?.canUndo == true,
             canRedo = ready?.canRedo == true,
             onClose = onClose,
@@ -198,6 +226,7 @@ private fun EditorContent(
         )
 
         EditorCanvas(
+            chrome = chrome,
             uiState = uiState,
             modifier = Modifier
                 .fillMaxWidth()
@@ -206,6 +235,7 @@ private fun EditorContent(
         )
 
         EditorToolbar(
+            chrome = chrome,
             selectedTool = selectedTool,
             onToolSelected = { tool ->
                 when (tool) {
@@ -232,6 +262,7 @@ private fun EditorContent(
 
 @Composable
 private fun EditorTopBar(
+    chrome: EditorChrome,
     canUndo: Boolean,
     canRedo: Boolean,
     onClose: () -> Unit,
@@ -248,13 +279,14 @@ private fun EditorTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TopBarCircleButton(
+            chrome = chrome,
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onClose,
         )
         Text(
             text = "Edit Photo",
-            color = EditorIconTint,
+            color = chrome.icon,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -266,12 +298,14 @@ private fun EditorTopBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TopBarCircleButton(
+                chrome = chrome,
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
                 onClick = onUndo,
                 enabled = canUndo,
             )
             TopBarCircleButton(
+                chrome = chrome,
                 icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
                 onClick = onRedo,
@@ -284,6 +318,7 @@ private fun EditorTopBar(
 
 @Composable
 private fun TopBarCircleButton(
+    chrome: EditorChrome,
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
@@ -293,29 +328,29 @@ private fun TopBarCircleButton(
         modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(EditorControlBackground)
+            .background(chrome.control)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) EditorIconTint else EditorIconTint.copy(alpha = 0.35f),
+            tint = if (enabled) chrome.icon else chrome.icon.copy(alpha = 0.35f),
             modifier = Modifier.size(22.dp),
         )
     }
 }
 
 @Composable
-private fun EditorCanvas(uiState: EditorUiState, modifier: Modifier = Modifier) {
+private fun EditorCanvas(chrome: EditorChrome, uiState: EditorUiState, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(2.dp))
-            .background(EditorCanvasBackground),
+            .background(chrome.canvas),
         contentAlignment = Alignment.Center,
     ) {
         when (uiState) {
-            EditorUiState.Loading -> CircularProgressIndicator(color = EditorAccent)
+            EditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
             is EditorUiState.Ready -> Image(
                 bitmap = uiState.image,
@@ -337,6 +372,7 @@ private fun EditorCanvas(uiState: EditorUiState, modifier: Modifier = Modifier) 
 
 @Composable
 private fun EditorToolbar(
+    chrome: EditorChrome,
     selectedTool: EditorTool?,
     onToolSelected: (EditorTool) -> Unit,
 ) {
@@ -346,6 +382,7 @@ private fun EditorToolbar(
     ) {
         items(EditorTool.entries) { tool ->
             EditorToolItem(
+                chrome = chrome,
                 tool = tool,
                 selected = tool == selectedTool,
                 onClick = { onToolSelected(tool) },
@@ -355,7 +392,7 @@ private fun EditorToolbar(
 }
 
 @Composable
-private fun EditorToolItem(tool: EditorTool, selected: Boolean, onClick: () -> Unit) {
+private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(60.dp)
@@ -366,7 +403,7 @@ private fun EditorToolItem(tool: EditorTool, selected: Boolean, onClick: () -> U
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(if (selected) EditorAccent else EditorControlBackground),
+                .background(if (selected) chrome.accent else chrome.control),
             contentAlignment = Alignment.Center,
         ) {
             // The vectors are 46dp with the glyph inset to a 33dp area, so draw them larger than
@@ -375,7 +412,7 @@ private fun EditorToolItem(tool: EditorTool, selected: Boolean, onClick: () -> U
                 painter = painterResource(tool.icon),
                 contentDescription = tool.label,
                 modifier = Modifier.size(32.dp),
-                tint = if (selected) EditorOnAccent else EditorIconTint,
+                tint = if (selected) chrome.onAccent else chrome.icon,
             )
         }
         Box(modifier = Modifier.height(6.dp))
@@ -383,7 +420,7 @@ private fun EditorToolItem(tool: EditorTool, selected: Boolean, onClick: () -> U
             text = tool.label,
             style = MaterialTheme.typography.labelMedium,
             fontSize = 11.sp,
-            color = if (selected) EditorAccent else EditorLabelTint,
+            color = if (selected) chrome.accent else chrome.label,
             textAlign = TextAlign.Center,
             maxLines = 1,
         )
