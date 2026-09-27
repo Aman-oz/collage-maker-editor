@@ -21,6 +21,8 @@ sealed interface TemplatesEditorUiState {
     data class Ready(
         val frameImage: ImageBitmap,
         val images: Map<Int, ImageBitmap> = emptyMap(),
+        /** Pinch/pan per slot; a slot with no entry shows its photo at the plain center-cropped fit. */
+        val transforms: Map<Int, SlotTransform> = emptyMap(),
     ) : TemplatesEditorUiState
     data class Error(val message: String) : TemplatesEditorUiState
 }
@@ -73,10 +75,23 @@ class TemplatesEditorViewModel(
             runCatching { copyBitmap(PlatformFile(path).toImageBitmap()) }
                 .onSuccess { image ->
                     val ready = _uiState.value as? TemplatesEditorUiState.Ready ?: return@onSuccess
-                    _uiState.value = ready.copy(images = ready.images + (slotIndex to image))
+                    // A replaced photo starts from the fit again; the old zoom was framed for another picture.
+                    _uiState.value = ready.copy(
+                        images = ready.images + (slotIndex to image),
+                        transforms = ready.transforms - slotIndex,
+                    )
                 }
                 .onFailure { _messages.tryEmit("Couldn't open that photo") }
         }
+    }
+
+    /** Applies one pinch/pan step to the photo in [slotIndex], measured in a [slotWidth]x[slotHeight] px slot. */
+    fun transformSlot(slotIndex: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) {
+        val ready = _uiState.value as? TemplatesEditorUiState.Ready ?: return
+        if (slotIndex !in ready.images) return
+        val current = ready.transforms[slotIndex] ?: SlotTransform()
+        val next = current.applyGesture(panX, panY, zoom, slotWidth, slotHeight)
+        _uiState.value = ready.copy(transforms = ready.transforms + (slotIndex to next))
     }
 
     /** Bakes the frame + placed photos into the shared editing session. Returns false if not ready. */
@@ -86,7 +101,7 @@ class TemplatesEditorViewModel(
             _messages.tryEmit("Add at least one photo first")
             return false
         }
-        session.set(bakeTemplate(frame, ready.frameImage, ready.images))
+        session.set(bakeTemplate(frame, ready.frameImage, ready.images, ready.transforms))
         return true
     }
 }

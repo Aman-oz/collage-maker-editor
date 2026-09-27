@@ -5,7 +5,14 @@ import kotlinx.serialization.Serializable
 
 /** Which editor a [Destination.Gallery] pick should be routed to once images are selected. */
 @Serializable
-enum class GalleryTarget { Editor, Collage, Freestyle }
+enum class GalleryTarget {
+    Editor,
+
+    /** The photo editor with the Filter tool opened on top as soon as the image is loaded. */
+    EditorFilter,
+    Collage,
+    Freestyle,
+}
 
 /**
  * Every screen the app can navigate to.
@@ -61,9 +68,11 @@ sealed interface Destination : NavKey {
      * on iOS an absolute file path. Both round-trip through `PlatformFile(path)`. `null` means
      * "edit whatever is already in [org.example.project.data.ImageEditSession]" — used when a
      * collage is baked and handed straight to the editor, since it has no file on disk.
+     * @param openFilter open [Filter] over the editor once the image is loaded (Home's Filters
+     * shortcut). Back/Done from the filter then lands in the editor as usual.
      */
     @Serializable
-    data class Editor(val imagePath: String? = null) : Destination
+    data class Editor(val imagePath: String? = null, val openFilter: Boolean = false) : Destination
 
     /**
      * Collage editor.

@@ -90,7 +90,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
     val backStack = rememberNavBackStack(navSavedStateConfiguration, Destination.Splash)
 
     // One scope around the whole NavDisplay so an element can morph between two entries (the
-    // Projects grid thumbnail into the full-screen Preview).
+    // Projects grid thumbnail into the full-screen Preview, a Templates grid cell into its editor).
     SharedTransitionLayout(modifier = modifier) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavDisplay(
@@ -174,17 +174,24 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     }
 
                     entry<Destination.Templates>(metadata = slideUpMetadata()) {
-                        TemplatesScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
-                        )
+                        WithNavAnimatedScope {
+                            TemplatesScreen(
+                                onBack = { backStack.removeLastOrNull() },
+                                onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
+                            )
+                        }
                     }
 
                     entry<Destination.TemplatesEditor> { key ->
-                        TemplatesEditorScreen(
-                            frame = key.frame,
-                            onBack = { backStack.removeLastOrNull() },
-                        )
+                        WithNavAnimatedScope {
+                            TemplatesEditorScreen(
+                                frame = key.frame,
+                                onBack = { backStack.removeLastOrNull() },
+                                // The baked template is already in the session; the template editor stays
+                                // underneath so Back from the editor returns to it for further tweaks.
+                                onDone = { backStack.add(Destination.Editor()) },
+                            )
+                        }
                     }
 
                     entry<Destination.Gallery>(metadata = slideUpMetadata()) { key ->
@@ -194,6 +201,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             onImagesSelected = { imagePaths ->
                                 when (key.target) {
                                     GalleryTarget.Editor -> backStack.add(Destination.Editor(imagePaths.first()))
+                                    GalleryTarget.EditorFilter ->
+                                        backStack.add(Destination.Editor(imagePaths.first(), openFilter = true))
                                     GalleryTarget.Collage -> backStack.add(Destination.CollageEditor(imagePaths))
                                     GalleryTarget.Freestyle -> backStack.add(Destination.FreestyleEditor(imagePaths))
                                 }
@@ -222,6 +231,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Editor> { key ->
                         EditorScreen(
                             imagePath = key.imagePath,
+                            openFilterOnLoad = key.openFilter,
                             onBack = { backStack.removeLastOrNull() },
                             onDone = { backStack.add(Destination.SaveImage) },
                             onOpenAuto = { backStack.add(Destination.Auto) },

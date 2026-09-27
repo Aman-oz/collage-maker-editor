@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -96,6 +97,7 @@ private enum class EditorTool(val label: String, val icon: DrawableResource) {
 @Composable
 fun EditorScreen(
     imagePath: String?,
+    openFilterOnLoad: Boolean,
     onBack: () -> Unit,
     onDone: () -> Unit,
     onOpenAuto: () -> Unit,
@@ -118,10 +120,22 @@ fun EditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Saveable so returning from the filter (or a config change) doesn't open it a second time.
+    var filterOpened by rememberSaveable { mutableStateOf(false) }
+    val isReady = uiState is EditorUiState.Ready
+    LaunchedEffect(isReady) {
+        if (openFilterOnLoad && isReady && !filterOpened) {
+            filterOpened = true
+            onOpenFilter()
+        }
+    }
+
     EditorContent(
         uiState = uiState,
         onClose = onBack,
         onDone = onDone,
+        onUndo = viewModel::undo,
+        onRedo = viewModel::redo,
         onOpenAuto = onOpenAuto,
         onOpenCrop = onOpenCrop,
         onOpenFilter = onOpenFilter,
@@ -146,6 +160,8 @@ private fun EditorContent(
     uiState: EditorUiState,
     onClose: () -> Unit,
     onDone: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
     onOpenAuto: () -> Unit,
     onOpenCrop: () -> Unit,
     onOpenFilter: () -> Unit,
@@ -171,7 +187,15 @@ private fun EditorContent(
             .background(EditorBackground)
             .safeDrawingPadding(),
     ) {
-        EditorTopBar(onClose = onClose, onDone = onDone)
+        val ready = uiState as? EditorUiState.Ready
+        EditorTopBar(
+            canUndo = ready?.canUndo == true,
+            canRedo = ready?.canRedo == true,
+            onClose = onClose,
+            onUndo = onUndo,
+            onRedo = onRedo,
+            onDone = onDone,
+        )
 
         EditorCanvas(
             uiState = uiState,
@@ -207,7 +231,14 @@ private fun EditorContent(
 }
 
 @Composable
-private fun EditorTopBar(onClose: () -> Unit, onDone: () -> Unit) {
+private fun EditorTopBar(
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onClose: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onDone: () -> Unit,
+) {
     // Same layout as CollageTopBar: fixed-size circle buttons, and a title that takes the leftover
     // width and ellipsizes, so the bar never overflows on narrow screens or large font scales.
     Row(
@@ -237,14 +268,14 @@ private fun EditorTopBar(onClose: () -> Unit, onDone: () -> Unit) {
             TopBarCircleButton(
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
-                onClick = {},
-                enabled = false,
+                onClick = onUndo,
+                enabled = canUndo,
             )
             TopBarCircleButton(
                 icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
-                onClick = {},
-                enabled = false,
+                onClick = onRedo,
+                enabled = canRedo,
             )
             AccentPillButton(text = "Done", onClick = onDone)
         }
@@ -369,6 +400,8 @@ private fun EditorScreenPreview() {
             uiState = EditorUiState.Loading,
             onClose = {},
             onDone = {},
+            onUndo = {},
+            onRedo = {},
             onOpenAuto = {},
             onOpenCrop = {},
             onOpenFilter = {},

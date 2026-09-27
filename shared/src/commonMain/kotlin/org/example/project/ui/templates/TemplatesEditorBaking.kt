@@ -7,6 +7,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -50,15 +52,16 @@ internal fun TemplateFrame.normalizedSlots(frameWidth: Float, frameHeight: Float
 }
 
 /**
- * Bakes the finished template into a bitmap: the decorative [frameImage] fills the canvas, then each
- * slot's photo is center-cropped into its (possibly rotated) rectangle on top — mirroring how
- * `NewFrameEditor` layers photo views over the frame background. Output width is fixed; height
- * follows the frame's aspect ratio.
+ * Bakes the finished template into a bitmap: each slot's photo is center-cropped into its (possibly
+ * rotated) rectangle with the user's [transforms] applied, then the decorative [frameImage] is drawn
+ * over everything so its transparent windows reveal the photos — the same layering the editor
+ * preview shows. Output width is fixed; height follows the frame's aspect ratio.
  */
 internal fun bakeTemplate(
     frame: TemplateFrame,
     frameImage: ImageBitmap,
     images: Map<Int, ImageBitmap>,
+    transforms: Map<Int, SlotTransform> = emptyMap(),
     outputWidth: Int = 1080,
 ): ImageBitmap {
     val aspect = frameImage.width.toFloat() / frameImage.height.toFloat()
@@ -69,27 +72,34 @@ internal fun bakeTemplate(
     val slots = frame.normalizedSlots(frameImage.width.toFloat(), frameImage.height.toFloat())
 
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, size) {
-        drawImageScaled(
-            image = copyBitmap(frameImage),
-            dstOffset = IntOffset.Zero,
-            dstSize = IntSize(outputWidth, outputHeight),
-        )
         for (slot in slots) {
             val image = images[slot.index] ?: continue
             val left = slot.left * outputWidth
             val top = slot.top * outputHeight
             val w = (slot.width * outputWidth).coerceAtLeast(1f)
             val h = (slot.height * outputHeight).coerceAtLeast(1f)
-            rotate(degrees = slot.rotation, pivot = Offset(left + w / 2f, top + h / 2f)) {
+            val transform = transforms[slot.index] ?: SlotTransform()
+            val center = Offset(left + w / 2f, top + h / 2f)
+            rotate(degrees = slot.rotation, pivot = center) {
                 clipRect(left = left, top = top, right = left + w, bottom = top + h) {
-                    drawImageCropped(
-                        image = image,
-                        dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
-                        dstSize = IntSize(w.roundToInt(), h.roundToInt()),
-                    )
+                    // Mirrors the preview's graphicsLayer: scale about the slot center, then translate.
+                    translate(left = transform.offsetX * w, top = transform.offsetY * h) {
+                        scale(scale = transform.scale, pivot = center) {
+                            drawImageCropped(
+                                image = image,
+                                dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                                dstSize = IntSize(w.roundToInt(), h.roundToInt()),
+                            )
+                        }
+                    }
                 }
             }
         }
+        drawImageScaled(
+            image = copyBitmap(frameImage),
+            dstOffset = IntOffset.Zero,
+            dstSize = IntSize(outputWidth, outputHeight),
+        )
     }
     return output
 }

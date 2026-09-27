@@ -34,3 +34,6 @@ fun Modifier.navSharedElement(key: Any): Modifier {
 
 /** Shared-element key for a saved project's image, used by the Projects grid and the preview. */
 fun projectImageKey(path: String): String = "project-image:$path"
+
+/** Shared-element key for a template's frame, used by the Templates grid cell and the Templates editor canvas. */
+fun templateFrameKey(id: String): String = "template-frame:$id"

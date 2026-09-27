@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.navSharedElement
+import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -223,6 +225,8 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(frame.layout.aspectRatio)
+            // Before the clip, so the rounded corners travel with the thumbnail into the editor.
+            .navSharedElement(templateFrameKey(frame.id))
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),

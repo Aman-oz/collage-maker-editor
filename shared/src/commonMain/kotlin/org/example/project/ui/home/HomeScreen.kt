@@ -111,7 +111,8 @@ fun HomeScreen(
         onOpenTemplates = onOpenTemplates,
         onOpenEditor = openEditor,
         // Filters and Frames are tools inside the photo editor, so they start from a photo pick.
-        onOpenFilters = openEditor,
+        // Filters goes one step further and opens the Filter tool over the editor straight away.
+        onOpenFilters = { onOpenGallery(1, GalleryTarget.EditorFilter) },
         onOpenFrames = openEditor,
         onOpenSettings = onOpenSettings,
         onOpenPremium = onOpenPremium,
