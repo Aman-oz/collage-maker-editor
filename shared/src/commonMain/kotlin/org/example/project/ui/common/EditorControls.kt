@@ -49,30 +49,6 @@ internal fun EditorCircleIconButton(
     }
 }
 
-/** Lime-green pill button used for the primary confirm action (Done, Crop, ...). */
-@Composable
-internal fun AccentPillButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = text,
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium,
-        )
-    }
-}
-
 /** Press-and-hold button that reports its pressed state — used to preview the original, unedited photo. */
 @Composable
 internal fun CompareButton(onPressedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {

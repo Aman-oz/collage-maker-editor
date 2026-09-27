@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,10 +23,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Button
@@ -321,12 +324,22 @@ private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) 
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f).padding(start = 8.dp),
         )
-        Button(
-            onClick = onDone,
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        // The filled primary ✓ every other editor uses for Done.
+        Box(
+            modifier = Modifier
+                .padding(end = 8.dp)
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(onClick = onDone),
+            contentAlignment = Alignment.Center,
         ) {
-            Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "Done",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(22.dp),
+            )
         }
     }
 }

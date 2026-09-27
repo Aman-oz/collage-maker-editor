@@ -431,6 +431,7 @@ private fun CollageTopBar(
             contentDescription = "Done",
             onClick = onDone,
             enabled = doneEnabled,
+            primary = true,
         )
     }
 }
@@ -442,19 +443,31 @@ private fun TopBarCircleButton(
     contentDescription: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    // The filled accent style of the ✓, shared with every other screen's done button.
+    primary: Boolean = false,
 ) {
+    val background = when {
+        !primary -> chrome.buttonBackground
+        enabled -> chrome.accent
+        else -> chrome.accent.copy(alpha = 0.35f)
+    }
+    val tint = when {
+        primary -> MaterialTheme.colorScheme.onPrimary
+        enabled -> chrome.content
+        else -> chrome.muted
+    }
     Box(
         modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(chrome.buttonBackground)
+            .background(background)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) chrome.content else chrome.muted,
+            tint = tint,
             modifier = Modifier.size(22.dp),
         )
     }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +47,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.example.project.ui.common.AccentPillButton
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.DrawableResource
@@ -311,7 +311,14 @@ private fun EditorTopBar(
                 onClick = onRedo,
                 enabled = canRedo,
             )
-            AccentPillButton(text = "Done", onClick = onDone)
+            TopBarCircleButton(
+                chrome = chrome,
+                icon = Icons.Filled.Check,
+                contentDescription = "Done",
+                onClick = onDone,
+                background = chrome.accent,
+                tint = chrome.onAccent,
+            )
         }
     }
 }
@@ -323,19 +330,21 @@ private fun TopBarCircleButton(
     contentDescription: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    background: Color = chrome.control,
+    tint: Color = chrome.icon,
 ) {
     Box(
         modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(chrome.control)
+            .background(background)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) chrome.icon else chrome.icon.copy(alpha = 0.35f),
+            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
             modifier = Modifier.size(22.dp),
         )
     }
