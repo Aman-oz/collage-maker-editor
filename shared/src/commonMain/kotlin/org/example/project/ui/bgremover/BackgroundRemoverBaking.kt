@@ -34,6 +34,13 @@ internal sealed interface EraseOp {
      * the photo) is cut away or, with [restore], painted back from the original.
      */
     data class MagicRegion(val mask: ImageBitmap, val restore: Boolean) : EraseOp
+
+    /**
+     * The AI remover's answer: [cutOut] is the server's transparent PNG, and only its alpha is used,
+     * keeping what it kept. Being an op rather than a new source photo means it undoes like any
+     * other step and Recover can still paint the original back where the AI cut too much.
+     */
+    data class AiCutOut(val cutOut: ImageBitmap) : EraseOp
 }
 
 /**
@@ -65,6 +72,7 @@ internal fun DrawScope.drawErasedImage(original: ImageBitmap, ops: List<EraseOp>
             } else {
                 drawImageScaled(op.mask, IntOffset.Zero, dstSize, BlendMode.DstOut)
             }
+            is EraseOp.AiCutOut -> drawImageScaled(op.cutOut, IntOffset.Zero, dstSize, BlendMode.DstIn)
         }
     }
 }

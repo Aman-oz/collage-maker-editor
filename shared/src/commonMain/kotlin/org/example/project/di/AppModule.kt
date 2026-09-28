@@ -4,6 +4,7 @@ import org.example.project.Platform
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.ProjectsRepository
+import org.example.project.data.bgremover.BackgroundRemoverApi
 import org.example.project.data.billing.AppBillingWrapper
 import org.example.project.data.billing.billingPlatformModule
 import org.example.project.data.createKeyValueStore
@@ -61,6 +62,8 @@ val coreModule: Module = module {
     // Ktor client + loader for the remote collage layout thumbnails (collages.json preview URLs).
     single { createHttpClient() }
     single { NetworkImageLoader(get()) }
+    // The AI background remover's upload/download client (endpoint from local.properties).
+    single { BackgroundRemoverApi(get()) }
     // Loads the bundled collages.json layout catalog.
     single { CollageCatalog() }
     // Fetches the server template catalog (categories + templates) for the Templates screen.
@@ -98,7 +101,7 @@ val viewModelModule: Module = module {
     viewModelOf(::DrawViewModel)
     viewModelOf(::RotateViewModel)
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
-    viewModelOf(::BackgroundRemoverEditorViewModel)
+    viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }
     viewModelOf(::SetBackgroundViewModel)
     viewModelOf(::SaveImageViewModel)
     viewModelOf(::ProjectsViewModel)

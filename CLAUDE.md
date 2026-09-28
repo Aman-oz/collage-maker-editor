@@ -96,6 +96,14 @@ flattens it all (export is JPEG). The text/sticker layers are the freestyle edit
 `ui/freestyle/FreestyleLayers.kt` (canvas, selection handles, keyboard text bar, Text/Stickers
 panels) and `FreestyleLayerOps.kt` (pure layer edits) are internal and shared by both screens.
 
+Ai Magic (premium) is server-side, ported from the LAS app: `data/bgremover/BackgroundRemoverApi`
+uploads the cropped photo as multipart `file` to `<base>/bg-remover/remove`, downloads the returned
+`image_url` PNG, and the eraser pushes it as an undoable `EraseOp.AiCutOut` (its alpha masks the
+photo, so Recover still works). The endpoint and key are read from `local.properties`
+(`BG_REMOVER_BASE_URL`, `BG_REMOVER_API_KEY_HEADER`, `BG_REMOVER_API_KEY`) by the
+`:shared:generateBgRemoverConfig` task into a generated `BgRemoverConfig` object — the KMP stand-in
+for `BuildConfig`. Without them the app builds and Ai Magic reports "not set up".
+
 ### Networking
 
 `data/network/`: one shared Ktor `HttpClient` (`createHttpClient`, which names no engine: OkHttp

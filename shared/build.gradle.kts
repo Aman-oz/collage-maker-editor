@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,6 +7,53 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+}
+
+/**
+ * Generates `BgRemoverConfig` (the AI background remover's endpoint and API key) from
+ * `local.properties`, the multiplatform stand-in for Android's `BuildConfig`: the key stays out of
+ * version control and one generated file serves both Android and iOS. Missing keys generate empty
+ * strings, which the app reports as "not configured" instead of failing the build.
+ */
+abstract class GenerateBgRemoverConfig : DefaultTask() {
+    @get:Input abstract val baseUrl: Property<String>
+    @get:Input abstract val apiKeyHeader: Property<String>
+    @get:Input abstract val apiKey: Property<String>
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        fun literal(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
+        val file = outputDir.file("org/example/project/data/bgremover/BgRemoverConfig.kt").get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |// Generated from local.properties by :shared:generateBgRemoverConfig. Do not edit.
+            |package org.example.project.data.bgremover
+            |
+            |internal object BgRemoverConfig {
+            |    const val BASE_URL: String = ${literal(baseUrl.get())}
+            |    const val API_KEY_HEADER: String = ${literal(apiKeyHeader.get())}
+            |    const val API_KEY: String = ${literal(apiKey.get())}
+            |}
+            |""".trimMargin(),
+        )
+    }
+}
+
+val localProperties: Provider<Properties> = providers
+    .fileContents(rootProject.layout.projectDirectory.file("local.properties"))
+    .asText
+    .map { text -> Properties().apply { load(text.reader()) } }
+    .orElse(Properties())
+
+fun localProperty(key: String): Provider<String> = localProperties.map { it.getProperty(key).orEmpty().trim() }
+
+val generateBgRemoverConfig = tasks.register<GenerateBgRemoverConfig>("generateBgRemoverConfig") {
+    baseUrl = localProperty("BG_REMOVER_BASE_URL")
+    apiKeyHeader = localProperty("BG_REMOVER_API_KEY_HEADER")
+    apiKey = localProperty("BG_REMOVER_API_KEY")
+    outputDir = layout.buildDirectory.dir("generated/bgRemoverConfig/kotlin")
 }
 
 kotlin {
@@ -53,6 +101,9 @@ kotlin {
         iosMain.dependencies {
             // Ktor engine backing the shared HttpClient on iOS.
             implementation(libs.ktor.client.darwin)
+        }
+        commonMain {
+            kotlin.srcDir(generateBgRemoverConfig.map { it.outputDir })
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

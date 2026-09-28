@@ -26,13 +26,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,7 +74,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.ui.common.CenterFillSlider
@@ -123,20 +129,29 @@ private enum class EraseMode { Eraser, Zoom, Auto }
 
 /**
  * Background remover step 2 ("Erase"): brush the background away (or paint it back with Recover),
- * tap a colour region away with Auto, zoom in for detail, or preview it over a backdrop colour.
- * Done bakes the transparent cut-out into the session for `SetBackgroundScreen`.
+ * tap a colour region away with Auto, let the server's AI cut the subject out (Ai Magic, premium),
+ * zoom in for detail, or preview it over a backdrop colour. Done bakes the transparent cut-out into
+ * the session for `SetBackgroundScreen`.
  */
 @Composable
 fun BackgroundRemoverEditorScreen(
     onBack: () -> Unit,
     onApplied: () -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BackgroundRemoverEditorViewModel = koinViewModel(),
 ) {
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     BackgroundRemoverEditorContent(
         sourceImage = viewModel.sourceImage,
         ops = viewModel.ops,
         canRedo = viewModel.redoOps.isNotEmpty(),
+        isPremium = isPremium,
+        aiRunning = viewModel.aiRunning,
+        aiApplied = viewModel.hasAiCutOut,
+        messages = viewModel.messages,
+        onAiMagic = viewModel::removeBackgroundWithAi,
+        onOpenPremium = onOpenPremium,
         onPush = viewModel::push,
         onUndo = viewModel::undo,
         onRedo = viewModel::redo,
@@ -154,6 +169,12 @@ private fun BackgroundRemoverEditorContent(
     sourceImage: ImageBitmap?,
     ops: List<EraseOp>,
     canRedo: Boolean,
+    isPremium: Boolean,
+    aiRunning: Boolean,
+    aiApplied: Boolean,
+    messages: Flow<String>,
+    onAiMagic: () -> Unit,
+    onOpenPremium: () -> Unit,
     onPush: (EraseOp) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
@@ -185,6 +206,7 @@ private fun BackgroundRemoverEditorContent(
     var isDragging by remember { mutableStateOf(false) }
     var isAdjustingBrush by remember { mutableStateOf(false) }
     var cursorPositionPx by remember { mutableStateOf(Offset.Zero) }
+    var showAiPremiumDialog by remember { mutableStateOf(false) }
 
     // A function rather than a val: the drag gesture's pointerInput block outlives recompositions,
     // so it must read brushSize/zoom state live instead of a value captured when it started.
@@ -218,6 +240,22 @@ private fun BackgroundRemoverEditorContent(
         }
     }
 
+    LaunchedEffect(messages) { messages.collect(::showMessage) }
+
+    if (showAiPremiumDialog) {
+        AiPremiumDialog(
+            onGoPremium = {
+                showAiPremiumDialog = false
+                onOpenPremium()
+            },
+            // As in the LAS app, turning the offer down lands on the free Auto tool instead.
+            onDismiss = {
+                showAiPremiumDialog = false
+                mode = EraseMode.Auto
+            },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -228,7 +266,7 @@ private fun BackgroundRemoverEditorContent(
             title = if (mode == EraseMode.Auto) "Auto" else "Erase",
             onClose = onBack,
             onDone = { original?.let { onDone(it, ops) } },
-            doneEnabled = original != null && !magicRunning,
+            doneEnabled = original != null && !magicRunning && !aiRunning,
         )
 
         Box(
@@ -342,6 +380,7 @@ private fun BackgroundRemoverEditorContent(
                 }
 
                 if (magicRunning) CircularProgressIndicator()
+                if (aiRunning) AiProgressOverlay()
             } else {
                 Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
             }
@@ -462,9 +501,10 @@ private fun BackgroundRemoverEditorContent(
             BottomTab(
                 icon = vectorResource(Res.drawable.ic_eraser_ai),
                 label = "Ai Magic",
-                selected = false,
-                badge = "New",
-                onClick = { showMessage("Ai Magic is coming soon") },
+                selected = aiRunning,
+                badge = if (aiApplied) null else "New",
+                enabled = original != null && !aiRunning,
+                onClick = { if (isPremium) onAiMagic() else showAiPremiumDialog = true },
             )
         }
     }
@@ -509,6 +549,40 @@ private fun BackdropChip(next: Color?, onClick: () -> Unit, modifier: Modifier =
         }
         Box(modifier = Modifier.fillMaxSize().border(2.dp, Color(0xFF6B6975), shape))
     }
+}
+
+/** Covers the photo while the AI request runs, swallowing touches so no edit lands mid-request. */
+@Composable
+private fun AiProgressOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = Color.White)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Removing background…", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** Ai Magic's upsell for free users: the LAS app's unlock dialog, minus its rewarded-ad option. */
+@Composable
+private fun AiPremiumDialog(onGoPremium: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("AI Background Remover") },
+        text = { Text("Remove the background in one tap with AI. Available with Premium.") },
+        confirmButton = { TextButton(onClick = onGoPremium) { Text("Go Premium") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+    )
 }
 
 private val ToggleSize = 40.dp
@@ -723,6 +797,12 @@ private fun BackgroundRemoverEditorPreview() {
             sourceImage = ImageBitmap(360, 480),
             ops = emptyList(),
             canRedo = false,
+            isPremium = false,
+            aiRunning = false,
+            aiApplied = false,
+            messages = emptyFlow(),
+            onAiMagic = {},
+            onOpenPremium = {},
             onPush = {},
             onUndo = {},
             onRedo = {},

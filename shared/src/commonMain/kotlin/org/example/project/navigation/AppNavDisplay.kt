@@ -436,6 +436,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // The cut-out is in the session and the eraser stays underneath, so Back from
                             // the background picker returns to it for further touch-ups.
                             onApplied = { backStack.add(Destination.SetBackground) },
+                            onOpenPremium = { backStack.add(Destination.Premium) },
                         )
                     }
 
