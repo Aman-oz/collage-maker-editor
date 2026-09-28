@@ -103,33 +103,12 @@ class FreestyleEditorViewModel(
 
     /** Rewrites text layer [id] in place, keeping its placement. */
     fun updateText(id: Long, text: String, color: Color, font: TextFontStyleOption) {
-        updateReady { state ->
-            state.copy(
-                layers = state.layers.map { layer ->
-                    if (layer.id == id && layer.content is FreestyleContent.TextContent) {
-                        layer.copy(content = FreestyleContent.TextContent(text, color, font))
-                    } else {
-                        layer
-                    }
-                },
-            )
-        }
+        updateReady { state -> state.copy(layers = state.layers.withText(id, text, color, font)) }
     }
 
     /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
     fun retypeText(id: Long, text: String) {
-        updateReady(coalesceKey = "text:$id") { state ->
-            state.copy(
-                layers = state.layers.map { layer ->
-                    val content = layer.content
-                    if (layer.id == id && content is FreestyleContent.TextContent) {
-                        layer.copy(content = content.copy(text = text))
-                    } else {
-                        layer
-                    }
-                },
-            )
-        }
+        updateReady(coalesceKey = "text:$id") { state -> state.copy(layers = state.layers.retyped(id, text)) }
     }
 
     private fun addLayer(content: FreestyleContent) {
@@ -139,46 +118,19 @@ class FreestyleEditorViewModel(
     /** Applies one continuous drag/pinch/rotate gesture tick to the layer identified by [id]. */
     fun transformLayer(id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) {
         updateReady(coalesceKey = "transform:$id") { state ->
-            state.copy(
-                layers = state.layers.map { layer ->
-                    if (layer.id != id) {
-                        layer
-                    } else {
-                        layer.copy(
-                            offsetFraction = Offset(
-                                (layer.offsetFraction.x + panFraction.x).coerceIn(0f, 1f),
-                                (layer.offsetFraction.y + panFraction.y).coerceIn(0f, 1f),
-                            ),
-                            scale = (layer.scale * zoomDelta).coerceIn(FreestyleLayerScaleRange),
-                            rotationDegrees = layer.rotationDegrees + rotationDeltaDegrees,
-                        )
-                    }
-                },
-            )
+            state.copy(layers = state.layers.transformed(id, panFraction, zoomDelta, rotationDeltaDegrees))
         }
     }
 
     /** Sets [id]'s absolute size and angle, as dragged by its corner resize/rotate handle. */
     fun setLayerScaleRotation(id: Long, scale: Float, rotationDegrees: Float) {
         updateReady(coalesceKey = "transform:$id") { state ->
-            state.copy(
-                layers = state.layers.map { layer ->
-                    if (layer.id == id) {
-                        layer.copy(scale = scale.coerceIn(FreestyleLayerScaleRange), rotationDegrees = rotationDegrees)
-                    } else {
-                        layer
-                    }
-                },
-            )
+            state.copy(layers = state.layers.withScaleRotation(id, scale, rotationDegrees))
         }
     }
 
     fun bringToFront(id: Long) {
-        updateReady(record = false) { state ->
-            if (state.layers.lastOrNull()?.id == id) return@updateReady state
-            val layer = state.layers.find { it.id == id } ?: return@updateReady state
-            state.copy(layers = state.layers.filterNot { it.id == id } + layer)
-        }
+        updateReady(record = false) { state -> state.copy(layers = state.layers.broughtToFront(id)) }
     }
 
     fun removeLayer(id: Long) {

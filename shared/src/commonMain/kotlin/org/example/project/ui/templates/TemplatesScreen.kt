@@ -40,10 +40,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.TopBarHeight
+import org.example.project.ui.common.TopBarHorizontalPadding
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.preview.ThemePreviews
@@ -135,24 +139,24 @@ internal fun TemplatesContent(
 @Composable
 private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+        // A smaller end padding because the 48dp premium IconButton already insets its icon.
+        modifier = Modifier.fillMaxWidth().height(TopBarHeight).padding(start = TopBarHorizontalPadding, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onBackground,
-            )
-        }
+        GlassTopBarButton(
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            onClick = onBack,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        )
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f).padding(start = 8.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
         )
         IconButton(onClick = onGoPro) {
             Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = "Premium", tint = PremiumGold)

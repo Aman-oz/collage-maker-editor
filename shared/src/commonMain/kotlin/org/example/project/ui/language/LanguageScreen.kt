@@ -47,6 +47,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -133,17 +135,17 @@ private fun LanguageContent(
 @Composable
 private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = if (showBack) 0.dp else 6.dp, top = 8.dp, bottom = 4.dp),
+        modifier = Modifier.topBar(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showBack) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                )
-            }
+            GlassTopBarButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "Back",
+                onClick = onBack,
+                contentColor = MaterialTheme.colorScheme.onBackground,
+            )
+            Spacer(Modifier.width(16.dp))
         }
         Text(
             text = "Select Language",

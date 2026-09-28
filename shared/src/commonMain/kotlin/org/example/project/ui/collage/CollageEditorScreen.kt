@@ -78,11 +78,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
-import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlinx.coroutines.delay
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.GlassButtonStyle
+import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -474,16 +477,14 @@ private fun CollageTopBar(
     doneEnabled: Boolean,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier.topBar(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TopBarCircleButton(
-            chrome = chrome,
+        GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onClose,
+            contentColor = chrome.content,
         )
         Text(
             text = "Collages",
@@ -501,50 +502,13 @@ private fun CollageTopBar(
             )
         }
         Spacer(modifier = Modifier.width(4.dp))
-        TopBarCircleButton(
-            chrome = chrome,
+        GlassTopBarButton(
             icon = Icons.Filled.Check,
             contentDescription = "Done",
             onClick = onDone,
             enabled = doneEnabled,
-            primary = true,
-        )
-    }
-}
-
-@Composable
-private fun TopBarCircleButton(
-    chrome: CollageChrome,
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    // The filled accent style of the ✓, shared with every other screen's done button.
-    primary: Boolean = false,
-) {
-    val background = when {
-        !primary -> chrome.buttonBackground
-        enabled -> chrome.accent
-        else -> chrome.accent.copy(alpha = 0.35f)
-    }
-    val tint = when {
-        primary -> MaterialTheme.colorScheme.onPrimary
-        enabled -> chrome.content
-        else -> chrome.muted
-    }
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(background)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(22.dp),
+            style = GlassButtonStyle.Primary,
+            accentColor = chrome.accent,
         )
     }
 }

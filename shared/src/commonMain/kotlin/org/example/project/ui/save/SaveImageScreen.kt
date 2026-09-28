@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
@@ -175,7 +177,7 @@ private fun SaveImageContent(
                     OutlinedButton(
                         onClick = onSaveWithWatermark,
                         enabled = !saving && image != null,
-                        modifier = Modifier.weight(1f).height(44.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         shape = CircleShape,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -185,7 +187,7 @@ private fun SaveImageContent(
                     Button(
                         onClick = onRemoveWatermark,
                         enabled = !saving && image != null,
-                        modifier = Modifier.weight(1f).height(44.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         shape = CircleShape,
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
@@ -211,22 +213,13 @@ private fun SaveImageContent(
 
 @Composable
 private fun SaveImageTopBar(onBack: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp)) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+    Box(modifier = Modifier.topBar()) {
+        GlassTopBarButton(
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            contentDescription = "Back",
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
         Text(
             text = "Save Image",
             modifier = Modifier.align(Alignment.Center),
@@ -337,7 +330,7 @@ private fun ButtonLabel(text: String, color: Color) {
     Text(
         text = text,
         color = color,
-        fontSize = 12.sp,
+        fontSize = 13.sp,
         lineHeight = 14.sp,
         textAlign = TextAlign.Center,
     )

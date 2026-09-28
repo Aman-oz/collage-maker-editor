@@ -47,6 +47,9 @@ private val navKeySerializersModule = SerializersModule {
         subclass(Destination.Rotate::class, Destination.Rotate.serializer())
         subclass(Destination.ShareImage::class, Destination.ShareImage.serializer())
         subclass(Destination.Preview::class, Destination.Preview.serializer())
+        subclass(Destination.BackgroundRemoverCrop::class, Destination.BackgroundRemoverCrop.serializer())
+        subclass(Destination.BackgroundRemoverEditor::class, Destination.BackgroundRemoverEditor.serializer())
+        subclass(Destination.SetBackground::class, Destination.SetBackground.serializer())
     }
 }
 

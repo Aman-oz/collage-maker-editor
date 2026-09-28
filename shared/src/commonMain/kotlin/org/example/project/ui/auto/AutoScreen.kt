@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Compare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,9 +39,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.vectorResource
+import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_before_after
 import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_undo
 
@@ -181,7 +181,7 @@ private fun AutoBottomBar(
         )
         Spacer(modifier = Modifier.weight(1f))
         BarIcon(
-            icon = Icons.Filled.Compare,
+            icon = vectorResource(Res.drawable.ic_before_after),
             contentDescription = "Press and hold to compare with the original",
             tint = content,
             modifier = Modifier.pointerInput(onComparingChange) {

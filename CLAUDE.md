@@ -81,6 +81,21 @@ from the back stack.
   manifest and iOS `Info.plist` (ATS). The server sends slot coordinates as quoted strings, which
   `LenientFloatSerializer` handles.
 
+### Background remover — `ui/bgremover/`
+
+Home's BG Remove goes through `Gallery(1, GalleryTarget.BackgroundRemover)` →
+`BackgroundRemoverCrop(imagePath)` → `BackgroundRemoverEditor` → `SetBackground` → `Editor()`. The
+crop step reuses `CropContent` from `ui/crop/` with `showTransformTools = true` (rotate/flip baked
+into the working bitmap). The eraser replays an undoable list of `EraseOp`s over the original photo
+inside an offscreen layer. Auto is a colour-based magic wand, not ML: a tap flood-fills the
+connected region around it (the bottom slider, tinted with the tapped colour, sets the tolerance)
+and erases or recovers it. The eraser's backdrop chip (each tap cycles checkerboard → white → dark
+→ grey) is preview-only: Done hands a *transparent* cut-out to `ui/setbackground/`, which puts a
+colour, gradient or picked photo behind it, lets the user add text and stickers over it, and
+flattens it all (export is JPEG). The text/sticker layers are the freestyle editor's:
+`ui/freestyle/FreestyleLayers.kt` (canvas, selection handles, keyboard text bar, Text/Stickers
+panels) and `FreestyleLayerOps.kt` (pure layer edits) are internal and shared by both screens.
+
 ### Networking
 
 `data/network/`: one shared Ktor `HttpClient` (`createHttpClient`, which names no engine: OkHttp
@@ -137,7 +152,10 @@ consistent split — keep new tools in this shape, since it is what makes the lo
 Transient per-screen editing state (including **undo/redo**, which is a pair of
 `remember { mutableStateOf(emptyList<...>()) }` stacks of an immutable `<Tool>Edit` data class)
 lives in the `Content` composable, not the ViewModel. Only the final baked bitmap reaches the
-session, on Done.
+session, on Done. The exception is a screen that pushes a *next step* rather than popping (the
+background eraser → Set Background): a covered nav entry leaves composition and loses `remember`
+state, so `BackgroundRemoverEditorViewModel` holds the erase ops and snapshots its source photo, and
+`SetBackgroundViewModel` holds its backdrop/layer history, so Back resumes the same edit.
 
 ### Drawing gotcha
 

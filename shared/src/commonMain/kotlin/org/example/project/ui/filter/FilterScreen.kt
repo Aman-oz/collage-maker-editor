@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,7 +49,10 @@ import androidx.compose.ui.unit.sp
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_before_after
 
 private val ChipShape = RoundedCornerShape(6.dp)
 
@@ -175,7 +177,7 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Outlined.Compare,
+            imageVector = vectorResource(Res.drawable.ic_before_after),
             contentDescription = "Press and hold to compare with the original",
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(20.dp),

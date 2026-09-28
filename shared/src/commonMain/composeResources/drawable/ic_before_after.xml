@@ -1,0 +1,47 @@
+<!-- The source 32x32 canvas has 4 units of padding (its clip rect); the viewport is cropped to the
+     inner 24x24 so it sizes like a Material icon, as ic_undo / ic_redo do. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <group android:translateX="-4" android:translateY="-4">
+    <clip-path
+        android:pathData="M4,4h24v24h-24z"/>
+    <path
+        android:strokeWidth="1.75"
+        android:pathData="M16,6V26"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"/>
+    <path
+        android:strokeWidth="1.75"
+        android:pathData="M18,24H10C9.47,24 8.961,23.789 8.586,23.414C8.211,23.039 8,22.53 8,22V10C8,9.47 8.211,8.961 8.586,8.586C8.961,8.211 9.47,8 10,8H18"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"/>
+    <path
+        android:strokeWidth="1.75"
+        android:pathData="M24,10C24,9.47 23.789,8.961 23.414,8.586C23.039,8.211 22.53,8 22,8"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"/>
+    <path
+        android:strokeWidth="1.75"
+        android:pathData="M22,24C22.53,24 23.039,23.789 23.414,23.414C23.789,23.039 24,22.53 24,22"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"/>
+    <path
+        android:strokeWidth="1.75"
+        android:pathData="M24,14V18"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:strokeColor="#10151F"
+        android:strokeLineCap="round"/>
+  </group>
+</vector>

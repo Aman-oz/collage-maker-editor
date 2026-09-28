@@ -12,6 +12,9 @@ enum class GalleryTarget {
     EditorFilter,
     Collage,
     Freestyle,
+
+    /** The background remover: crop first, then [Destination.BackgroundRemoverEditor]. */
+    BackgroundRemover,
 }
 
 /**
@@ -197,6 +200,26 @@ sealed interface Destination : NavKey {
      */
     @Serializable
     data class Preview(val imagePath: String) : Destination
+
+    /**
+     * Background remover step 1: crop (with rotate/flip) the picked photo. Done puts the cropped
+     * photo in [org.example.project.data.ImageEditSession] and opens [BackgroundRemoverEditor].
+     *
+     * @param imagePath platform path of the picked image, as in [Editor.imagePath].
+     */
+    @Serializable
+    data class BackgroundRemoverCrop(val imagePath: String) : Destination
+
+    /** Background remover step 2: erase the background. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
+    @Serializable
+    data object BackgroundRemoverEditor : Destination
+
+    /**
+     * Background remover step 3: pick what goes behind the transparent cut-out and add text and
+     * stickers over it. Reads/writes the working image via [org.example.project.data.ImageEditSession].
+     */
+    @Serializable
+    data object SetBackground : Destination
 
     /** Rotate tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
     @Serializable

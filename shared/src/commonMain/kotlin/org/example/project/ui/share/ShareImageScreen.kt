@@ -50,6 +50,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -57,7 +59,16 @@ import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_home_outline
 
-/** Fill of the "New Collage" button (same accent as the save screen's premium button). */
+/**
+ * What the primary button next to Home offers to start next. The caller picks it from the flow the
+ * user came from, so someone who just made a collage is nudged toward a different feature.
+ */
+enum class ShareSuggestion(val label: String) {
+    NewCollage("Try Collage"),
+    Freestyle("Try Freestyle"),
+}
+
+/** Fill of the suggestion button (same accent as the save screen's premium button). */
 private val PrimaryAccent = Color(0xFF8B5CF6)
 
 private val SavedChipBackground = Color(0xFFB9F3CF)
@@ -70,7 +81,8 @@ fun ShareImageScreen(
     imagePath: String,
     onBack: () -> Unit,
     onHome: () -> Unit,
-    onNewCollage: () -> Unit,
+    suggestion: ShareSuggestion,
+    onSuggestion: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ShareImageViewModel = koinViewModel { parametersOf(imagePath) },
 ) {
@@ -86,7 +98,8 @@ fun ShareImageScreen(
         onBack = onBack,
         onShare = viewModel::share,
         onHome = onHome,
-        onNewCollage = onNewCollage,
+        suggestion = suggestion,
+        onSuggestion = onSuggestion,
         modifier = modifier,
     )
 }
@@ -98,27 +111,19 @@ private fun ShareImageContent(
     onBack: () -> Unit,
     onShare: (ShareTarget) -> Unit,
     onHome: () -> Unit,
-    onNewCollage: () -> Unit,
+    suggestion: ShareSuggestion,
+    onSuggestion: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            Box(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp)) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
+            Box(modifier = Modifier.topBar()) {
+                GlassTopBarButton(
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Back",
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
             }
 
             Box(
@@ -149,7 +154,7 @@ private fun ShareImageContent(
                     ShareTargetIcon(
                         target = target,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(44.dp)
                             .clickable(enabled = image != null) { onShare(target) },
                     )
                 }
@@ -163,37 +168,38 @@ private fun ShareImageContent(
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 4.dp, bottom = 48.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                // Home keeps its natural width; the suggestion takes all the space left over.
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Button(
-                    onClick = onNewCollage,
-                    modifier = Modifier.height(36.dp).width(150.dp),
+                    onClick = onSuggestion,
+                    modifier = Modifier.height(44.dp).weight(1f),
                     shape = CircleShape,
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent, contentColor = Color.White),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(text = "New Collage", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(text = suggestion.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = onHome,
-                    modifier = Modifier.height(36.dp),
+                    modifier = Modifier.height(44.dp),
                     shape = CircleShape,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
-                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp),
                 ) {
                     Icon(
                         imageVector = vectorResource(Res.drawable.ic_home_outline),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Home",
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
@@ -232,7 +238,8 @@ private fun ShareImageContentPreview() {
             onBack = {},
             onShare = {},
             onHome = {},
-            onNewCollage = {},
+            suggestion = ShareSuggestion.NewCollage,
+            onSuggestion = {},
         )
     }
 }

@@ -82,15 +82,17 @@ import org.example.project.gallery.GalleryAlbumSection
 import org.example.project.gallery.GalleryPhoto
 import org.example.project.gallery.loadGalleryThumbnail
 import org.example.project.gallery.rememberGalleryAccessState
+import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.TopBarHeight
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 
 /** The two sources offered by the segmented control at the top of the gallery. */
 internal enum class GalleryTab(val label: String) { Photos("Photos"), Collections("Collections") }
 
-private val TopBarHeight = 60.dp
 private val BottomPillReserve = 96.dp
-private val CircleButtonSize = 44.dp
+private val CircleButtonSize = TopBarButtonSize
 private val TabWidth = 104.dp
 
 @Composable
@@ -411,7 +413,7 @@ private fun GalleryTopBar(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 16.dp),
+        modifier = modifier.topBar(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         GlassCircleButton(

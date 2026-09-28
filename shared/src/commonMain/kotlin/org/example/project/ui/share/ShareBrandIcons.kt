@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
  * for the official assets from each brand's press kit before shipping.
  */
 
-private val TileShape = RoundedCornerShape(8.dp)
+private val TileShape = RoundedCornerShape(10.dp)
 
 /** The rounded tile each share target sits in. */
 @Composable
@@ -58,17 +58,17 @@ internal fun ShareTargetIcon(target: ShareTarget, modifier: Modifier = Modifier)
             ShareTarget.Snapchat -> SnapchatGlyph()
             ShareTarget.Facebook -> Text(
                 text = "f",
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 7.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 9.dp),
                 color = Color.White,
-                fontSize = 34.sp,
-                lineHeight = 34.sp,
+                fontSize = 42.sp,
+                lineHeight = 42.sp,
                 fontWeight = FontWeight.Black,
             )
             ShareTarget.More -> Icon(
                 imageVector = Icons.Outlined.IosShare,
                 contentDescription = null,
                 tint = Color(0xFF1B1B1F),
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -77,7 +77,7 @@ internal fun ShareTargetIcon(target: ShareTarget, modifier: Modifier = Modifier)
 /** Camera outline: rounded square, lens ring and flash dot. */
 @Composable
 private fun InstagramGlyph() {
-    Canvas(modifier = Modifier.fillMaxSize().padding(7.dp)) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(8.5.dp)) {
         val stroke = size.minDimension * 0.1f
         drawRoundRect(
             color = Color.White,
@@ -98,7 +98,7 @@ private fun InstagramGlyph() {
 /** Speech bubble ring with a tail at the bottom-left, around a handset. */
 @Composable
 private fun WhatsAppGlyph() {
-    Box(modifier = Modifier.fillMaxSize().padding(6.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxSize().padding(7.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stroke = size.minDimension * 0.09f
             val radius = size.minDimension / 2 - stroke
@@ -111,14 +111,14 @@ private fun WhatsAppGlyph() {
             }
             drawPath(tail, Color.White)
         }
-        Icon(Icons.Filled.Phone, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+        Icon(Icons.Filled.Phone, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
     }
 }
 
 /** Ghost outline: dome head, side flaps and a scalloped hem. */
 @Composable
 private fun SnapchatGlyph() {
-    Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 7.dp)) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 8.5.dp)) {
         val w = size.width
         val h = size.height
         val ghost = Path().apply {

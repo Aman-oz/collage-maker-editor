@@ -36,11 +36,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,12 +58,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.example.project.navigation.GalleryTarget
+import org.example.project.ui.common.TopBarHeight
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.projects.ProjectsTabContent
 import org.example.project.ui.projects.ProjectsViewModel
-import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_bg_remover_icon
 import photocollagemaker.shared.generated.resources.ic_collage_icon
@@ -87,7 +88,7 @@ private val EditorGradient = listOf(Color(0xFFFFA24C), Color(0xFFFF7A3D))
 private val PremiumColor = Color(0xFFFF9F1C)
 
 internal const val CollageMaxSelection = 8
-private const val FreestyleMaxSelection = 12
+internal const val FreestyleMaxSelection = 12
 
 @Composable
 fun HomeScreen(
@@ -115,6 +116,7 @@ fun HomeScreen(
         // Filter tool over the editor straight away.
         onOpenFilters = { onOpenGallery(1, GalleryTarget.EditorFilter) },
         onOpenFrames = onOpenFrames,
+        onOpenBgRemove = { onOpenGallery(1, GalleryTarget.BackgroundRemover) },
         onOpenSettings = onOpenSettings,
         onOpenPremium = onOpenPremium,
         projects = projects,
@@ -140,6 +142,7 @@ private fun HomeContent(
     onOpenEditor: () -> Unit,
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
+    onOpenBgRemove: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     projects: List<String>?,
@@ -175,7 +178,7 @@ private fun HomeContent(
                     onOpenTemplates = onOpenTemplates,
                     onOpenEditor = onOpenEditor,
                     onOpenPip = { onComingSoon("PIP") },
-                    onOpenBgRemove = { onComingSoon("BG Remove") },
+                    onOpenBgRemove = onOpenBgRemove,
                     onOpenFilters = onOpenFilters,
                     onOpenFrames = onOpenFrames,
                     modifier = Modifier.weight(1f),
@@ -205,7 +208,8 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            .height(TopBarHeight)
+            .padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -437,6 +441,7 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenEditor = {},
             onOpenFilters = {},
             onOpenFrames = {},
+            onOpenBgRemove = {},
             onOpenSettings = {},
             onOpenPremium = {},
             projects = emptyList(),

@@ -62,6 +62,8 @@ import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlinx.coroutines.launch
 import org.example.project.data.ThemeMode
+import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -235,27 +237,14 @@ private fun SettingsContent(
 @Composable
 private fun SettingsTopBar(onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = 16.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(colors.onBackground.copy(alpha = 0.07f))
-                .clickable(role = Role.Button, onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = colors.onBackground,
-            )
-        }
+    Box(modifier = Modifier.topBar()) {
+        GlassTopBarButton(
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            contentDescription = "Back",
+            onClick = onBack,
+            contentColor = colors.onBackground,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
         Text(
             text = "Settings",
             modifier = Modifier.align(Alignment.Center),

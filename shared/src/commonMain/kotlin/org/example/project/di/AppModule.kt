@@ -13,6 +13,9 @@ import org.example.project.getPlatform
 import org.example.project.ui.collage.CollageCatalog
 import org.example.project.ui.adjust.AdjustViewModel
 import org.example.project.ui.auto.AutoViewModel
+import org.example.project.ui.bgremover.BackgroundRemoverCropViewModel
+import org.example.project.ui.bgremover.BackgroundRemoverEditorViewModel
+import org.example.project.ui.setbackground.SetBackgroundViewModel
 import org.example.project.ui.blur.BlurViewModel
 import org.example.project.ui.collage.CollageEditorViewModel
 import org.example.project.ui.crop.CropViewModel
@@ -94,6 +97,9 @@ val viewModelModule: Module = module {
     viewModelOf(::FrameViewModel)
     viewModelOf(::DrawViewModel)
     viewModelOf(::RotateViewModel)
+    viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
+    viewModelOf(::BackgroundRemoverEditorViewModel)
+    viewModelOf(::SetBackgroundViewModel)
     viewModelOf(::SaveImageViewModel)
     viewModelOf(::ProjectsViewModel)
     // The project file path comes from the navigation key, passed in as a runtime parameter.

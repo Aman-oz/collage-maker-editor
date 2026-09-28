@@ -23,10 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.RotateLeft
-import androidx.compose.material.icons.automirrored.outlined.RotateRight
-import androidx.compose.material.icons.outlined.Flip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -57,10 +52,14 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.vectorResource
+import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_flip_horizontally
+import photocollagemaker.shared.generated.resources.ic_flip_vertically
 import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_rotate_left
+import photocollagemaker.shared.generated.resources.ic_rotate_right
 import photocollagemaker.shared.generated.resources.ic_undo
 
 /** The full rotation state — every field participates in undo/redo as one checkpoint each. */
@@ -343,10 +342,10 @@ private fun RotateActionRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        RotateActionButton(icon = Icons.AutoMirrored.Outlined.RotateLeft, label = "Rotate left", onClick = onRotateLeft)
-        RotateActionButton(icon = Icons.AutoMirrored.Outlined.RotateRight, label = "Rotate right", onClick = onRotateRight)
-        RotateActionButton(icon = Icons.Outlined.Flip, label = "Flip horizontally", onClick = onFlipHorizontal)
-        RotateActionButton(icon = Icons.Outlined.Flip, label = "Flip vertically", onClick = onFlipVertical, rotateIcon90 = true)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_left), label = "Rotate left", onClick = onRotateLeft)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_right), label = "Rotate right", onClick = onRotateRight)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_horizontally), label = "Flip horizontally", onClick = onFlipHorizontal)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_vertically), label = "Flip vertically", onClick = onFlipVertical)
     }
 }
 
@@ -356,13 +355,12 @@ private fun RotateActionButton(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    rotateIcon90: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(10.dp)
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(48.dp)
             .clip(shape)
             .border(width = 1.dp, color = scheme.onSurface.copy(alpha = 0.7f), shape = shape)
             .clickable(onClick = onClick),
@@ -372,9 +370,7 @@ private fun RotateActionButton(
             imageVector = icon,
             contentDescription = label,
             tint = scheme.onSurface,
-            modifier = Modifier
-                .size(20.dp)
-                .then(if (rotateIcon90) Modifier.rotate(90f) else Modifier),
+            modifier = Modifier.size(26.dp),
         )
     }
 }

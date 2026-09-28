@@ -59,7 +59,7 @@ internal fun bakeFreestyle(
     return output
 }
 
-private fun DrawScope.drawFreestyleLayer(
+internal fun DrawScope.drawFreestyleLayer(
     layer: FreestyleLayer,
     textMeasurer: TextMeasurer,
     textDensity: Density,

@@ -47,10 +47,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.GlassButtonStyle
+import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.vectorResource
+import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_adjust_editor
@@ -62,14 +67,13 @@ import photocollagemaker.shared.generated.resources.ic_filter_editor
 import photocollagemaker.shared.generated.resources.ic_frame_editor
 import photocollagemaker.shared.generated.resources.ic_overlay_editor
 import photocollagemaker.shared.generated.resources.ic_ratio_editor
+import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_rotate_editor
 import photocollagemaker.shared.generated.resources.ic_s_blur_editor
 import photocollagemaker.shared.generated.resources.ic_s_splash_editor
 import photocollagemaker.shared.generated.resources.ic_splash_editor
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
-import org.jetbrains.compose.resources.vectorResource
-import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_undo
 
 private enum class EditorTool(val label: String, val icon: DrawableResource) {
@@ -273,16 +277,14 @@ private fun EditorTopBar(
     // Same layout as CollageTopBar: fixed-size circle buttons, and a title that takes the leftover
     // width and ellipsizes, so the bar never overflows on narrow screens or large font scales.
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier.topBar(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TopBarCircleButton(
-            chrome = chrome,
+        GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onClose,
+            contentColor = chrome.icon,
         )
         Text(
             text = "Edit Photo",
@@ -311,13 +313,13 @@ private fun EditorTopBar(
                 onClick = onRedo,
                 enabled = canRedo,
             )
-            TopBarCircleButton(
-                chrome = chrome,
+            GlassTopBarButton(
                 icon = Icons.Filled.Check,
                 contentDescription = "Done",
                 onClick = onDone,
-                background = chrome.accent,
-                tint = chrome.onAccent,
+                style = GlassButtonStyle.Primary,
+                accentColor = chrome.accent,
+                onAccentColor = chrome.onAccent,
             )
         }
     }
@@ -335,7 +337,7 @@ private fun TopBarCircleButton(
 ) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(TopBarButtonSize)
             .clip(CircleShape)
             .background(background)
             .clickable(enabled = enabled, onClick = onClick),
@@ -410,9 +412,10 @@ private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boo
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(if (selected) chrome.accent else chrome.control),
+                .size(42.dp)
+//                .clip(CircleShape)
+//                .background(if (selected) chrome.accent else chrome.control)
+            ,
             contentAlignment = Alignment.Center,
         ) {
             // The vectors are 46dp with the glyph inset to a 33dp area, so draw them larger than
@@ -420,7 +423,7 @@ private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boo
             Icon(
                 painter = painterResource(tool.icon),
                 contentDescription = tool.label,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.fillMaxSize(),
                 tint = if (selected) chrome.onAccent else chrome.icon,
             )
         }
@@ -428,7 +431,7 @@ private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boo
         Text(
             text = tool.label,
             style = MaterialTheme.typography.labelMedium,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             color = if (selected) chrome.accent else chrome.label,
             textAlign = TextAlign.Center,
             maxLines = 1,

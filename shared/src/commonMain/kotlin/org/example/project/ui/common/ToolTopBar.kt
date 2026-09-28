@@ -1,24 +1,15 @@
 package org.example.project.ui.common
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,9 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Top bar of the theme-aware tool screens (Auto, Crop): ✕ on the left, a centered title, and a
- * filled accent ✓ on the right. Unlike the dark [EditorCircleIconButton] bars, it follows
- * [MaterialTheme], so it works in both light and dark mode.
+ * Top bar of the theme-aware tool screens (Auto, Crop, …): a glass ✕ on the left, a centered
+ * title, and a primary glass ✓ on the right (both [GlassTopBarButton]). Unlike the dark
+ * [EditorCircleIconButton] bars, it follows [MaterialTheme], so it works in light and dark mode.
  */
 @Composable
 internal fun ToolTopBar(
@@ -43,17 +34,13 @@ internal fun ToolTopBar(
     // widths; its side padding reserves room for the buttons so a long title ellipsizes instead
     // of running under them.
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = modifier.topBar(),
         contentAlignment = Alignment.Center,
     ) {
-        TopBarCircleButton(
+        GlassTopBarButton(
             icon = Icons.Filled.Close,
             contentDescription = "Close",
             onClick = onClose,
-            background = scheme.onSurface.copy(alpha = 0.06f),
-            tint = scheme.onSurface,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
@@ -64,43 +51,15 @@ internal fun ToolTopBar(
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 52.dp),
+            modifier = Modifier.padding(horizontal = TopBarButtonSize + 16.dp),
         )
-        TopBarCircleButton(
+        GlassTopBarButton(
             icon = Icons.Filled.Check,
             contentDescription = "Done",
             onClick = onDone,
             enabled = doneEnabled,
-            background = if (doneEnabled) scheme.primary else scheme.primary.copy(alpha = 0.35f),
-            tint = scheme.onPrimary,
+            style = GlassButtonStyle.Primary,
             modifier = Modifier.align(Alignment.CenterEnd),
-        )
-    }
-}
-
-@Composable
-private fun TopBarCircleButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    background: Color,
-    tint: Color,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    Box(
-        modifier = modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(background)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(22.dp),
         )
     }
 }

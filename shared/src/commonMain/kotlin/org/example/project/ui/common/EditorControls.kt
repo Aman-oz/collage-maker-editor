@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Compare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +21,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_before_after
 
 /** Small circular icon button used throughout the editor's top bars (close, undo, redo, back). */
 @Composable
@@ -69,7 +71,7 @@ internal fun CompareButton(onPressedChange: (Boolean) -> Unit, modifier: Modifie
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Filled.Compare,
+            imageVector = vectorResource(Res.drawable.ic_before_after),
             contentDescription = "Press and hold to compare with the original",
             tint = EditorIconTint,
             modifier = Modifier.size(18.dp),

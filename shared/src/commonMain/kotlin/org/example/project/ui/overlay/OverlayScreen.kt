@@ -6,9 +6,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,12 +25,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,7 +55,10 @@ import androidx.compose.ui.unit.sp
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_before_after
 
 private val OverlayIntensityRange = 0f..100f
 private val ChipShape = RoundedCornerShape(6.dp)
@@ -149,18 +152,18 @@ private fun OverlayContent(
             }
         }
 
-        OverlayCategoryTabs(
-            selected = selectedCategory,
-            onSelected = { selectedCategory = it },
-            modifier = Modifier.padding(top = 8.dp),
-        )
-
-        CompareIconButton(
-            onComparingChange = { comparing = it },
-            modifier = Modifier
-                .align(Alignment.End)
-                .padding(end = 12.dp),
-        )
+        // The tabs scroll; the compare button stays pinned at the row's end.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OverlayCategoryTabs(
+                selected = selectedCategory,
+                onSelected = { selectedCategory = it },
+                modifier = Modifier.weight(1f),
+            )
+            CompareIconButton(onComparingChange = { comparing = it })
+        }
 
         CenterFillSlider(
             value = intensity,
@@ -194,24 +197,37 @@ private fun OverlayCategoryTabs(
     val scheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier
-            .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         OverlayCategory.entries.forEach { category ->
             val isSelected = category == selected
-            Text(
-                text = category.label,
-                color = if (isSelected) scheme.onPrimary else scheme.onSurface,
-                fontSize = 13.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            // Width(IntrinsicSize.Max) sizes the column to its label, so the underline below can
+            // be a fraction of the text width without measuring it.
+            Column(
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (isSelected) scheme.primary else scheme.onSurface.copy(alpha = 0.06f))
+                    .clip(RoundedCornerShape(8.dp))
                     .clickable { onSelected(category) }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            )
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .width(IntrinsicSize.Max),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = category.label,
+                    color = if (isSelected) scheme.onSurface else scheme.onSurface.copy(alpha = 0.55f),
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (isSelected) scheme.primary else Color.Transparent),
+                )
+            }
         }
     }
 }
@@ -235,10 +251,10 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Outlined.Compare,
+            imageVector = vectorResource(Res.drawable.ic_before_after),
             contentDescription = "Press and hold to compare with the original",
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

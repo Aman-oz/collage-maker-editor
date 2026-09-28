@@ -622,10 +622,8 @@ private fun ColorSwatch(color: Color, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .size(46.dp)
             .clip(outerShape)
-            .then(
-                if (selected) Modifier.border(width = 1.5.dp, color = scheme.onSurface.copy(alpha = 0.35f), shape = outerShape)
-                else Modifier,
-            )
+            // Always drawn (transparent when unselected) so selecting doesn't shift the swatch.
+            .border(width = 2.dp, color = if (selected) scheme.primary else Color.Transparent, shape = outerShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

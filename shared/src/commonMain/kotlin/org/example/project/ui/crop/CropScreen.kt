@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -53,6 +56,12 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.min
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
+import org.example.project.ui.rotate.bakeQuarterTurnsAndFlip
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_flip_horizontally
+import photocollagemaker.shared.generated.resources.ic_flip_vertically
+import photocollagemaker.shared.generated.resources.ic_rotate_right
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Gap between the photo and the edges of the grey stage, so the corner handles stay grabbable. */
@@ -76,17 +85,32 @@ fun CropScreen(
     )
 }
 
+/**
+ * The crop UI, shared by the editor's Crop tool and the background remover's first step.
+ *
+ * @param showTransformTools adds a rotate / flip-horizontal / flip-vertical row under the top bar.
+ * Those are baked straight into the working bitmap (they are exact pixel moves), so the crop rect,
+ * the canvas and [cropImageBitmap] all keep working in that bitmap's own coordinate space.
+ */
 @Composable
-private fun CropContent(
+internal fun CropContent(
     sourceImage: ImageBitmap?,
     onBack: () -> Unit,
     onCropConfirmed: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "Crop",
+    showTransformTools: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     var selectedOption by remember { mutableStateOf(AspectRatioOptions.first()) }
-    var cropRect by remember(sourceImage) {
-        mutableStateOf(sourceImage?.let { fullImageRect(it) })
+    var workingImage by remember(sourceImage) { mutableStateOf(sourceImage) }
+    // Re-seeded whenever a rotate/flip replaces the bitmap, keeping the chosen ratio.
+    var cropRect by remember(workingImage) {
+        mutableStateOf(
+            workingImage?.let { image ->
+                selectedOption.ratio?.let { centeredRectForRatio(image, it) } ?: fullImageRect(image)
+            },
+        )
     }
 
     Column(
@@ -96,11 +120,11 @@ private fun CropContent(
             .safeDrawingPadding(),
     ) {
         ToolTopBar(
-            title = "Crop",
+            title = title,
             onClose = onBack,
-            doneEnabled = sourceImage != null && cropRect != null,
+            doneEnabled = workingImage != null && cropRect != null,
             onDone = {
-                val image = sourceImage
+                val image = workingImage
                 val rect = cropRect
                 if (image != null && rect != null) {
                     onCropConfirmed(cropImageBitmap(image, rect.toIntRectClamped(image)))
@@ -108,17 +132,27 @@ private fun CropContent(
             },
         )
 
+        if (showTransformTools) {
+            CropTransformRow(
+                enabled = workingImage != null,
+                onRotate = { workingImage = workingImage?.let { bakeQuarterTurnsAndFlip(it, 1, false, false) } },
+                onFlipHorizontal = { workingImage = workingImage?.let { bakeQuarterTurnsAndFlip(it, 0, true, false) } },
+                onFlipVertical = { workingImage = workingImage?.let { bakeQuarterTurnsAndFlip(it, 0, false, true) } },
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .background(scheme.onSurface.copy(alpha = 0.08f)),
         ) {
-            if (sourceImage != null) {
+            val image = workingImage
+            if (image != null) {
                 CropCanvas(
-                    image = sourceImage,
+                    image = image,
                     ratio = selectedOption.ratio,
-                    cropRect = cropRect ?: fullImageRect(sourceImage),
+                    cropRect = cropRect ?: fullImageRect(image),
                     onCropRectChange = { cropRect = it },
                     accent = scheme.primary,
                 )
@@ -136,12 +170,53 @@ private fun CropContent(
             selected = selectedOption,
             onSelected = { option ->
                 selectedOption = option
-                val image = sourceImage
+                val image = workingImage
                 val ratio = option.ratio
                 if (image != null && ratio != null) {
                     cropRect = centeredRectForRatio(image, ratio)
                 }
             },
+        )
+    }
+}
+
+/** Rotate 90° clockwise, flip horizontally and flip vertically, as outlined square buttons. */
+@Composable
+private fun CropTransformRow(
+    enabled: Boolean,
+    onRotate: () -> Unit,
+    onFlipHorizontal: () -> Unit,
+    onFlipVertical: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+    ) {
+        CropTransformButton(vectorResource(Res.drawable.ic_rotate_right), "Rotate", enabled, onRotate)
+        CropTransformButton(vectorResource(Res.drawable.ic_flip_horizontally), "Flip horizontally", enabled, onFlipHorizontal)
+        CropTransformButton(vectorResource(Res.drawable.ic_flip_vertically), "Flip vertically", enabled, onFlipVertical)
+    }
+}
+
+@Composable
+private fun CropTransformButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(shape)
+            .border(width = 1.dp, color = onSurface.copy(alpha = if (enabled) 0.7f else 0.25f), shape = shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) onSurface else onSurface.copy(alpha = 0.35f),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

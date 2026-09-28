@@ -22,6 +22,8 @@ import org.example.project.ui.common.LocalNavAnimatedScope
 import org.example.project.ui.common.LocalSharedTransitionScope
 import org.example.project.ui.adjust.AdjustScreen
 import org.example.project.ui.auto.AutoScreen
+import org.example.project.ui.bgremover.BackgroundRemoverCropScreen
+import org.example.project.ui.bgremover.BackgroundRemoverEditorScreen
 import org.example.project.ui.blur.BlurScreen
 import org.example.project.ui.collage.CollageEditorScreen
 import org.example.project.ui.crop.CropScreen
@@ -44,8 +46,11 @@ import org.example.project.ui.colorsplash.ColorSplashScreen
 import org.example.project.ui.ratio.RatioScreen
 import org.example.project.ui.rotate.RotateScreen
 import org.example.project.ui.home.CollageMaxSelection
+import org.example.project.ui.home.FreestyleMaxSelection
 import org.example.project.ui.save.SaveImageScreen
+import org.example.project.ui.setbackground.SetBackgroundScreen
 import org.example.project.ui.share.ShareImageScreen
+import org.example.project.ui.share.ShareSuggestion
 import org.example.project.ui.settings.SettingsScreen
 import org.example.project.ui.shapereveal.SelectiveBlurScreen
 import org.example.project.ui.shapereveal.SelectiveSplashScreen
@@ -231,6 +236,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                         backStack.add(Destination.Editor(imagePaths.first(), openFilter = true))
                                     GalleryTarget.Collage -> backStack.add(Destination.CollageEditor(imagePaths))
                                     GalleryTarget.Freestyle -> backStack.add(Destination.FreestyleEditor(imagePaths))
+                                    GalleryTarget.BackgroundRemover ->
+                                        backStack.add(Destination.BackgroundRemoverCrop(imagePaths.first()))
                                 }
                                 backStack.remove(key)
                             },
@@ -389,14 +396,55 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     }
 
                     entry<Destination.ShareImage> { key ->
+                        // The collage editor stays underneath Editor → Save → Share, so its presence in
+                        // the back stack says this image came from the collage flow. Someone who just
+                        // made a collage is offered Freestyle instead; every other flow offers a collage.
+                        val suggestion = if (backStack.any { it is Destination.CollageEditor }) {
+                            ShareSuggestion.Freestyle
+                        } else {
+                            ShareSuggestion.NewCollage
+                        }
                         ShareImageScreen(
                             imagePath = key.imagePath,
                             onBack = { backStack.removeLastOrNull() },
                             onHome = { backStack.popToHome() },
-                            onNewCollage = {
+                            suggestion = suggestion,
+                            onSuggestion = {
                                 backStack.popToHome()
-                                backStack.add(Destination.Gallery(CollageMaxSelection, GalleryTarget.Collage))
+                                when (suggestion) {
+                                    ShareSuggestion.Freestyle ->
+                                        backStack.add(Destination.Gallery(FreestyleMaxSelection, GalleryTarget.Freestyle))
+                                    ShareSuggestion.NewCollage ->
+                                        backStack.add(Destination.Gallery(CollageMaxSelection, GalleryTarget.Collage))
+                                }
                             },
+                        )
+                    }
+
+                    entry<Destination.BackgroundRemoverCrop> { key ->
+                        BackgroundRemoverCropScreen(
+                            imagePath = key.imagePath,
+                            onBack = { backStack.removeLastOrNull() },
+                            // The crop stays underneath, so Back from the eraser returns to re-crop.
+                            onCropped = { backStack.add(Destination.BackgroundRemoverEditor) },
+                        )
+                    }
+
+                    entry<Destination.BackgroundRemoverEditor> {
+                        BackgroundRemoverEditorScreen(
+                            onBack = { backStack.removeLastOrNull() },
+                            // The cut-out is in the session and the eraser stays underneath, so Back from
+                            // the background picker returns to it for further touch-ups.
+                            onApplied = { backStack.add(Destination.SetBackground) },
+                        )
+                    }
+
+                    entry<Destination.SetBackground> {
+                        // Like Collage: the flattened photo is in the session and this screen stays
+                        // underneath, so Back from the photo editor returns here to try another backdrop.
+                        SetBackgroundScreen(
+                            onBack = { backStack.removeLastOrNull() },
+                            onApplied = { backStack.add(Destination.Editor()) },
                         )
                     }
 
