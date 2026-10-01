@@ -1,6 +1,32 @@
 package org.example.project.ui.templates
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.positionInParent
+import org.example.project.ui.theme.Brand
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -145,31 +171,35 @@ internal fun TemplatesContent(
 
 @Composable
 private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Unit) {
-    Row(
+    // Centered on the screen like the other top bars; the side padding reserves room for the 48dp
+    // premium button so a long title ellipsizes instead of running under it.
+    Box(
         // A smaller end padding because the 48dp premium IconButton already insets its icon.
         modifier = Modifier.fillMaxWidth().height(TopBarHeight).padding(start = TopBarHorizontalPadding, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 56.dp),
         )
         val proBounce = rememberSpringBounce()
         IconButton(
             onClick = onGoPro,
             interactionSource = proBounce.interactionSource,
-            modifier = Modifier.springBounce(proBounce),
+            modifier = Modifier.align(Alignment.CenterEnd).springBounce(proBounce),
         ) {
             Image(painter = painterResource(Res.drawable.ic_premium_icon), contentDescription = "Premium")
 //            Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = "Premium", tint = PremiumGold)
@@ -177,44 +207,146 @@ private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Un
     }
 }
 
+/** Height of the selected category's underline. */
+private val CategoryIndicatorHeight = 3.dp
+
+/** Space before the first and after the last category tab. */
+private val CategoryRowPadding = 8.dp
+
+/** A tab's side padding around its label; the underline spans the label only. */
+private val CategoryTabPadding = 14.dp
+
+/**
+ * The indicator's spring: slightly underdamped, so it overshoots a touch and settles as it slides
+ * (and stretches) from one category to the next.
+ */
+private val CategoryIndicatorSpring = spring<Float>(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)
+
+/**
+ * Text tabs with a rounded underline that slides and resizes to the selected category. The tabs
+ * scroll (catalogs can have many categories); the underline lives in the scrolled content, so it
+ * moves with them, and selecting a tab scrolls it toward the centre.
+ */
 @Composable
 private fun CategoryRow(categories: List<TemplateCategory>, selectedId: String?, onSelected: (TemplateCategory) -> Unit) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    val accent = categoryAccent()
+    val scrollState = rememberScrollState()
+    var viewportWidth by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    // Each tab's label bounds in the scrolled content (left, width; px).
+    val textBounds = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
+    val selectedBounds = selectedId?.let(textBounds::get)
+
+    val indicatorLeft = remember { Animatable(0f) }
+    val indicatorWidth = remember { Animatable(0f) }
+    var indicatorShown by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedBounds) {
+        val (left, width) = selectedBounds ?: return@LaunchedEffect
+        if (!indicatorShown) {
+            // The first placement snaps, rather than sliding in from the row's start.
+            indicatorLeft.snapTo(left)
+            indicatorWidth.snapTo(width)
+            indicatorShown = true
+        } else {
+            launch { indicatorLeft.animateTo(left, CategoryIndicatorSpring) }
+            launch { indicatorWidth.animateTo(width, CategoryIndicatorSpring) }
+        }
+    }
+    // Brings the selected tab toward the centre of the row, as far as the scroll allows.
+    LaunchedEffect(selectedId, selectedBounds != null, viewportWidth) {
+        val (left, width) = selectedBounds ?: return@LaunchedEffect
+        if (viewportWidth == 0) return@LaunchedEffect
+        val target = (left + width / 2f - viewportWidth / 2f).roundToInt().coerceIn(0, scrollState.maxValue)
+        scrollState.animateScrollTo(target)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onSizeChanged { viewportWidth = it.width }
+            .horizontalScroll(scrollState),
     ) {
-        items(categories, key = { it.id }) { category ->
-            CategoryPill(
-                category = category,
-                selected = category.id == selectedId,
-                onClick = { onSelected(category) },
+        Row(modifier = Modifier.padding(horizontal = CategoryRowPadding)) {
+            categories.forEach { category ->
+                CategoryTab(
+                    category = category,
+                    selected = category.id == selectedId,
+                    accent = accent,
+                    onClick = { onSelected(category) },
+                    onPlaced = { coordinates ->
+                        // The tab's place in the row, plus the row's own padding, is its place in
+                        // the scrolled content (which the scroll doesn't change); the label sits
+                        // inside the tab's side padding.
+                        val inset = with(density) { (CategoryRowPadding + CategoryTabPadding).toPx() }
+                        val sidePadding = with(density) { CategoryTabPadding.toPx() }
+                        textBounds[category.id] = (coordinates.positionInParent().x + inset) to
+                            (coordinates.size.width - sidePadding * 2).coerceAtLeast(0f)
+                    },
+                )
+            }
+        }
+        if (indicatorShown && selectedBounds != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = 4.dp)
+                    // Read in the layout/draw phases, so the slide never recomposes the row.
+                    .layout { measurable, _ ->
+                        val width = indicatorWidth.value.roundToInt().coerceAtLeast(0)
+                        val placeable = measurable.measure(Constraints.fixed(width, CategoryIndicatorHeight.roundToPx()))
+                        layout(placeable.width, placeable.height) {
+                            placeable.place(indicatorLeft.value.roundToInt(), 0)
+                        }
+                    }
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(accent),
             )
         }
     }
 }
 
 @Composable
-private fun CategoryPill(category: TemplateCategory, selected: Boolean, onClick: () -> Unit) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+private fun CategoryTab(
+    category: TemplateCategory,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+    onPlaced: (LayoutCoordinates) -> Unit,
+) {
+    val color by animateColorAsState(if (selected) accent else MaterialTheme.colorScheme.onBackground)
     val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            // Before the bounce, so the reported bounds are the tab's resting ones.
+            .onPlaced(onPlaced)
             .springBounce(bounce)
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 9.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            )
+            .padding(start = CategoryTabPadding, end = CategoryTabPadding, top = 12.dp, bottom = 14.dp),
     ) {
+        // One weight for every tab, so selecting one only recolours it and the row never shifts.
         Text(
             text = category.name,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = fg,
+            color = color,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
         )
     }
 }
+
+/**
+ * The selected category's colour: the brand violet, as in the design. On dark backgrounds the
+ * scheme's lighter primary instead, which stays readable where the deep violet would not.
+ */
+@Composable
+private fun categoryAccent(): Color =
+    if (MaterialTheme.colorScheme.background.luminance() > 0.5f) Brand else MaterialTheme.colorScheme.primary
 
 @Composable
 private fun FramesGrid(frames: List<TemplateFrame>, onFrameClick: (TemplateFrame) -> Unit) {

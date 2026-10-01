@@ -1,5 +1,6 @@
 package org.example.project.ui.editor
 
+import org.example.project.ui.common.UndoRedoDoneWidth
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -290,28 +291,28 @@ private fun EditorTopBar(
     onRedo: () -> Unit,
     onDone: () -> Unit,
 ) {
-    // Same layout as CollageTopBar: fixed-size circle buttons, and a title that takes the leftover
-    // width and ellipsizes, so the bar never overflows on narrow screens or large font scales.
-    Row(
-        modifier = Modifier.topBar(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
+    // for the widest button group so a long title ellipsizes instead of running under it.
+    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onClose,
             contentColor = chrome.icon,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = "Edit Photo",
             color = chrome.icon,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = UndoRedoDoneWidth),
         )
         Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

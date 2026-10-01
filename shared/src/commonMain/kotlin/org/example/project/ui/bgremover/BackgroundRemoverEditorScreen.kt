@@ -69,7 +69,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -85,10 +84,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import io.github.alexzhirkevich.compottie.Compottie
-import io.github.alexzhirkevich.compottie.LottieCompositionSpec
-import io.github.alexzhirkevich.compottie.rememberLottieComposition
-import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import io.github.fletchmckee.liquid.LiquidState
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.liquid
@@ -102,6 +97,7 @@ import kotlinx.coroutines.withContext
 import org.example.project.AppLog
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.GlassDialogHost
+import org.example.project.ui.common.LoadingOverlay
 import org.example.project.ui.common.MaskBrushSizeDefault
 import org.example.project.ui.common.MaskBrushSizeRange
 import org.example.project.ui.common.MaskStroke
@@ -146,8 +142,6 @@ private val CheckerDark = Color(0xFFDADADA)
 private val NewBadgeColor = Color(0xFFF07A1E)
 
 /** The AI removal's "please wait" animation, under `composeResources/files/`. */
-private const val LoadingAnimationPath = "files/loading_animation.json"
-private val LoadingAnimationSize = 140.dp
 
 private val TabIconSize = 26.dp
 
@@ -441,7 +435,7 @@ private fun BackgroundRemoverEditorContent(
                     }
 
                     if (magicRunning) CircularProgressIndicator()
-                    if (aiRunning) AiProgressOverlay()
+                    if (aiRunning) LoadingOverlay(contentDescription = "Removing background")
                 } else {
                     Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
                 }
@@ -668,45 +662,6 @@ private fun BackdropChip(next: Color?, onClick: () -> Unit, modifier: Modifier =
         }
         Box(modifier = Modifier.fillMaxSize().border(2.dp, Color(0xFF6B6975), shape))
     }
-}
-
-/** Covers the photo while the AI request runs, swallowing touches so no edit lands mid-request. */
-@Composable
-private fun AiProgressOverlay() {
-    // Also shown while the Lottie JSON parses (a frame or two), when the painter draws nothing yet.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) awaitPointerEvent().changes.forEach { it.consume() }
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = rememberLoopingLottiePainter(LoadingAnimationPath),
-                contentDescription = "Removing background",
-                modifier = Modifier.size(LoadingAnimationSize),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("Processing… Please wait!", color = Color.White, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-/**
- * Loops the Lottie file at [path], as the onboarding pages do. Draws nothing until the composition
- * has parsed, which is a frame or two.
- */
-@Composable
-private fun rememberLoopingLottiePainter(path: String): Painter {
-    val composition by rememberLottieComposition(path) {
-        LottieCompositionSpec.JsonString(Res.readBytes(path).decodeToString())
-    }
-    return rememberLottiePainter(composition = composition, iterations = Compottie.IterateForever)
 }
 
 private val ToggleSize = 40.dp

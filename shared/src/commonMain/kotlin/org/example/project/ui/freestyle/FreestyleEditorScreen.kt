@@ -1,5 +1,6 @@
 package org.example.project.ui.freestyle
 
+import org.example.project.ui.common.UndoRedoDoneWidth
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -390,26 +391,31 @@ private fun FreestyleTopBar(
     onRedo: () -> Unit,
     onDone: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.topBar(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
+    // for the widest button group so a long title ellipsizes instead of running under it.
+    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.Filled.Close,
             contentDescription = "Close",
             onClick = onClose,
             contentColor = chrome.content,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = "Freestyle",
             color = chrome.content,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = UndoRedoDoneWidth),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",

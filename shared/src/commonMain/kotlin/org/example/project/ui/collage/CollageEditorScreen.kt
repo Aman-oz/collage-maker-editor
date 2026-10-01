@@ -1,5 +1,7 @@
 package org.example.project.ui.collage
 
+import org.example.project.ui.common.TopBarButtonSize
+import androidx.compose.ui.text.style.TextOverflow
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -490,44 +492,49 @@ private fun CollageTopBar(
     onDone: () -> Unit,
     doneEnabled: Boolean,
 ) {
-    Row(
-        modifier = Modifier.topBar(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
+    // for the widest button group so a long title ellipsizes instead of running under it.
+    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onClose,
             contentColor = chrome.content,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = "Collages",
             color = chrome.content,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
             maxLines = 1,
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+            overflow = TextOverflow.Ellipsis,
+            // The premium button (48dp) + gap + Done.
+            modifier = Modifier.padding(horizontal = 48.dp + 4.dp + TopBarButtonSize + 8.dp),
         )
-        val premiumBounce = rememberSpringBounce()
-        IconButton(
-            onClick = onPremium,
-            interactionSource = premiumBounce.interactionSource,
-            modifier = Modifier.springBounce(premiumBounce),
-        ) {
-            Image(
-                painter = painterResource(Res.drawable.ic_premium_icon),
-                contentDescription = "Premium",
-                modifier = Modifier.size(28.dp),
+        Row(modifier = Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {
+            val premiumBounce = rememberSpringBounce()
+            IconButton(
+                onClick = onPremium,
+                interactionSource = premiumBounce.interactionSource,
+                modifier = Modifier.springBounce(premiumBounce),
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.ic_premium_icon),
+                    contentDescription = "Premium",
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            GlassTopBarButton(
+                icon = Icons.Filled.Check,
+                contentDescription = "Done",
+                onClick = onDone,
+                enabled = doneEnabled,
+                style = GlassButtonStyle.Primary,
             )
         }
-        Spacer(modifier = Modifier.width(4.dp))
-        GlassTopBarButton(
-            icon = Icons.Filled.Check,
-            contentDescription = "Done",
-            onClick = onDone,
-            enabled = doneEnabled,
-            style = GlassButtonStyle.Primary,
-        )
     }
 }
 

@@ -1,5 +1,7 @@
 package org.example.project.ui.templates
 
+import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.LoadingOverlay
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,7 +36,6 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -310,30 +311,30 @@ private fun FramePlaceholder(frame: TemplateFrame) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        LoadingOverlay(message = "Loading… Please wait!")
     }
 }
 
 @Composable
 private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) {
-    Row(
-        modifier = Modifier.topBar(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // Centered on the screen like ToolTopBar, with room reserved for the buttons on either side.
+    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = TopBarButtonSize + 16.dp),
         )
         // The primary glass ✓ every other editor uses for Done.
         GlassTopBarButton(
@@ -341,6 +342,7 @@ private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) 
             contentDescription = "Done",
             onClick = onDone,
             style = GlassButtonStyle.Primary,
+            modifier = Modifier.align(Alignment.CenterEnd),
         )
     }
 }

@@ -1,5 +1,6 @@
 package org.example.project.ui.onboarding
 
+import org.example.project.ui.common.rememberLoopingLottiePainter
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,7 +58,6 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,10 +65,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.alexzhirkevich.compottie.Compottie
-import io.github.alexzhirkevich.compottie.LottieCompositionSpec
-import io.github.alexzhirkevich.compottie.rememberLottieComposition
-import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.project.ui.preview.ThemePreviews
@@ -306,18 +302,6 @@ private fun OnboardingContent(
         }
         Spacer(Modifier.height(16.dp))
     }
-}
-
-/**
- * Loops the Lottie file at [path]. Draws nothing until the composition has parsed, which is a
- * frame or two, so there is no placeholder.
- */
-@Composable
-private fun rememberLoopingLottiePainter(path: String): Painter {
-    val composition by rememberLottieComposition(path) {
-        LottieCompositionSpec.JsonString(Res.readBytes(path).decodeToString())
-    }
-    return rememberLottiePainter(composition = composition, iterations = Compottie.IterateForever)
 }
 
 /**

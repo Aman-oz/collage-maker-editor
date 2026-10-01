@@ -274,7 +274,7 @@ private fun HomeTabContent(
             FeatureCard(
                 title = "Create Collages",
                 icon = Res.drawable.ic_collage_icon,
-                iconSize = 46.dp,
+                iconSize = 50.dp,
                 gradient = CollageGradient,
                 vertical = true,
                 onClick = onCreateCollage,
@@ -287,7 +287,7 @@ private fun HomeTabContent(
                 FeatureCard(
                     title = "Free Style",
                     icon = Res.drawable.ic_freestyle_icon,
-                    iconSize = 32.dp,
+                    iconSize = 34.dp,
                     gradient = FreestyleGradient,
                     vertical = false,
                     onClick = onOpenFreestyle,
@@ -309,7 +309,7 @@ private fun HomeTabContent(
                     FeatureCard(
                         title = "Editor",
                         icon = Res.drawable.ic_editor_icon,
-                        iconSize = 24.dp,
+                        iconSize = 28.dp,
                         gradient = EditorGradient,
                         vertical = true,
                         onClick = onOpenEditor,
@@ -405,7 +405,7 @@ private fun FeatureCard(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = if (vertical) 13.sp else 15.sp,
+                fontSize = if (vertical) 14.sp else 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

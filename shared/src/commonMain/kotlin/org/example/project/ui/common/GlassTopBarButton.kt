@@ -41,6 +41,13 @@ internal val TopBarHorizontalPadding = 16.dp
 /** Diameter of the circular top-bar buttons (glass back/close/done, and undo/redo beside them). */
 internal val TopBarButtonSize = 40.dp
 
+/**
+ * Room a centered top-bar title leaves on each side for the widest trailing group, undo + redo +
+ * Done (three [TopBarButtonSize] buttons, 8dp apart), plus a gap — so the title stays centered on
+ * the screen and ellipsizes before it reaches the buttons.
+ */
+internal val UndoRedoDoneWidth = TopBarButtonSize * 3 + 16.dp + 8.dp
+
 /** The standard top-bar frame: full width, [TopBarHeight] tall, [TopBarHorizontalPadding] sides. */
 internal fun Modifier.topBar(): Modifier =
     fillMaxWidth().height(TopBarHeight).padding(horizontal = TopBarHorizontalPadding)

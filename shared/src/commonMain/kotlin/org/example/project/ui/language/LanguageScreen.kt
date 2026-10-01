@@ -1,5 +1,7 @@
 package org.example.project.ui.language
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import org.example.project.ui.common.bubbleClick
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.theme.Brand
@@ -137,30 +139,32 @@ private fun LanguageContent(
 
 @Composable
 private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
-    Row(
-        modifier = Modifier.topBar(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    // Centered on the screen like the other top bars, whether or not there is a back button; the
+    // side padding reserves room for the Done pill so a long title ellipsizes instead.
+    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         if (showBack) {
             GlassTopBarButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "Back",
                 onClick = onBack,
                 contentColor = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.CenterStart),
             )
-            Spacer(Modifier.width(16.dp))
         }
         Text(
             text = "Select Language",
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.padding(horizontal = 88.dp),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         val bubble = rememberBubbleClick()
         Button(
             onClick = { bubble.tap(onDone) },
-            modifier = Modifier.height(32.dp).bubbleClick(bubble, Brand),
+            modifier = Modifier.align(Alignment.CenterEnd).height(32.dp).bubbleClick(bubble, Brand),
             interactionSource = bubble.interactionSource,
             shape = CircleShape,
             contentPadding = PaddingValues(horizontal = 22.dp),
