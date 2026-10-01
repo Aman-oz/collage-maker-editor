@@ -1,6 +1,11 @@
 package org.example.project.ui.editor
 
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
+import org.example.project.ui.common.DiscardChangesPopup
+import org.example.project.ui.common.rememberDiscardChangesState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +53,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
-import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.UndoRedoButton
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
@@ -160,29 +166,39 @@ fun EditorScreen(
         }
     }
 
-    EditorContent(
-        uiState = uiState,
-        onClose = onBack,
-        onDone = onDone,
-        onUndo = viewModel::undo,
-        onRedo = viewModel::redo,
-        onOpenAuto = onOpenAuto,
-        onOpenCrop = onOpenCrop,
-        onOpenFilter = onOpenFilter,
-        onOpenAdjust = onOpenAdjust,
-        onOpenOverlay = onOpenOverlay,
-        onOpenRatio = onOpenRatio,
-        onOpenText = onOpenText,
-        onOpenEmoji = onOpenEmoji,
-        onOpenBlur = onOpenBlur,
-        onOpenSplash = onOpenSplash,
-        onOpenSelectiveBlur = onOpenSelectiveBlur,
-        onOpenSelectiveSplash = onOpenSelectiveSplash,
-        onOpenFrame = onOpenFrame,
-        onOpenDraw = onOpenDraw,
-        onOpenRotate = onOpenRotate,
-        modifier = modifier,
+    val discard = rememberDiscardChangesState(
+        hasChanges = (uiState as? EditorUiState.Ready)?.canUndo == true,
+        onBack = onBack,
     )
+    // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
+    val liquidState = rememberLiquidState()
+
+    Box(modifier = modifier.fillMaxSize()) {
+        EditorContent(
+            uiState = uiState,
+            onClose = discard::requestBack,
+            onDone = onDone,
+            onUndo = viewModel::undo,
+            onRedo = viewModel::redo,
+            onOpenAuto = onOpenAuto,
+            onOpenCrop = onOpenCrop,
+            onOpenFilter = onOpenFilter,
+            onOpenAdjust = onOpenAdjust,
+            onOpenOverlay = onOpenOverlay,
+            onOpenRatio = onOpenRatio,
+            onOpenText = onOpenText,
+            onOpenEmoji = onOpenEmoji,
+            onOpenBlur = onOpenBlur,
+            onOpenSplash = onOpenSplash,
+            onOpenSelectiveBlur = onOpenSelectiveBlur,
+            onOpenSelectiveSplash = onOpenSelectiveSplash,
+            onOpenFrame = onOpenFrame,
+            onOpenDraw = onOpenDraw,
+            onOpenRotate = onOpenRotate,
+            modifier = Modifier.liquefiable(liquidState),
+        )
+        DiscardChangesPopup(discard, liquidState)
+    }
 }
 
 @Composable
@@ -299,56 +315,27 @@ private fun EditorTopBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TopBarCircleButton(
-                chrome = chrome,
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
-                onClick = onUndo,
                 enabled = canUndo,
+                onClick = onUndo,
+                tint = chrome.icon,
             )
-            TopBarCircleButton(
-                chrome = chrome,
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
-                onClick = onRedo,
                 enabled = canRedo,
+                onClick = onRedo,
+                tint = chrome.icon,
             )
             GlassTopBarButton(
                 icon = Icons.Filled.Check,
                 contentDescription = "Done",
                 onClick = onDone,
                 style = GlassButtonStyle.Primary,
-                accentColor = chrome.accent,
-                onAccentColor = chrome.onAccent,
             )
         }
-    }
-}
-
-@Composable
-private fun TopBarCircleButton(
-    chrome: EditorChrome,
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    background: Color = chrome.control,
-    tint: Color = chrome.icon,
-) {
-    Box(
-        modifier = Modifier
-            .size(TopBarButtonSize)
-            .clip(CircleShape)
-            .background(background)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(22.dp),
-        )
     }
 }
 
@@ -404,10 +391,16 @@ private fun EditorToolbar(
 
 @Composable
 private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boolean, onClick: () -> Unit) {
+    val bounce = rememberSpringBounce()
     Column(
         modifier = Modifier
+            .springBounce(bounce)
             .width(60.dp)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(

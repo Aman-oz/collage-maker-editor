@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.preview.ThemePreviews
@@ -257,8 +257,8 @@ private fun BlurContent(
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
             fillColor = scheme.primary,
             thumbColor = scheme.primary,
-            thumbWidth = 26.dp,
-            thumbHeight = 14.dp,
+            thumbWidth = 32.dp,
+            thumbHeight = 18.dp,
             horizontalPadding = 12.dp,
             glassThumb = true,
             glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
@@ -339,37 +339,18 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
-        PlainIconButton(
+        UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_undo),
             contentDescription = "Undo",
             enabled = undoEnabled,
             onClick = onUndo,
         )
         Spacer(modifier = Modifier.width(4.dp))
-        PlainIconButton(
+        UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_redo),
             contentDescription = "Redo",
             enabled = redoEnabled,
             onClick = onRedo,
-        )
-    }
-}
-
-@Composable
-private fun PlainIconButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) onSurface else onSurface.copy(alpha = 0.3f),
-            modifier = Modifier.size(18.dp),
         )
     }
 }

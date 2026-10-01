@@ -2,6 +2,7 @@ package org.example.project.ui.setbackground
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,12 +70,18 @@ import io.github.vinceglb.filekit.path
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.SelectableSwatch
+import org.example.project.ui.common.StickerFlightOverlay
 import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.UndoRedoButton
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.rememberStickerFlights
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleContent
 import org.example.project.ui.freestyle.FreestyleLayer
+import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.StickersPanel
 import org.example.project.ui.freestyle.TextEntry
 import org.example.project.ui.freestyle.TextEntryBar
@@ -181,6 +188,7 @@ private fun SetBackgroundContent(
     modifier: Modifier = Modifier,
 ) {
     val chrome = freestyleChrome()
+    val stickerFlights = rememberStickerFlights(FreestyleStickerBaseSizeSp)
     val edit = uiState.edit
     var tool by remember { mutableStateOf(SetBackgroundTool.Background) }
     var tab by remember { mutableStateOf(BackdropTab.Colour) }
@@ -247,6 +255,7 @@ private fun SetBackgroundContent(
                     Box(modifier = Modifier.aspectRatio(sourceImage.width.toFloat() / sourceImage.height)) {
                         Canvas(modifier = Modifier.fillMaxSize()) { drawComposite(sourceImage, edit.backdrop) }
                         FreestyleCanvas(
+                            stickerFlights = stickerFlights,
                             layers = edit.layers,
                             chrome = chrome,
                             selectedLayerId = selectedLayerId,
@@ -308,7 +317,10 @@ private fun SetBackgroundContent(
                             }
                         },
                     )
-                    SetBackgroundTool.Stickers -> StickersPanel(chrome = chrome, onStickerTapped = onAddSticker)
+                    SetBackgroundTool.Stickers -> StickersPanel(
+                        chrome = chrome,
+                        onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { onAddSticker(emoji) } },
+                    )
                 }
             }
 
@@ -354,6 +366,8 @@ private fun SetBackgroundContent(
                 onCommit = { commitTextEntry(entry) },
             )
         }
+
+        StickerFlightOverlay(stickerFlights)
     }
 }
 
@@ -473,9 +487,9 @@ private fun SetBackgroundTopBar(
             modifier = Modifier.align(Alignment.CenterEnd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlainIconButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = canUndo, onClick = onUndo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = canUndo, onClick = onUndo)
             Spacer(modifier = Modifier.width(4.dp))
-            PlainIconButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = canRedo, onClick = onRedo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = canRedo, onClick = onRedo)
             Spacer(modifier = Modifier.width(8.dp))
             GlassTopBarButton(
                 icon = Icons.Filled.Check,
@@ -501,12 +515,17 @@ private fun BackdropTabSwitch(selected: BackdropTab, onSelected: (BackdropTab) -
     ) {
         for (tab in BackdropTab.entries) {
             val isSelected = tab == selected
+            val bounce = rememberSpringBounce()
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .springBounce(bounce)
                     .clip(CircleShape)
                     .background(if (isSelected) scheme.primary.copy(alpha = 0.18f) else Color.Transparent)
-                    .clickable { onSelected(tab) }
+                    .clickable(
+                        interactionSource = bounce.interactionSource,
+                        indication = LocalIndication.current,
+                    ) { onSelected(tab) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -531,35 +550,18 @@ private fun BackdropTabSwitch(selected: BackdropTab, onSelected: (BackdropTab) -
 private fun BackdropTile(selected: Boolean, onClick: () -> Unit, height: Dp = SwatchSize, content: @Composable () -> Unit) {
     val ring = RoundedCornerShape(SwatchInnerCorner + 4.dp)
     val inner = RoundedCornerShape(SwatchInnerCorner)
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .size(width = SwatchSize, height = height)
             .clip(ring)
             .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, ring) else Modifier)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
             .padding(4.dp)
             .clip(inner)
             .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), inner),
     ) { content() }
-}
-
-@Composable
-private fun PlainIconButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
-    val tint = MaterialTheme.colorScheme.onSurface
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(20.dp),
-        )
-    }
 }
 
 @Composable
@@ -570,10 +572,12 @@ private fun BottomTab(icon: ImageVector, label: String, selected: Boolean, onCli
         enabled -> scheme.onSurface
         else -> scheme.onSurface.copy(alpha = 0.35f)
     }
+    val bounce = rememberSpringBounce()
     Column(
         modifier = Modifier
+            .springBounce(bounce)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

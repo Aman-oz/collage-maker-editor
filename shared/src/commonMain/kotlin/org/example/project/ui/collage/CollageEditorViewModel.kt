@@ -58,6 +58,14 @@ class CollageEditorViewModel(
     private val _pickerState = MutableStateFlow(CollagePickerState())
     val pickerState: StateFlow<CollagePickerState> = _pickerState.asStateFlow()
 
+    private val _hasChanges = MutableStateFlow(false)
+
+    /**
+     * Whether the user has changed the collage since it opened; leaving then asks to discard. There
+     * is no undo history here, so it is a flag set by every user edit and never cleared.
+     */
+    val hasChanges: StateFlow<Boolean> = _hasChanges.asStateFlow()
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
@@ -180,8 +188,11 @@ class CollageEditorViewModel(
         session.set(bakeCollage(state, previewWidthPx, spacePx, cornerPx))
     }
 
+    /** Every user edit goes through here (the initial layout is set directly), so it marks the change. */
     private inline fun updateReady(transform: (CollageState) -> CollageState) {
         val current = _uiState.value as? CollageEditorUiState.Ready ?: return
-        _uiState.value = CollageEditorUiState.Ready(transform(current.collage))
+        val next = transform(current.collage)
+        if (next != current.collage) _hasChanges.value = true
+        _uiState.value = CollageEditorUiState.Ready(next)
     }
 }

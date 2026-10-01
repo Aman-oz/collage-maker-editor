@@ -80,6 +80,22 @@ from the back stack.
   plain-HTTP LAS collagemaker API, which is why cleartext traffic is enabled in the Android
   manifest and iOS `Info.plist` (ATS). The server sends slot coordinates as quoted strings, which
   `LenientFloatSerializer` handles.
+- **Frames** (`ui/frames/`): the same screens as Templates (`TemplatesContent`, `TemplatesEditorScreen`)
+  fed by `FramesRepository`, which calls the same server's `getSubCategories` and
+  `getassets?subcategoryId=` (the LAS `FramesActivity`). The payload is the same `FrameItem` shape,
+  so it reuses the templates DTOs and their `toCategories()` / `toFrames()` mapping.
+
+### PIP — `ui/pip/`
+
+Ported from the LAS app's `TemplateActivity` / `TemplateDetailActivity`. Home's PIP opens
+`Destination.Pip` (the template grid) → `Gallery(slotCount, GalleryTarget.Pip, pipTemplate = name)` →
+`PipEditor(templateName, imagePaths)` → `Editor()`. The 46 templates are bundled in
+`composeResources/files/pip/` as `<name>_preview.webp`, `<name>_fg.webp` (the transparent frame) and
+one `<name>_<slot>.png` alpha mask per slot. `PipCatalog.kt` holds each slot's top-left corner in the
+frame's pixel space; a slot's size is its mask's own size, so geometry is only known once the masks
+are decoded (`PipAssetLoader`). `drawPip` renders the blurred first photo, then each photo masked by
+`DstIn` in its own layer, then the frame, and is shared by the preview and the bake. The editor's text
+and sticker layers are the freestyle ones, as in Set Background.
 
 ### Background remover — `ui/bgremover/`
 
@@ -100,7 +116,8 @@ Ai Magic (premium) is server-side, ported from the LAS app: `data/bgremover/Back
 uploads the cropped photo as multipart `file` to `<base>/bg-remover/remove`, downloads the returned
 `image_url` PNG, and the eraser pushes it as an undoable `EraseOp.AiCutOut` (its alpha masks the
 photo, so Recover still works). The endpoint and key are read from `local.properties`
-(`BG_REMOVER_BASE_URL`, `BG_REMOVER_API_KEY_HEADER`, `BG_REMOVER_API_KEY`) by the
+(`BG_REMOVER_BASE_URL`, `BG_REMOVER_API_KEY_HEADER`, `BG_REMOVER_API_KEY`, or the LAS app's
+`BASE_URL`, `KEY`, `X_API_KEY` as fallbacks) by the
 `:shared:generateBgRemoverConfig` task into a generated `BgRemoverConfig` object — the KMP stand-in
 for `BuildConfig`. Without them the app builds and Ai Magic reports "not set up".
 

@@ -7,7 +7,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val Brand = Color(0xFF6C4DF6)
+/** The brand violet: light primary, and the fill for primary accents that must stay saturated on dark. */
+internal val Brand = Color(0xFF6C4DF6)
 private val BrandDark = Color(0xFF4B32C3)
 private val Accent = Color(0xFFFF6B6B)
 

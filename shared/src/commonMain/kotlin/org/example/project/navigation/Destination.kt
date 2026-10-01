@@ -15,6 +15,9 @@ enum class GalleryTarget {
 
     /** The background remover: crop first, then [Destination.BackgroundRemoverEditor]. */
     BackgroundRemover,
+
+    /** The Pip editor for [Destination.Gallery.pipTemplate]; one photo per window of the template. */
+    Pip,
 }
 
 /**
@@ -26,7 +29,11 @@ enum class GalleryTarget {
 @Serializable
 sealed interface Destination : NavKey {
 
-    /** First screen shown on launch. Replaced by [Home] once the app is ready. */
+    /**
+     * First screen shown on launch: a short loading screen that replaces itself with [Language] on
+     * the first run (until onboarding is finished), and afterwards with [Premium] (or [Home] for a
+     * premium user).
+     */
     @Serializable
     data object Splash : Destination
 
@@ -34,12 +41,12 @@ sealed interface Destination : NavKey {
      * Language picker.
      *
      * @param fromSettings `true` when opened from [Settings]: Done (or back) returns there. `false`
-     * for the first-run flow after [Splash]'s Get started, where Done continues to [Onboarding].
+     * for the first-run flow after [Splash], where Done continues to [Onboarding].
      */
     @Serializable
     data class Language(val fromSettings: Boolean = false) : Destination
 
-    /** Feature walkthrough pager shown after [Language]; Continue on the last page (or close) goes to [Home]. */
+    /** Feature walkthrough pager shown after [Language]; Get Started on the last page (or close) goes to [Premium]. */
     @Serializable
     data object Onboarding : Destination
 
@@ -51,18 +58,30 @@ sealed interface Destination : NavKey {
     @Serializable
     data object Settings : Destination
 
-    /** Premium paywall: feature list and plan picker. Opened from [Home], [Settings] and [SaveImage]. */
+    /**
+     * Premium paywall: feature list and plan picker. Opened from [Home], [Settings] and [SaveImage].
+     *
+     * @param fromSplash `true` in the launch flow (after [Onboarding] on the first run, straight from
+     * [Splash] on later ones), where nothing is under it on the back stack: close (or back) replaces
+     * it with [Home] instead of popping.
+     */
     @Serializable
-    data object Premium : Destination
+    data class Premium(val fromSplash: Boolean = false) : Destination
 
     /**
      * In-app photo library picker, gated behind an explicit permission request.
      *
      * @param maxSelection how many photos the user may pick.
      * @param target which editor destination the picked images are routed to.
+     * @param pipTemplate the [org.example.project.ui.pip.PipTemplate.name] the photos are for, when
+     * [target] is [GalleryTarget.Pip].
      */
     @Serializable
-    data class Gallery(val maxSelection: Int, val target: GalleryTarget) : Destination
+    data class Gallery(
+        val maxSelection: Int,
+        val target: GalleryTarget,
+        val pipTemplate: String? = null,
+    ) : Destination
 
     /**
      * Photo editor.
@@ -115,7 +134,21 @@ sealed interface Destination : NavKey {
     @Serializable
     data class TemplatesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
 
-    /** Frames catalog browser; the same UI as [Templates], fed by its own repository. */
+    /** Pip picker: the bundled picture-in-picture templates. Opened from [Home]. */
+    @Serializable
+    data object Pip : Destination
+
+    /**
+     * Pip editor: [templateName]'s frame with the picked photos in its windows, plus text and stickers.
+     *
+     * @param templateName the [org.example.project.ui.pip.PipTemplate.name]; it names every asset,
+     * so the key needn't carry the template itself.
+     * @param imagePaths platform paths of the picked images, in slot order, as in [CollageEditor].
+     */
+    @Serializable
+    data class PipEditor(val templateName: String, val imagePaths: List<String>) : Destination
+
+    /** Frames catalog browser; the same UI as [Templates], fed by the server frames endpoints. */
     @Serializable
     data object Frames : Destination
 

@@ -1,6 +1,11 @@
 package org.example.project.ui.draw
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -84,3 +89,33 @@ internal fun computeMosaicBitmap(source: ImageBitmap, cellFractionX: Float, cell
     )
     return mosaic
 }
+
+/**
+ * Whether a drag sample at [next] (px) is far enough from the stroke's [last] point to keep. Touch
+ * screens report ~120 samples a second, mostly a pixel or less apart; dropping those keeps a long
+ * stroke's point list (and the path rebuilt from it every frame) small without changing its shape.
+ */
+internal fun isFarEnough(last: Offset, next: Offset, minDistancePx: Float): Boolean =
+    (next - last).getDistanceSquared() >= minDistancePx * minDistancePx
+
+/**
+ * One stroke as a single polyline through its [points] (fractions of [size]), to be drawn with a
+ * round-capped, round-joined stroke two radii wide. That matches the old dab-per-point shape, but is
+ * one contour instead of one circle per sample — the circles made filling (and clipping to) a long
+ * stroke cost more every frame, until drawing froze. A single point becomes a dot.
+ */
+internal fun strokePolyline(points: List<Offset>, size: Size): Path {
+    val path = Path()
+    points.forEachIndexed { index, fraction ->
+        val x = fraction.x * size.width
+        val y = fraction.y * size.height
+        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    // A zero-length segment still draws its round caps, so a tap leaves a dot.
+    if (points.size == 1) path.lineTo(points[0].x * size.width + 0.01f, points[0].y * size.height)
+    return path
+}
+
+/** The stroke style for a brush of [radiusPx]: round caps and joins, like a dab of that radius. */
+internal fun brushStroke(radiusPx: Float): Stroke =
+    Stroke(width = radiusPx * 2f, cap = StrokeCap.Round, join = StrokeJoin.Round)

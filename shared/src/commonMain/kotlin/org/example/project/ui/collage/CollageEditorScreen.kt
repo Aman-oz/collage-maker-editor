@@ -1,10 +1,15 @@
 package org.example.project.ui.collage
 
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
+import org.example.project.ui.common.DiscardChangesPopup
+import org.example.project.ui.common.rememberDiscardChangesState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -85,6 +90,8 @@ import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
@@ -169,6 +176,10 @@ fun CollageEditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()
+    val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
+    val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
+    // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
+    val liquidState = rememberLiquidState()
     var pendingSlotIndex by remember { mutableStateOf<Int?>(null) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
 
@@ -184,7 +195,7 @@ fun CollageEditorScreen(
         CollageEditorContent(
             uiState = uiState,
             pickerState = pickerState,
-            onClose = onBack,
+            onClose = discard::requestBack,
             onPremium = onPremium,
             onDone = { canvasWidthPx, spacePx, cornerPx ->
                 viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)
@@ -204,6 +215,7 @@ fun CollageEditorScreen(
             onCornerChange = viewModel::updateCorner,
             onBackgroundColorChange = viewModel::updateBackgroundColor,
             onRatioChange = viewModel::updateRatio,
+            modifier = Modifier.liquefiable(liquidState),
         )
 
         CollageToast(
@@ -211,6 +223,8 @@ fun CollageEditorScreen(
             onDismissed = { toastMessage = null },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+
+        DiscardChangesPopup(discard, liquidState)
     }
 }
 
@@ -494,7 +508,12 @@ private fun CollageTopBar(
             maxLines = 1,
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
         )
-        IconButton(onClick = onPremium) {
+        val premiumBounce = rememberSpringBounce()
+        IconButton(
+            onClick = onPremium,
+            interactionSource = premiumBounce.interactionSource,
+            modifier = Modifier.springBounce(premiumBounce),
+        ) {
             Image(
                 painter = painterResource(Res.drawable.ic_premium_icon),
                 contentDescription = "Premium",
@@ -508,7 +527,6 @@ private fun CollageTopBar(
             onClick = onDone,
             enabled = doneEnabled,
             style = GlassButtonStyle.Primary,
-            accentColor = chrome.accent,
         )
     }
 }
@@ -528,10 +546,16 @@ private fun CollageToolTabs(chrome: CollageChrome, selected: CollageTool, onTool
 @Composable
 private fun CollageToolTab(chrome: CollageChrome, tool: CollageTool, selected: Boolean, onClick: () -> Unit) {
     // IntrinsicSize.Max lets the underline match the label's width.
+    val bounce = rememberSpringBounce()
     Column(
         modifier = Modifier
+            .springBounce(bounce)
             .width(IntrinsicSize.Max)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -586,12 +610,18 @@ private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, o
 @Composable
 private fun LayoutThumbnail(chrome: CollageChrome, template: TemplateItem, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .size(56.dp)
             .clip(shape)
             .border(1.5.dp, if (selected) chrome.accent else Color.Transparent, shape)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
             .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -663,8 +693,8 @@ private fun BorderSliderRow(
             trackColor = chrome.track,
             fillColor = chrome.accent,
             thumbColor = chrome.accent,
-            thumbWidth = 26.dp,
-            thumbHeight = 14.dp,
+            thumbWidth = 32.dp,
+            thumbHeight = 18.dp,
             horizontalPadding = 24.dp,
             glassThumb = true,
             glassTint = if (chrome.isLight) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
@@ -692,12 +722,18 @@ private fun BackgroundTab(chrome: CollageChrome, selected: Color, onColorChange:
 private fun BackgroundColorSwatch(chrome: CollageChrome, color: Color, selected: Boolean, onClick: () -> Unit) {
     val outer = RoundedCornerShape(12.dp)
     val inner = RoundedCornerShape(9.dp)
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .size(50.dp)
             .clip(outer)
             .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
             .padding(4.dp)
             .clip(inner)
             .background(color)
@@ -724,10 +760,16 @@ private fun RatioOption(chrome: CollageChrome, ratio: CollageRatio, selected: Bo
     val tint = if (selected) chrome.accent else chrome.content
     // Every option's shape is fitted into the same box so a tall and a wide ratio read at a glance.
     val (w, h) = fitAspect(48f, 48f, ratio.aspect)
+    val bounce = rememberSpringBounce()
     Column(
         modifier = Modifier
+            .springBounce(bounce)
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
             .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

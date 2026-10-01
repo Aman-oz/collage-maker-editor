@@ -1,8 +1,5 @@
 package org.example.project.ui.splash
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,12 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,30 +37,31 @@ import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.app_icon
 
-/** Splash brand color; the title, logo tint and Get started button all derive from it. */
+/** Splash brand color; the title and the loading bar derive from it. */
 private val SplashPrimary = Color(0xFF8B5CF6)
 
+/**
+ * Loading screen shown on every launch.
+ *
+ * @param onFinished called once the loading time is over, with where to go next.
+ */
 @Composable
 fun SplashScreen(
-    onGetStarted: () -> Unit,
+    onFinished: (SplashNext) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SplashViewModel = koinViewModel(),
 ) {
-    val isReady by viewModel.isReady.collectAsStateWithLifecycle()
+    val next by viewModel.next.collectAsStateWithLifecycle()
+    val currentOnFinished by rememberUpdatedState(onFinished)
+    LaunchedEffect(next) {
+        next?.let { currentOnFinished(it) }
+    }
 
-    SplashContent(
-        showGetStarted = isReady,
-        onGetStarted = onGetStarted,
-        modifier = modifier,
-    )
+    SplashContent(modifier = modifier)
 }
 
 @Composable
-private fun SplashContent(
-    showGetStarted: Boolean,
-    onGetStarted: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun SplashContent(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -90,36 +89,21 @@ private fun SplashContent(
             )
         }
 
-        // Fades in once start-up work in SplashViewModel finishes, so the user can't skip past it.
-        AnimatedVisibility(
-            visible = showGetStarted,
-            enter = fadeIn(),
-            exit = fadeOut(),
+        LinearProgressIndicator(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-        ) {
-            Button(
-                onClick = onGetStarted,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SplashPrimary,
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text(
-                    text = "Get started",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
+                .padding(horizontal = 48.dp, vertical = 32.dp)
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(CircleShape),
+            color = SplashPrimary,
+            trackColor = SplashPrimary.copy(alpha = 0.2f),
+        )
     }
 }
 
 @Preview
 @Composable
 private fun SplashScreenPreview() {
-    ThemePreviews { SplashContent(showGetStarted = true, onGetStarted = {}) }
+    ThemePreviews { SplashContent() }
 }

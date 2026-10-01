@@ -2,7 +2,6 @@ package org.example.project.ui.auto
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -167,17 +167,19 @@ private fun AutoBottomBar(
             .padding(horizontal = 12.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BarIcon(
+        UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_undo),
             contentDescription = "Undo",
-            tint = if (undoEnabled) content else content.copy(alpha = 0.3f),
-            modifier = Modifier.clickable(enabled = undoEnabled, onClick = onUndo),
+            enabled = undoEnabled,
+            onClick = onUndo,
+            tint = content,
         )
-        BarIcon(
+        UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_redo),
             contentDescription = "Redo",
-            tint = if (redoEnabled) content else content.copy(alpha = 0.3f),
-            modifier = Modifier.clickable(enabled = redoEnabled, onClick = onRedo),
+            enabled = redoEnabled,
+            onClick = onRedo,
+            tint = content,
         )
         Spacer(modifier = Modifier.weight(1f))
         BarIcon(

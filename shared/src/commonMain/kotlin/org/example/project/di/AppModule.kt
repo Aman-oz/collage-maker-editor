@@ -31,6 +31,9 @@ import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
 import org.example.project.ui.overlay.OverlayViewModel
+import org.example.project.ui.pip.PipAssetLoader
+import org.example.project.ui.pip.PipEditorViewModel
+import org.example.project.ui.pip.PipViewModel
 import org.example.project.ui.premium.PremiumViewModel
 import org.example.project.ui.projects.PreviewViewModel
 import org.example.project.ui.projects.ProjectsViewModel
@@ -45,6 +48,7 @@ import org.example.project.ui.templates.TemplatesEditorViewModel
 import org.example.project.ui.templates.TemplatesRepository
 import org.example.project.ui.templates.TemplatesViewModel
 import org.example.project.ui.text.TextViewModel
+import org.example.project.ui.onboarding.OnboardingViewModel
 import org.example.project.ui.splash.SplashViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
@@ -68,10 +72,12 @@ val coreModule: Module = module {
     single { CollageCatalog() }
     // Fetches the server template catalog (categories + templates) for the Templates screen.
     single { TemplatesRepository(get()) }
-    // Frames catalog; delegates to the Templates catalog until the Frames data is wired up.
+    // Fetches the server frames catalog (sub-categories + frames) for the Frames screen.
     single { FramesRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
+
+    single { PipAssetLoader() }
     // Subscriptions. Created at startup so the entitlement check runs on every launch and, on
     // Android, so its activity tracker is registered before the first activity resumes.
     single(createdAtStart = true) { AppBillingWrapper(get(), get()) }
@@ -80,6 +86,7 @@ val coreModule: Module = module {
 /** ViewModels, scoped to their Navigation 3 entry. */
 val viewModelModule: Module = module {
     viewModelOf(::SplashViewModel)
+    viewModelOf(::OnboardingViewModel)
     viewModelOf(::LanguageViewModel)
     viewModelOf(::SettingsViewModel)
     viewModelOf(::GalleryViewModel)
@@ -116,6 +123,8 @@ val viewModelModule: Module = module {
     viewModelOf(::PremiumViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get()) }
+    viewModelOf(::PipViewModel)
+    viewModel { (templateName: String, imagePaths: List<String>) -> PipEditorViewModel(templateName, imagePaths, get(), get()) }
 }
 
 val appModules: List<Module> = listOf(coreModule, viewModelModule, billingPlatformModule())

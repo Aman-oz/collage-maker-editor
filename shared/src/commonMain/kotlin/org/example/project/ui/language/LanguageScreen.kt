@@ -1,5 +1,8 @@
 package org.example.project.ui.language
 
+import org.example.project.ui.common.bubbleClick
+import org.example.project.ui.common.rememberBubbleClick
+import org.example.project.ui.theme.Brand
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -154,13 +157,16 @@ private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> 
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
         )
+        val bubble = rememberBubbleClick()
         Button(
-            onClick = onDone,
-            modifier = Modifier.height(32.dp),
+            onClick = { bubble.tap(onDone) },
+            modifier = Modifier.height(32.dp).bubbleClick(bubble, Brand),
+            interactionSource = bubble.interactionSource,
             shape = CircleShape,
             contentPadding = PaddingValues(horizontal = 22.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = LanguageAccent,
+                // Primary, like every other Done button.
+                containerColor = Brand,
                 contentColor = Color.White,
             ),
         ) {

@@ -21,4 +21,18 @@ class BackgroundRemoverApiTest {
     fun resolveCutOutUrl_resolvesRelativePathsAgainstBase() {
         assertEquals("http://host/media/out.png", resolveCutOutUrl("http://host/", "/media/out.png"))
     }
+
+    @Test
+    fun resolveRedirect_takesAbsoluteLocationsAsIs() {
+        // The live server's answer to the old plain-HTTP upload URL.
+        assertEquals(
+            "https://aiapps.example/api/bg-remover/remove",
+            resolveRedirect("http://aiapps.example/api/bg-remover/remove", "https://aiapps.example/api/bg-remover/remove"),
+        )
+    }
+
+    @Test
+    fun resolveRedirect_resolvesRelativeLocationsAgainstTheCurrentUrl() {
+        assertEquals("http://host/v2/remove", resolveRedirect("http://host/api/bg-remover/remove", "/v2/remove"))
+    }
 }

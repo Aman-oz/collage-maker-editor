@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,12 +34,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -48,9 +47,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.min
 import kotlin.math.roundToInt
+import org.example.project.ui.common.LiquidSliderThumb
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.UndoRedoButton
+import org.example.project.ui.common.pointerInputPressed
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -269,12 +273,12 @@ private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, m
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(32.dp)
+            .height(40.dp)
             .padding(horizontal = 16.dp),
     ) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
-        val thumbHalfWidthPx = with(density) { 13.dp.toPx() }
+        val thumbHalfWidthPx = with(density) { RotationThumbWidth.toPx() } / 2f
         val usableWidth = (widthPx - thumbHalfWidthPx * 2).coerceAtLeast(1f)
 
         fun valueToX(v: Float): Float {
@@ -286,10 +290,14 @@ private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, m
             rotationStopAtPosition(((x - thumbHalfWidthPx) / usableWidth) * lastIndex)
 
         val thumbX = valueToX(value)
+        val liquidState = rememberLiquidState()
+        var pressed by remember { mutableStateOf(false) }
 
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .liquefiable(liquidState)
+                .pointerInputPressed { pressed = it }
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { position -> currentOnValueChange(xToValue(position.x)) },
@@ -318,16 +326,24 @@ private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, m
                     center = Offset(valueToX(stop), trackY),
                 )
             }
-            val thumbHalfHeightPx = 7.dp.toPx()
-            drawRoundRect(
-                color = scheme.primary,
-                topLeft = Offset(thumbX - thumbHalfWidthPx, trackY - thumbHalfHeightPx),
-                size = Size(thumbHalfWidthPx * 2f, thumbHalfHeightPx * 2f),
-                cornerRadius = CornerRadius(thumbHalfHeightPx),
-            )
         }
+
+        // A sibling of the liquefiable track, so the drop can refract the track and its stop dots.
+        LiquidSliderThumb(
+            liquidState = liquidState,
+            pressed = pressed,
+            centerX = thumbX,
+            width = RotationThumbWidth,
+            height = RotationThumbHeight,
+            accentColor = scheme.primary,
+            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
     }
 }
+
+private val RotationThumbWidth = 32.dp
+private val RotationThumbHeight = 18.dp
 
 @Composable
 private fun RotateActionRow(
@@ -381,28 +397,9 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
     ) {
-        PlainIconButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
         Spacer(modifier = Modifier.width(4.dp))
-        PlainIconButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
-    }
-}
-
-@Composable
-private fun PlainIconButton(icon: ImageVector, contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
-    val tint = MaterialTheme.colorScheme.onSurface
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(20.dp),
-        )
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
     }
 }
 

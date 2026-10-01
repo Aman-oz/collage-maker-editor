@@ -1,6 +1,11 @@
 package org.example.project.ui.freestyle
 
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
+import org.example.project.ui.common.DiscardChangesPopup
+import org.example.project.ui.common.rememberDiscardChangesState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +32,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -45,9 +49,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,7 +75,11 @@ import io.github.vinceglb.filekit.path
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
-import org.example.project.ui.common.TopBarButtonSize
+import org.example.project.ui.common.StickerFlightOverlay
+import org.example.project.ui.common.UndoRedoButton
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.rememberStickerFlights
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.text.TextColorOptions
@@ -122,33 +130,43 @@ fun FreestyleEditorScreen(
         replaceLayerId = null
     }
 
-    FreestyleEditorContent(
-        uiState = uiState,
-        onClose = onBack,
-        onDone = { canvasSizePx ->
-            viewModel.applyFreestyle(textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density)
-            onOpenEditor()
-        },
-        onTransformLayer = viewModel::transformLayer,
-        onScaleRotateLayer = viewModel::setLayerScaleRotation,
-        onSelectLayer = viewModel::bringToFront,
-        onDeleteLayer = viewModel::removeLayer,
-        onImageAction = { targetId ->
-            replaceLayerId = targetId
-            imagePicker.launch()
-        },
-        onAddSticker = viewModel::addSticker,
-        onAddText = viewModel::addText,
-        onUpdateText = viewModel::updateText,
-        onRetypeText = viewModel::retypeText,
-        onUndo = viewModel::undo,
-        onRedo = viewModel::redo,
-        onGestureEnd = viewModel::endGesture,
-        onBackgroundColorChange = viewModel::updateBackgroundColor,
-        onBorderWidthChange = viewModel::updateImageBorderWidth,
-        onCornerRadiusChange = viewModel::updateImageCornerRadius,
-        modifier = modifier,
+    val discard = rememberDiscardChangesState(
+        hasChanges = (uiState as? FreestyleEditorUiState.Ready)?.canUndo == true,
+        onBack = onBack,
     )
+    // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
+    val liquidState = rememberLiquidState()
+
+    Box(modifier = modifier.fillMaxSize()) {
+        FreestyleEditorContent(
+            uiState = uiState,
+            onClose = discard::requestBack,
+            onDone = { canvasSizePx ->
+                viewModel.applyFreestyle(textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density)
+                onOpenEditor()
+            },
+            onTransformLayer = viewModel::transformLayer,
+            onScaleRotateLayer = viewModel::setLayerScaleRotation,
+            onSelectLayer = viewModel::bringToFront,
+            onDeleteLayer = viewModel::removeLayer,
+            onImageAction = { targetId ->
+                replaceLayerId = targetId
+                imagePicker.launch()
+            },
+            onAddSticker = viewModel::addSticker,
+            onAddText = viewModel::addText,
+            onUpdateText = viewModel::updateText,
+            onRetypeText = viewModel::retypeText,
+            onUndo = viewModel::undo,
+            onRedo = viewModel::redo,
+            onGestureEnd = viewModel::endGesture,
+            onBackgroundColorChange = viewModel::updateBackgroundColor,
+            onBorderWidthChange = viewModel::updateImageBorderWidth,
+            onCornerRadiusChange = viewModel::updateImageCornerRadius,
+            modifier = Modifier.liquefiable(liquidState),
+        )
+        DiscardChangesPopup(discard, liquidState)
+    }
 }
 
 @Composable
@@ -174,6 +192,7 @@ private fun FreestyleEditorContent(
     modifier: Modifier = Modifier,
 ) {
     val chrome = freestyleChrome()
+    val stickerFlights = rememberStickerFlights(FreestyleStickerBaseSizeSp)
     var selectedTool by remember { mutableStateOf(FreestyleTool.Background) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var canvasSizePx by remember { mutableStateOf(IntSize.Zero) }
@@ -247,6 +266,7 @@ private fun FreestyleEditorContent(
                     FreestyleEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
                     is FreestyleEditorUiState.Ready -> FreestyleCanvas(
+                        stickerFlights = stickerFlights,
                         layers = uiState.freestyle.layers,
                         chrome = chrome,
                         selectedLayerId = selectedLayerId,
@@ -290,7 +310,10 @@ private fun FreestyleEditorContent(
                             selected = freestyle.backgroundColor,
                             onColorChange = onBackgroundColorChange,
                         )
-                        FreestyleTool.Stickers -> StickersPanel(chrome = chrome, onStickerTapped = onAddSticker)
+                        FreestyleTool.Stickers -> StickersPanel(
+                            chrome = chrome,
+                            onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { onAddSticker(emoji) } },
+                        )
                         FreestyleTool.Border -> BorderPanel(
                             chrome = chrome,
                             state = freestyle,
@@ -346,6 +369,8 @@ private fun FreestyleEditorContent(
                 onCommit = { commitTextEntry(entry) },
             )
         }
+
+        StickerFlightOverlay(stickerFlights)
     }
 }
 
@@ -385,20 +410,18 @@ private fun FreestyleTopBar(
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TopBarCircleButton(
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
-                onClick = onUndo,
                 enabled = canUndo,
-                background = chrome.content.copy(alpha = 0.06f),
+                onClick = onUndo,
                 tint = chrome.content,
             )
-            TopBarCircleButton(
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
-                onClick = onRedo,
                 enabled = canRedo,
-                background = chrome.content.copy(alpha = 0.06f),
+                onClick = onRedo,
                 tint = chrome.content,
             )
             GlassTopBarButton(
@@ -407,38 +430,10 @@ private fun FreestyleTopBar(
                 onClick = onDone,
                 enabled = doneEnabled,
                 style = GlassButtonStyle.Primary,
-                accentColor = chrome.accent,
             )
         }
     }
 }
-
-@Composable
-private fun TopBarCircleButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    background: Color,
-    tint: Color,
-    enabled: Boolean = true,
-) {
-    Box(
-        modifier = Modifier
-            .size(TopBarButtonSize)
-            .clip(CircleShape)
-            .background(background)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
-
 
 @Composable
 private fun FreestyleToolRow(
@@ -490,11 +485,18 @@ private fun ToolItem(
         enabled -> chrome.content
         else -> chrome.muted
     }
+    val bounce = rememberSpringBounce()
     Column(
         modifier = Modifier
+            .springBounce(bounce)
             .width(78.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                enabled = enabled,
+                onClick = onClick,
+            )
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -533,12 +535,18 @@ private fun BackgroundPanel(chrome: FreestyleChrome, selected: Color, onColorCha
 private fun BackgroundSwatch(chrome: FreestyleChrome, color: Color, selected: Boolean, onClick: () -> Unit) {
     val outer = RoundedCornerShape(12.dp)
     val inner = RoundedCornerShape(9.dp)
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .size(52.dp)
             .clip(outer)
             .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
             .padding(4.dp)
             .clip(inner)
             .background(color)
@@ -607,8 +615,8 @@ private fun BorderSliderRow(
             trackColor = chrome.track,
             fillColor = chrome.accent,
             thumbColor = chrome.accent,
-            thumbWidth = 26.dp,
-            thumbHeight = 14.dp,
+            thumbWidth = 32.dp,
+            thumbHeight = 18.dp,
             horizontalPadding = 24.dp,
             glassThumb = true,
             glassTint = if (chrome.isLight) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),

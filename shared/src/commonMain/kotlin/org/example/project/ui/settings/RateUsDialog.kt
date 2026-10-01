@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.ui.common.DialogShape
 import org.example.project.ui.preview.ThemePreviews
 
 /** One face per star, worst to best. The index + 1 is the rating reported to [RateUsDialog]'s onRate. */

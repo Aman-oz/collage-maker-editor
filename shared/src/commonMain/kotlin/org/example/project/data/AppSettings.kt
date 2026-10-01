@@ -44,9 +44,29 @@ class AppSettings(private val store: KeyValueStore) {
             if (value != null) store.putString(KeyLanguageCode, value)
         }
 
+    /**
+     * Whether the first-run flow (language → onboarding) has been finished. Until it is, every
+     * launch goes from Splash to the language picker again rather than to Home.
+     */
+    var hasCompletedOnboarding: Boolean
+        get() = store.getString(KeyOnboardingCompleted).toBoolean()
+        set(value) = store.putString(KeyOnboardingCompleted, value.toString())
+
+    /**
+     * When the launch-flow limited-time offer was first shown (epoch millis), or `null` if it never
+     * was. Its countdown runs from here, so it keeps ticking across launches instead of restarting.
+     */
+    var launchOfferStartedAt: Long?
+        get() = store.getString(KeyLaunchOfferStartedAt)?.toLongOrNull()
+        set(value) {
+            if (value != null) store.putString(KeyLaunchOfferStartedAt, value.toString())
+        }
+
     private companion object {
         const val KeyThemeMode = "theme_mode"
         const val KeyLanguageCode = "language_code"
         const val KeyPremium = "is_premium"
+        const val KeyOnboardingCompleted = "onboarding_completed"
+        const val KeyLaunchOfferStartedAt = "launch_offer_started_at"
     }
 }

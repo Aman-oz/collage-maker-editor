@@ -2,8 +2,6 @@ package org.example.project.ui.colorsplash
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +46,7 @@ import org.example.project.ui.common.MaskBrushSizeDefault
 import org.example.project.ui.common.MaskBrushSizeRange
 import org.example.project.ui.common.MaskStroke
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.bakeMaskReveal
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
@@ -211,23 +207,23 @@ private fun ColorSplashContent(
         Spacer(modifier = Modifier.height(28.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            OutlinedSquareIconButton(
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
                 enabled = strokes.isNotEmpty(),
                 onClick = {
-                    val last = strokes.lastOrNull() ?: return@OutlinedSquareIconButton
+                    val last = strokes.lastOrNull() ?: return@UndoRedoButton
                     redoStack = redoStack + last
                     strokes = strokes.dropLast(1)
                 },
             )
             Spacer(modifier = Modifier.width(8.dp))
-            OutlinedSquareIconButton(
+            UndoRedoButton(
                 icon = vectorResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
                 enabled = redoStack.isNotEmpty(),
                 onClick = {
-                    val next = redoStack.lastOrNull() ?: return@OutlinedSquareIconButton
+                    val next = redoStack.lastOrNull() ?: return@UndoRedoButton
                     strokes = strokes + next
                     redoStack = redoStack.dropLast(1)
                 },
@@ -263,44 +259,14 @@ private fun ColorSplashContent(
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
             fillColor = scheme.primary,
             thumbColor = scheme.primary,
-            thumbWidth = 26.dp,
-            thumbHeight = 14.dp,
+            thumbWidth = 32.dp,
+            thumbHeight = 18.dp,
             horizontalPadding = 12.dp,
             glassThumb = true,
             glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
         )
 
         Spacer(modifier = Modifier.height(20.dp))
-    }
-}
-
-private val SquareButtonShape = RoundedCornerShape(10.dp)
-
-/** Outlined rounded-square undo/redo button with a faint fill; dims outline and glyph when disabled. */
-@Composable
-private fun OutlinedSquareIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    val tint = if (enabled) onSurface else onSurface.copy(alpha = 0.35f)
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(SquareButtonShape)
-            .background(onSurface.copy(alpha = 0.03f))
-            .border(width = 1.dp, color = onSurface.copy(alpha = if (enabled) 0.6f else 0.25f), shape = SquareButtonShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(18.dp),
-        )
     }
 }
 

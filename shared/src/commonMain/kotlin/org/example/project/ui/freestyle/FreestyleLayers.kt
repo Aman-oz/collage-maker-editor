@@ -1,6 +1,7 @@
 package org.example.project.ui.freestyle
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,19 +36,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +58,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
@@ -66,6 +69,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -76,6 +80,12 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.ui.common.StickerFlights
+import org.example.project.ui.common.bubbleClick
+import org.example.project.ui.common.rememberBubbleClick
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
+import org.example.project.ui.common.stickerFlightTarget
 import org.example.project.ui.emoji.EmojiCategory
 import org.example.project.ui.emoji.EmojiCategoryTabs
 import org.example.project.ui.emoji.EmojiGrid
@@ -87,6 +97,7 @@ import org.example.project.ui.text.TextFontStyleOption
 import org.example.project.ui.text.rotateVector
 import org.example.project.ui.text.snapTextRotation
 import org.example.project.ui.text.vectorAngleDegrees
+import org.example.project.ui.theme.Brand
 
 // The freestyle editor's layer canvas, selection handles, keyboard text bar and Text/Stickers
 // panels. Internal so Set Background (text and stickers over a cut-out) reuses the same behavior.
@@ -199,10 +210,15 @@ internal fun TextEntryBar(chrome: FreestyleChrome, entry: TextEntry, onTextChang
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
+            val bubble = rememberBubbleClick()
             Button(
-                onClick = commit,
+                onClick = { bubble.tap(commit) },
+                modifier = Modifier.bubbleClick(bubble, Brand),
+                interactionSource = bubble.interactionSource,
                 enabled = entry.layerId != null || entry.text.isNotBlank(),
                 shape = RoundedCornerShape(50),
+                // The brand violet, not the dark scheme's pastel primary, like every Done button.
+                colors = ButtonDefaults.buttonColors(containerColor = Brand, contentColor = Color.White),
             ) {
                 Text(if (entry.layerId == null) "Add" else "Done", fontWeight = FontWeight.SemiBold)
             }
@@ -227,6 +243,7 @@ internal fun FreestyleCanvas(
     onLayerScaleRotated: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
     onLayerDeleted: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    stickerFlights: StickerFlights? = null,
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     // Stickers and text size themselves, so the overlay reads their measured box from here.
@@ -235,6 +252,7 @@ internal fun FreestyleCanvas(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .stickerFlightTarget(stickerFlights)
             .onSizeChanged {
                 canvasSize = it
                 onCanvasSizeChanged(it)
@@ -275,22 +293,32 @@ internal fun FreestyleCanvas(
     }
 }
 
-/** The on-screen box of [layer], centered on its offset; photos have a computed size, the rest wrap. */
+/**
+ * The on-screen box of [layer], centered on its offset; photos have a computed size, the rest wrap.
+ *
+ * It centers on the size measured in this same layout pass rather than one fed back through
+ * `onSizeChanged`: a new sticker or label has no measured size on its first frame, so it would
+ * draw off-center for a frame and then jump — visible as a jerk as a sticker's flight lands.
+ */
 @Composable
-private fun layerBoxModifier(layer: FreestyleLayer, canvasSize: IntSize, measuredPx: IntSize): Modifier {
+private fun layerBoxModifier(layer: FreestyleLayer, canvasSize: IntSize): Modifier {
     val density = LocalDensity.current
     val content = layer.content
-    val (widthPx, heightPx) = if (content is FreestyleContent.ImageContent) {
-        val w = canvasSize.width * FreestyleImageBaseWidthFraction * layer.scale
-        w to w * (content.image.height.toFloat() / content.image.width.toFloat())
-    } else {
-        measuredPx.width.toFloat() to measuredPx.height.toFloat()
-    }
     val centerPx = Offset(layer.offsetFraction.x * canvasSize.width, layer.offsetFraction.y * canvasSize.height)
     return Modifier
-        .offset { IntOffset((centerPx.x - widthPx / 2f).roundToInt(), (centerPx.y - heightPx / 2f).roundToInt()) }
+        .layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            layout(placeable.width, placeable.height) {
+                placeable.place(
+                    (centerPx.x - placeable.width / 2f).roundToInt(),
+                    (centerPx.y - placeable.height / 2f).roundToInt(),
+                )
+            }
+        }
         .then(
             if (content is FreestyleContent.ImageContent) {
+                val widthPx = canvasSize.width * FreestyleImageBaseWidthFraction * layer.scale
+                val heightPx = widthPx * (content.image.height.toFloat() / content.image.width.toFloat())
                 Modifier.size(with(density) { widthPx.toDp() }, with(density) { heightPx.toDp() })
             } else {
                 Modifier
@@ -308,7 +336,6 @@ private fun BoxScope.FreestyleLayerView(
     onDoubleTap: (() -> Unit)?,
     onTransform: (panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
 ) {
-    var measuredSize by remember { mutableStateOf(IntSize.Zero) }
     // The pointerInput blocks outlive recompositions, so read the latest values through state.
     val currentOnSelect by rememberUpdatedState(onSelect)
     val currentOnTransform by rememberUpdatedState(onTransform)
@@ -321,11 +348,8 @@ private fun BoxScope.FreestyleLayerView(
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
-            .then(layerBoxModifier(layer, canvasSize, measuredSize))
-            .onSizeChanged {
-                measuredSize = it
-                onMeasured(it)
-            }
+            .then(layerBoxModifier(layer, canvasSize))
+            .onSizeChanged(onMeasured)
             // Selects on touch-down rather than on tap: a tap only completes once the double-tap wait
             // runs out, which made selecting a text layer lag — and a second tap in that window read
             // as a double tap. Also consumes the tap so the canvas underneath doesn't deselect.
@@ -424,18 +448,24 @@ private fun BoxScope.SelectionOverlay(
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
-            .then(layerBoxModifier(layer, canvasSize, sizePx))
+            .then(layerBoxModifier(layer, canvasSize))
             .size(with(density) { sizePx.width.toDp() }, with(density) { sizePx.height.toDp() })
             .border(1.5.dp, chrome.accent, outlineShape),
     ) {
+        val bounce = rememberSpringBounce()
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = -DeleteHandleSize / 3, y = DeleteHandleSize / 3)
+                .springBounce(bounce)
                 .size(DeleteHandleSize)
                 .clip(CircleShape)
                 .background(Color(0xFFEF3B4E))
-                .clickable(onClick = onDelete),
+                .clickable(
+                    interactionSource = bounce.interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onDelete,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Delete, contentDescription = "Delete layer", tint = Color.White, modifier = Modifier.size(16.dp))
@@ -515,7 +545,7 @@ internal fun PanelHeader(chrome: FreestyleChrome, title: String, trailing: Strin
 }
 
 @Composable
-internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (String) -> Unit) {
+internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit) {
     // null selects the Recent tab, matching EmojiCategoryTabs.
     var category by remember { mutableStateOf<EmojiCategory?>(EmojiCategory.Smileys) }
     var recent by remember { mutableStateOf(emptyList<String>()) }
@@ -525,8 +555,8 @@ internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (String) ->
         EmojiCategoryTabs(selected = category, onSelected = { category = it })
         EmojiGrid(
             emojis = category?.let { EmojisByCategory[it].orEmpty() } ?: recent,
-            onEmojiTapped = { emoji ->
-                onStickerTapped(emoji)
+            onEmojiTapped = { emoji, cellBounds ->
+                onStickerTapped(emoji, cellBounds)
                 recent = (listOf(emoji) + (recent - emoji)).take(MaxRecentEmojis)
             },
             modifier = Modifier.fillMaxWidth().height(100.dp),
@@ -550,13 +580,19 @@ internal fun TextPanel(
     onColorChange: (Color) -> Unit,
 ) {
     Column(modifier = Modifier.padding(top = 10.dp)) {
+        val bounce = rememberSpringBounce()
         Box(
             modifier = Modifier
+                .springBounce(bounce)
                 .padding(horizontal = 16.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
                 .background(chrome.field)
-                .clickable(onClick = onFieldClick)
+                .clickable(
+                    interactionSource = bounce.interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onFieldClick,
+                )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Text(

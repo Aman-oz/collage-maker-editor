@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.data.ThemeMode
+import org.example.project.ui.common.DialogShape
 import org.example.project.ui.preview.ThemePreviews
 
 private data class ThemeOption(val mode: ThemeMode, val label: String, val icon: ImageVector)

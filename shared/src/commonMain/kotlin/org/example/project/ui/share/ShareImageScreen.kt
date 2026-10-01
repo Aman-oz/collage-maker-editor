@@ -2,6 +2,7 @@ package org.example.project.ui.share
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
@@ -151,11 +154,17 @@ private fun ShareImageContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 ShareTarget.entries.forEach { target ->
+                    val bounce = rememberSpringBounce()
                     ShareTargetIcon(
                         target = target,
                         modifier = Modifier
+                            .springBounce(bounce)
                             .size(44.dp)
-                            .clickable(enabled = image != null) { onShare(target) },
+                            .clickable(
+                                interactionSource = bounce.interactionSource,
+                                indication = LocalIndication.current,
+                                enabled = image != null,
+                            ) { onShare(target) },
                     )
                 }
             }
@@ -171,9 +180,11 @@ private fun ShareImageContent(
                 // Home keeps its natural width; the suggestion takes all the space left over.
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                val suggestionBounce = rememberSpringBounce()
                 Button(
                     onClick = onSuggestion,
-                    modifier = Modifier.height(44.dp).weight(1f),
+                    interactionSource = suggestionBounce.interactionSource,
+                    modifier = Modifier.springBounce(suggestionBounce).height(44.dp).weight(1f),
                     shape = CircleShape,
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent, contentColor = Color.White),
@@ -182,9 +193,11 @@ private fun ShareImageContent(
                     Spacer(Modifier.width(8.dp))
                     Text(text = suggestion.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
+                val homeBounce = rememberSpringBounce()
                 OutlinedButton(
                     onClick = onHome,
-                    modifier = Modifier.height(44.dp),
+                    interactionSource = homeBounce.interactionSource,
+                    modifier = Modifier.springBounce(homeBounce).height(44.dp),
                     shape = CircleShape,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
                     contentPadding = PaddingValues(horizontal = 24.dp),

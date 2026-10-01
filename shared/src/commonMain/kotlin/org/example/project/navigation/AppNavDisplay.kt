@@ -39,6 +39,8 @@ import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.language.LanguageScreen
 import org.example.project.ui.onboarding.OnboardingScreen
 import org.example.project.ui.overlay.OverlayScreen
+import org.example.project.ui.pip.PipEditorScreen
+import org.example.project.ui.pip.PipScreen
 import org.example.project.ui.premium.PremiumScreen
 import org.example.project.ui.projects.PreviewScreen
 import org.example.project.ui.proeditor.ProEditorScreen
@@ -54,6 +56,7 @@ import org.example.project.ui.share.ShareSuggestion
 import org.example.project.ui.settings.SettingsScreen
 import org.example.project.ui.shapereveal.SelectiveBlurScreen
 import org.example.project.ui.shapereveal.SelectiveSplashScreen
+import org.example.project.ui.splash.SplashNext
 import org.example.project.ui.splash.SplashScreen
 import org.example.project.ui.templates.TemplatesEditorScreen
 import org.example.project.ui.templates.TemplatesScreen
@@ -112,8 +115,14 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                 entryProvider = entryProvider {
                     entry<Destination.Splash> {
                         SplashScreen(
-                            onGetStarted = {
-                                backStack.add(Destination.Language())
+                            onFinished = { next ->
+                                backStack.add(
+                                    when (next) {
+                                        SplashNext.FirstRun -> Destination.Language()
+                                        SplashNext.Premium -> Destination.Premium(fromSplash = true)
+                                        SplashNext.Home -> Destination.Home
+                                    },
+                                )
                                 backStack.remove(Destination.Splash)
                             },
                         )
@@ -137,7 +146,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Onboarding> {
                         OnboardingScreen(
                             onFinish = {
-                                backStack.add(Destination.Home)
+                                backStack.add(Destination.Premium(fromSplash = true))
                                 backStack.remove(Destination.Onboarding)
                             },
                         )
@@ -151,8 +160,9 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 },
                                 onOpenTemplates = { backStack.add(Destination.Templates) },
                                 onOpenFrames = { backStack.add(Destination.Frames) },
+                                onOpenPip = { backStack.add(Destination.Pip) },
                                 onOpenSettings = { backStack.add(Destination.Settings) },
-                                onOpenPremium = { backStack.add(Destination.Premium) },
+                                onOpenPremium = { backStack.add(Destination.Premium()) },
                                 onOpenProject = { imagePath -> backStack.add(Destination.Preview(imagePath)) },
                             )
                         }
@@ -168,12 +178,15 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         SettingsScreen(
                             onBack = { backStack.removeLastOrNull() },
                             onOpenLanguage = { backStack.add(Destination.Language(fromSettings = true)) },
-                            onOpenPremium = { backStack.add(Destination.Premium) },
+                            onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
-                    entry<Destination.Premium>(metadata = slideUpMetadata()) {
-                        PremiumScreen(onClose = { backStack.removeLastOrNull() })
+                    entry<Destination.Premium>(metadata = slideUpMetadata()) { key ->
+                        PremiumScreen(
+                            fromSplash = key.fromSplash,
+                            onClose = { backStack.closePremium(key) },
+                        )
                     }
 
                     entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
@@ -185,7 +198,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             TemplatesScreen(
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
-                                onOpenPremium = { backStack.add(Destination.Premium) },
+                                onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
                     }
@@ -202,12 +215,32 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         }
                     }
 
+                    entry<Destination.Pip>(metadata = slideUpMetadata()) {
+                        PipScreen(
+                            onBack = { backStack.removeLastOrNull() },
+                            onTemplateSelected = { template ->
+                                backStack.add(Destination.Gallery(template.slots.size, GalleryTarget.Pip, template.name))
+                            },
+                        )
+                    }
+
+                    entry<Destination.PipEditor> { key ->
+                        PipEditorScreen(
+                            templateName = key.templateName,
+                            imagePaths = key.imagePaths,
+                            onBack = { backStack.removeLastOrNull() },
+                            // Like Collage: the baked picture is in the session and the Pip editor stays
+                            // underneath, so Back from the photo editor returns to it for further tweaks.
+                            onApplied = { backStack.add(Destination.Editor()) },
+                        )
+                    }
+
                     entry<Destination.Frames>(metadata = slideUpMetadata()) {
                         WithNavAnimatedScope {
                             FramesScreen(
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
-                                onOpenPremium = { backStack.add(Destination.Premium) },
+                                onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
                     }
@@ -238,6 +271,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                     GalleryTarget.Freestyle -> backStack.add(Destination.FreestyleEditor(imagePaths))
                                     GalleryTarget.BackgroundRemover ->
                                         backStack.add(Destination.BackgroundRemoverCrop(imagePaths.first()))
+                                    GalleryTarget.Pip ->
+                                        backStack.add(Destination.PipEditor(key.pipTemplate.orEmpty(), imagePaths))
                                 }
                                 backStack.remove(key)
                             },
@@ -251,7 +286,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // The baked collage is already in the session; the collage stays underneath so
                             // Back from the editor returns to it for further layout tweaks.
                             onOpenEditor = { backStack.add(Destination.Editor()) },
-                            onPremium = { backStack.add(Destination.Premium) },
+                            onPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -391,7 +426,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         SaveImageScreen(
                             onBack = { backStack.removeLastOrNull() },
                             onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
-                            onOpenPremium = { backStack.add(Destination.Premium) },
+                            onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -436,7 +471,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // The cut-out is in the session and the eraser stays underneath, so Back from
                             // the background picker returns to it for further touch-ups.
                             onApplied = { backStack.add(Destination.SetBackground) },
-                            onOpenPremium = { backStack.add(Destination.Premium) },
+                            onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -475,5 +510,18 @@ private fun MutableList<NavKey>.popToHome() {
         add(Destination.Home)
     } else {
         while (size > home + 1) removeLastOrNull()
+    }
+}
+
+/**
+ * Leaves [premium]. In the launch flow ([Destination.Premium.fromSplash]) it is replaced by
+ * [Destination.Home], since there is nothing under it; anywhere else it is just popped.
+ */
+private fun MutableList<NavKey>.closePremium(premium: Destination.Premium) {
+    if (premium.fromSplash) {
+        add(Destination.Home)
+        remove(premium)
+    } else {
+        removeLastOrNull()
     }
 }

@@ -1,14 +1,16 @@
 package org.example.project.ui.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -29,25 +31,27 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +60,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.common.TopBarHeight
@@ -79,6 +86,10 @@ import photocollagemaker.shared.generated.resources.ic_template_icon
 
 /** Brand purple for the "+" button and the selected tab; matches Splash/Onboarding. */
 internal val HomeAccent = Color(0xFF8B5CF6)
+
+/** How much a feature card squeezes in while pressed, and the spring that bounces it back. */
+private const val FeatureCardPressedSqueeze = 0.05f
+private val FeatureCardSpring = spring<Float>(dampingRatio = 0.35f, stiffness = 450f)
 internal val HomeAccentDeep = Color(0xFF6D28D9)
 
 private val CollageGradient = listOf(Color(0xFF4F46E5), Color(0xFFA855F7))
@@ -95,6 +106,7 @@ fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenFrames: () -> Unit,
+    onOpenPip: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     onOpenProject: (imagePath: String) -> Unit,
@@ -104,7 +116,6 @@ fun HomeScreen(
     val projects by projectsViewModel.projects.collectAsStateWithLifecycle()
     val thumbnails by projectsViewModel.thumbnails.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val openEditor = { onOpenGallery(1, GalleryTarget.Editor) }
     HomeContent(
         snackbarHostState = snackbarHostState,
@@ -116,6 +127,7 @@ fun HomeScreen(
         // Filter tool over the editor straight away.
         onOpenFilters = { onOpenGallery(1, GalleryTarget.EditorFilter) },
         onOpenFrames = onOpenFrames,
+        onOpenPip = onOpenPip,
         onOpenBgRemove = { onOpenGallery(1, GalleryTarget.BackgroundRemover) },
         onOpenSettings = onOpenSettings,
         onOpenPremium = onOpenPremium,
@@ -123,12 +135,6 @@ fun HomeScreen(
         thumbnails = thumbnails,
         onRequestThumbnail = projectsViewModel::loadThumbnail,
         onOpenProject = onOpenProject,
-        onComingSoon = { feature ->
-            scope.launch {
-                snackbarHostState.currentSnackbarData?.dismiss()
-                snackbarHostState.showSnackbar("$feature is coming soon")
-            }
-        },
         modifier = modifier,
     )
 }
@@ -142,6 +148,7 @@ private fun HomeContent(
     onOpenEditor: () -> Unit,
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
+    onOpenPip: () -> Unit,
     onOpenBgRemove: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
@@ -149,7 +156,6 @@ private fun HomeContent(
     thumbnails: Map<String, ImageBitmap>,
     onRequestThumbnail: (path: String) -> Unit,
     onOpenProject: (path: String) -> Unit,
-    onComingSoon: (feature: String) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: HomeTab = HomeTab.Home,
 ) {
@@ -157,14 +163,16 @@ private fun HomeContent(
     var selectedTabName by rememberSaveable { mutableStateOf(initialTab.name) }
     val selectedTab = HomeTab.valueOf(selectedTabName)
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
+    // The bottom bar is Liquid Glass over the tab content, so the content is its liquefiable
+    // backdrop; the bar itself sits outside it as a sibling drawn on top.
+    val liquidState = rememberLiquidState()
+
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .liquefiable(liquidState)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             HomeTopBar(
@@ -177,7 +185,7 @@ private fun HomeContent(
                     onOpenFreestyle = onOpenFreestyle,
                     onOpenTemplates = onOpenTemplates,
                     onOpenEditor = onOpenEditor,
-                    onOpenPip = { onComingSoon("PIP") },
+                    onOpenPip = onOpenPip,
                     onOpenBgRemove = onOpenBgRemove,
                     onOpenFilters = onOpenFilters,
                     onOpenFrames = onOpenFrames,
@@ -195,6 +203,7 @@ private fun HomeContent(
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
             SnackbarHost(hostState = snackbarHostState)
             HomeBottomBar(
+                liquidState = liquidState,
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTabName = it.name },
                 onCreate = onCreateCollage,
@@ -219,14 +228,14 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onPremium) {
+        BouncyIconButton(onClick = onPremium) {
             Image(
                 painter = painterResource(Res.drawable.ic_premium_icon),
                 contentDescription = "Premium",
                 modifier = Modifier.size(28.dp),
             )
         }
-        IconButton(onClick = onSettings) {
+        BouncyIconButton(onClick = onSettings) {
             // Tinted rather than drawn as-is: the vector's own fill is a fixed dark grey that
             // disappears on the dark theme.
             Icon(
@@ -310,14 +319,14 @@ private fun HomeTabContent(
             }
         }
 
-        ToolsCard(
+        HomeToolsCard(
             modifier = Modifier.padding(top = 16.dp),
-            tools = {
-                ToolItem("PIP", Res.drawable.ic_pip_icon, onOpenPip)
-                ToolItem("BG Remove", Res.drawable.ic_bg_remover_icon, onOpenBgRemove)
-                ToolItem("Filters", Res.drawable.ic_filter_icon, onOpenFilters)
-                ToolItem("Frames", Res.drawable.ic_frame_icon, onOpenFrames)
-            },
+            tools = listOf(
+                HomeTool("PIP", Res.drawable.ic_pip_icon, onOpenPip),
+                HomeTool("BG Remove", Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
+                HomeTool("Filters", Res.drawable.ic_filter_icon, onOpenFilters),
+                HomeTool("Frames", Res.drawable.ic_frame_icon, onOpenFrames),
+            ),
         )
     }
 }
@@ -325,6 +334,12 @@ private fun HomeTabContent(
 /**
  * A gradient entry card. [vertical] stacks the icon above the title (square-ish cards); otherwise
  * they sit side by side (the wide Free Style card).
+ *
+ * Pressing squeezes the card in under a white ripple and a glassy highlight, with the icon zooming
+ * a little; releasing springs it back with an overshoot. A tap holds that pressed state for
+ * [ToolNavigationDelayMillis] before navigating, as the Tools card does: in this scrolling screen a
+ * quick tap registers its press only for an instant, so without the hold it would barely show.
+ * The card has no Liquid node inside it, so a `graphicsLayer` scale is safe here.
  */
 @Composable
 private fun FeatureCard(
@@ -337,11 +352,52 @@ private fun FeatureCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scope = rememberCoroutineScope()
+    // Holds the pressed look through the navigation delay, and blocks a double tap meanwhile.
+    var launching by remember { mutableStateOf(false) }
+    val press by animateFloatAsState(if (pressed || launching) 1f else 0f, FeatureCardSpring)
+    val t = press.coerceIn(0f, 1f)
+    val currentOnClick by rememberUpdatedState(onClick)
     Box(
         modifier = modifier
+            .graphicsLayer {
+                // The underdamped spring carries this past 1 on release: the bounce.
+                val scale = 1f - FeatureCardPressedSqueeze * press
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(shape)
             .background(Brush.linearGradient(gradient), shape)
-            .clickable(role = Role.Button, onClick = onClick)
+            .drawWithContent {
+                drawContent()
+                if (t <= 0f) return@drawWithContent
+                // A glassy lift: an even wash plus a sheen over the top.
+                drawRect(Color.White.copy(alpha = 0.1f * t))
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.28f * t),
+                        0.45f to Color.White.copy(alpha = 0f),
+                    ),
+                )
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(color = Color.White),
+                role = Role.Button,
+            ) {
+                if (launching) return@clickable
+                launching = true
+                scope.launch {
+                    try {
+                        delay(ToolNavigationDelayMillis)
+                        currentOnClick()
+                    } finally {
+                        launching = false
+                    }
+                }
+            }
             .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -359,7 +415,11 @@ private fun FeatureCard(
             Image(
                 painter = painterResource(icon),
                 contentDescription = null,
-                modifier = Modifier.size(iconSize),
+                modifier = Modifier.size(iconSize).graphicsLayer {
+                    val zoom = 1f + 0.12f * press
+                    scaleX = zoom
+                    scaleY = zoom
+                },
             )
         }
         if (vertical) {
@@ -382,53 +442,54 @@ private fun FeatureCard(
     }
 }
 
+/**
+ * An [IconButton]-sized top-bar button with the Home cards' press feel: the icon squeezes in under a
+ * round ripple, springs back past full size on release, and a tap holds the pressed look for
+ * [ToolNavigationDelayMillis] before [onClick] runs, so a quick tap shows the whole bounce.
+ */
 @Composable
-private fun ToolsCard(tools: @Composable RowScope.() -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(14.dp)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .shadow(elevation = 10.dp, shape = shape, ambientColor = HomeAccent, spotColor = HomeAccent)
-            .background(MaterialTheme.colorScheme.surface, shape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .padding(vertical = 14.dp, horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        content = tools,
-    )
-}
-
-@Composable
-private fun RowScope.ToolItem(label: String, icon: DrawableResource, onClick: () -> Unit) {
-    Column(
+private fun BouncyIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scope = rememberCoroutineScope()
+    // Holds the pressed look through the navigation delay, and blocks a double tap meanwhile.
+    var launching by remember { mutableStateOf(false) }
+    val press by animateFloatAsState(if (pressed || launching) 1f else 0f, FeatureCardSpring)
+    val currentOnClick by rememberUpdatedState(onClick)
+    Box(
         modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(bounded = true),
+                role = Role.Button,
+            ) {
+                if (launching) return@clickable
+                launching = true
+                scope.launch {
+                    try {
+                        delay(ToolNavigationDelayMillis)
+                        currentOnClick()
+                    } finally {
+                        launching = false
+                    }
+                }
+            }
+            .graphicsLayer {
+                // The underdamped spring carries this past 1 on release: the bounce.
+                val scale = 1f - IconButtonPressedSqueeze * press
+                scaleX = scale
+                scaleY = scale
+            },
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .shadow(elevation = 2.dp, shape = CircleShape)
-                .background(
-                    Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFE9E9EE))),
-                    CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(28.dp))
-        }
-        Text(
-            text = label,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        content()
     }
 }
+
+/** Icons are small, so they squeeze further than the cards to read as the same bounce. */
+private const val IconButtonPressedSqueeze = 0.18f
 
 @Composable
 private fun HomeContentPreview(initialTab: HomeTab) {
@@ -441,6 +502,7 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenEditor = {},
             onOpenFilters = {},
             onOpenFrames = {},
+            onOpenPip = {},
             onOpenBgRemove = {},
             onOpenSettings = {},
             onOpenPremium = {},
@@ -448,7 +510,6 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             thumbnails = emptyMap(),
             onRequestThumbnail = {},
             onOpenProject = {},
-            onComingSoon = {},
             initialTab = initialTab,
         )
     }

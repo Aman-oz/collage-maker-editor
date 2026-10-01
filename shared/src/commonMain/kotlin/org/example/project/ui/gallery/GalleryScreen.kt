@@ -1,13 +1,21 @@
 package org.example.project.ui.gallery
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -46,22 +54,37 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -75,6 +98,8 @@ import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import org.example.project.gallery.GalleryAccessStatus
 import org.example.project.gallery.GalleryAlbum
@@ -82,8 +107,11 @@ import org.example.project.gallery.GalleryAlbumSection
 import org.example.project.gallery.GalleryPhoto
 import org.example.project.gallery.loadGalleryThumbnail
 import org.example.project.gallery.rememberGalleryAccessState
+import org.example.project.ui.common.SolidDoneButton
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.TopBarHeight
+import org.example.project.ui.common.bubbleBurstRing
+import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
@@ -93,7 +121,38 @@ internal enum class GalleryTab(val label: String) { Photos("Photos"), Collection
 
 private val BottomPillReserve = 96.dp
 private val CircleButtonSize = TopBarButtonSize
-private val TabWidth = 104.dp
+
+/** Taller than the circle buttons beside it, so the tabs read as the bar's centrepiece. */
+private val TabsHeight = CircleButtonSize + 12.dp
+private val TabWidth = 112.dp
+private val TabsPadding = 4.dp
+
+/** How much the drop swells while held: past the capsule, like a drop lifted off the glass. */
+private val TabDropHeldGrowthWidth = 22.dp
+private val TabDropHeldGrowthHeight = 18.dp
+
+/** How much the drop stretches per tab/second of travel, and the cap on it. */
+private const val TabStretchPerVelocity = 0.07f
+private const val TabMaxStretch = 0.45f
+
+/** Bouncy enough to overshoot visibly, so a press feels like a drop swelling under the finger. */
+private val TabDropSpring = spring<Float>(dampingRatio = 0.45f, stiffness = 420f)
+
+/** Chases the finger while held: stiff enough to keep up, loose enough to stretch. */
+private val TabFollowSpring = spring<Float>(dampingRatio = 0.7f, stiffness = 700f)
+
+/** Drops the released drop onto its tab with a visible wobble. */
+private val TabSettleSpring = spring<Float>(dampingRatio = 0.55f, stiffness = 320f)
+
+private val PillHeight = 48.dp
+
+/** How much the selection pill swells while pressed; it overflows its slot like a lifted drop. */
+private val PillHeldGrowthWidth = 20.dp
+private val PillHeldGrowthHeight = 14.dp
+
+/** A count change swells the pill by this fraction of a press, then wobbles it back. */
+private const val PillPulseGrowth = 0.45f
+private val PillPulseSpring = spring<Float>(dampingRatio = 0.32f, stiffness = 380f)
 
 @Composable
 fun GalleryScreen(
@@ -376,12 +435,14 @@ private fun GalleryContent(
 /**
  * The faint tint every glass element in this screen shares. Kept very low so the glass reads as
  * clear (photos stay sharp and recognisable through it) rather than frosted; it only needs to
- * lift the labels off a busy photo.
+ * lift the labels off a busy photo. In light mode it is an off-white a shade darker than the
+ * background: a milky haze over photos, yet still a visible capsule over the white background,
+ * where a pure white tint would vanish.
  */
 @Composable
 private fun glassTint(): Color =
     if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        Color.White.copy(alpha = 0.2f)
+        Color(0xFFDCDCE0).copy(alpha = 0.55f)
     } else {
         Color.Black.copy(alpha = 0.18f)
     }
@@ -428,52 +489,85 @@ private fun GalleryTopBar(
         GlassSegmentedTabs(liquidState = liquidState, selectedTab = selectedTab, onTabSelected = onTabSelected)
         Spacer(modifier = Modifier.weight(1f))
 
-        // Disabled glass until something is picked, then a filled primary button. The fill is a
-        // solid layer over the glass: the glass tint alone renders too faint to read as "enabled".
-        GlassCircleButton(
-            liquidState = liquidState,
-            onClick = onConfirm,
-            enabled = canConfirm,
-            tint = glassTint(),
-            fill = if (canConfirm) MaterialTheme.colorScheme.primary else null,
-        ) {
-            Icon(
-                Icons.Filled.Check,
-                contentDescription = "Done",
-                tint = if (canConfirm) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                },
-            )
+        // Clear glass until something is picked, then the solid primary Done every screen uses.
+        if (canConfirm) {
+            SolidDoneButton(icon = Icons.Filled.Check, contentDescription = "Done", onClick = onConfirm)
+        } else {
+            GlassCircleButton(
+                liquidState = liquidState,
+                onClick = onConfirm,
+                enabled = false,
+                tint = glassTint(),
+            ) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = "Done",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
         }
     }
 }
 
+/** A glass circle with a bright rim, so it still reads as glass over a flat background. */
 @Composable
 private fun GlassCircleButton(
     liquidState: LiquidState,
     onClick: () -> Unit,
     tint: Color,
     enabled: Boolean = true,
-    fill: Color? = null,
     content: @Composable () -> Unit,
 ) {
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val rim = Color.White.copy(alpha = if (isLight) 0.75f else 0.35f)
+    val bubble = rememberBubbleClick()
+    // The slot stays [CircleButtonSize]; the glass inside is resized in layout (Liquid samples from
+    // layout bounds, so it can't take a graphicsLayer squish), overshooting on release.
     Box(
         modifier = Modifier
             .size(CircleButtonSize)
-            .galleryGlass(liquidState, CircleShape, tint)
-            .then(if (fill != null) Modifier.background(fill, CircleShape) else Modifier)
-            .clickable(enabled = enabled, onClick = onClick),
+            .bubbleBurstRing(bubble, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
     ) {
-        content()
+        Box(
+            modifier = Modifier
+                .layout { measurable, constraints ->
+                    val side = (constraints.maxWidth * bubble.pressScale).roundToInt().coerceAtLeast(0)
+                    val placeable = measurable.measure(Constraints.fixed(side, side))
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        placeable.place((constraints.maxWidth - side) / 2, (constraints.maxHeight - side) / 2)
+                    }
+                }
+                .galleryGlass(liquidState, CircleShape, tint)
+                .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape)
+                .clickable(
+                    interactionSource = bubble.interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    onClick = { bubble.tap(onClick) },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    scaleX = bubble.pressScale
+                    scaleY = bubble.pressScale
+                },
+            ) { content() }
+        }
     }
 }
 
 /**
- * A glass capsule holding a second, sharper glass bubble behind the selected label. Tabs are a
- * fixed equal width so the bubble can slide by a plain offset instead of measuring each label.
+ * A glass capsule holding a liquid selection drop behind the selected label, the gallery's take on
+ * [org.example.project.ui.home.HomeBottomBar]'s bubble. A finger down anywhere on the capsule swells
+ * the drop past the capsule's height into a clear lens that follows the finger (a tap on the other
+ * tab flies it there); on release it snaps to the nearest tab, selects it and settles back. One
+ * `pointerInput` owns all of it, so the labels carry only accessibility semantics.
+ *
+ * Tabs are a fixed equal width, so the drop's centre is just a fractional tab index. The drop is
+ * sized and placed in layout, never with a `graphicsLayer` scale: Liquid samples the backdrop from
+ * layout bounds, so a scaled layer would refract the wrong region.
  */
 @Composable
 private fun GlassSegmentedTabs(
@@ -481,56 +575,97 @@ private fun GlassSegmentedTabs(
     selectedTab: GalleryTab,
     onTabSelected: (GalleryTab) -> Unit,
 ) {
-    val indicatorOffset by animateDpAsState(
-        targetValue = TabWidth * selectedTab.ordinal,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 380f),
-    )
-    val bubbleTint = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        Color.White.copy(alpha = 0.45f)
-    } else {
-        Color.White.copy(alpha = 0.14f)
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val rim = Color.White.copy(alpha = if (isLight) 0.75f else 0.35f)
+    val scope = rememberCoroutineScope()
+    val position = remember { Animatable(selectedTab.ordinal.toFloat()) }
+    var held by remember { mutableStateOf(false) }
+    // The tab the held drop is over, so that label swells with it.
+    val hoveredTab by remember { derivedStateOf { position.value.roundToInt() } }
+    val currentSelectedTab by rememberUpdatedState(selectedTab)
+    val currentOnTabSelected by rememberUpdatedState(onTabSelected)
+
+    // Selection changed from outside (or by the release below): glide there, unless a finger has it.
+    LaunchedEffect(selectedTab) {
+        if (!held) position.animateTo(selectedTab.ordinal.toFloat(), TabSettleSpring)
     }
 
     Box(
         modifier = Modifier
-            .height(CircleButtonSize)
-            .galleryGlass(liquidState, CircleShape, glassTint())
-            .padding(4.dp),
+            .height(TabsHeight)
+            .width(TabWidth * GalleryTab.entries.size + TabsPadding * 2)
+            .pointerInput(Unit) {
+                val inset = TabsPadding.toPx()
+                val lastTab = (GalleryTab.entries.size - 1).toFloat()
+                fun tabAt(x: Float) = ((x - inset) / TabWidth.toPx() - 0.5f).coerceIn(0f, lastTab)
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    down.consume()
+                    held = true
+                    scope.launch { position.animateTo(tabAt(down.position.x), TabFollowSpring) }
+                    var lastX = down.position.x
+                    try {
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                            lastX = change.position.x
+                            if (!change.pressed) break
+                            change.consume()
+                            // A fresh animateTo carries the running velocity over, so the drop keeps
+                            // its inertia (and its stretch) while following.
+                            scope.launch { position.animateTo(tabAt(lastX), TabFollowSpring) }
+                        }
+                    } finally {
+                        held = false
+                    }
+                    val tab = GalleryTab.entries[tabAt(lastX).roundToInt()]
+                    scope.launch { position.animateTo(tab.ordinal.toFloat(), TabSettleSpring) }
+                    if (tab != currentSelectedTab) currentOnTabSelected(tab)
+                }
+            },
     ) {
         Box(
             modifier = Modifier
-                .offset(x = indicatorOffset)
-                .width(TabWidth)
-                .fillMaxHeight()
-                .clip(CircleShape)
-                .liquid(liquidState) {
-                    shape = CircleShape
-                    frost = 2.dp
-                    curve = 0.45f
-                    refraction = 0.4f
-                    edge = 0.7f
-                    dispersion = 0.15f
-                    saturation = 1.25f
-                    tint = bubbleTint
-                },
+                .matchParentSize()
+                .galleryGlass(liquidState, CircleShape, glassTint())
+                .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape),
         )
 
-        Row(modifier = Modifier.fillMaxHeight()) {
+        TabSelectionDrop(liquidState = liquidState, position = position, held = held, isLight = isLight)
+
+        Row(modifier = Modifier.fillMaxSize().padding(horizontal = TabsPadding)) {
             GalleryTab.entries.forEach { tab ->
                 val isSelected = tab == selectedTab
+                // Magnified under the held drop, like text seen through water. Text isn't glass, so
+                // a graphicsLayer scale is safe here.
+                val labelScale by animateFloatAsState(
+                    targetValue = if (held && hoveredTab == tab.ordinal) 1.12f else 1f,
+                    animationSpec = TabDropSpring,
+                )
                 Box(
                     modifier = Modifier
                         .width(TabWidth)
                         .fillMaxHeight()
-                        .clip(CircleShape)
-                        .clickable { onTabSelected(tab) },
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = isSelected
+                            onClick(label = tab.label, action = {
+                                onTabSelected(tab)
+                                true
+                            })
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = tab.label,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected) 1f else 0.75f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected) 1f else 0.7f),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = labelScale
+                            scaleY = labelScale
+                        },
                     )
                 }
             }
@@ -538,6 +673,85 @@ private fun GlassSegmentedTabs(
     }
 }
 
+/**
+ * The drop behind the selected tab, centred on [position] (a fractional tab index). It stretches
+ * along its travel in proportion to its speed and squashes a little in height, so the volume reads
+ * as conserved. While [held] it swells past the capsule into a clearer, more strongly refracting
+ * lens; released, it settles back. One press progress drives size and material together.
+ */
+@Composable
+private fun BoxScope.TabSelectionDrop(
+    liquidState: LiquidState,
+    position: Animatable<Float, *>,
+    held: Boolean,
+    isLight: Boolean,
+) {
+    val press by animateFloatAsState(if (held) 1f else 0f, TabDropSpring)
+    // The spring overshoots slightly past 0 / 1; only the size may use the overshoot.
+    val t = press.coerceIn(0f, 1f)
+    // Resting it is a milky white pill; held it clears toward glass so the lens shows.
+    val body = if (isLight) Color.White.copy(alpha = 0.72f - 0.4f * t) else Color.White.copy(alpha = 0.14f - 0.06f * t)
+    val rim = Color.White.copy(alpha = if (isLight) 0.95f else 0.4f + 0.3f * t)
+    val rimLow = if (isLight) Color(0xFF787880).copy(alpha = 0.25f + 0.1f * t) else rim.copy(alpha = rim.alpha * 0.4f)
+
+    Box(
+        modifier = Modifier
+            .matchParentSize()
+            .layout { measurable, constraints ->
+                val stretch = (abs(position.velocity) * TabStretchPerVelocity).coerceAtMost(TabMaxStretch)
+                val restHeight = TabsHeight.toPx() - TabsPadding.toPx() * 2
+                val w = (TabWidth.toPx() * (1f + stretch) + TabDropHeldGrowthWidth.toPx() * press).roundToInt().coerceAtLeast(0)
+                val h = (restHeight * (1f - stretch * 0.22f) + TabDropHeldGrowthHeight.toPx() * press).roundToInt().coerceAtLeast(0)
+                val placeable = measurable.measure(Constraints.fixed(w, h))
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    val x = TabsPadding.toPx() + TabWidth.toPx() * (position.value + 0.5f) - w / 2f
+                    placeable.place(x.roundToInt(), (constraints.maxHeight - h) / 2)
+                }
+            }
+            .clip(CircleShape)
+            .liquid(liquidState) {
+                shape = CircleShape
+                // Gentle, like the magnification of a real drop; no frost, whose blur drags the
+                // transparent pixels outside the lens into the rim as a grey shadow.
+                frost = 0.dp
+                curve = 0.25f + 0.12f * t
+                refraction = 0.18f + 0.12f * t
+                edge = 0.35f + 0.25f * t
+                dispersion = 0.1f * t
+                saturation = 1.2f
+                tint = body
+            }
+            // Over the glass as well: Liquid's tint alone renders far fainter than its alpha.
+            .drawWithContent {
+                drawContent()
+                val corner = CornerRadius(size.height / 2f)
+                drawRoundRect(color = body, cornerRadius = corner)
+                // Light focused onto the drop's lower inside edge.
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        0.6f to Color.White.copy(alpha = 0f),
+                        1f to Color.White.copy(alpha = if (isLight) 0.35f + 0.2f * t else 0.08f + 0.06f * t),
+                    ),
+                    cornerRadius = corner,
+                )
+            }
+            .border(
+                width = 1.dp + 0.5.dp * t,
+                brush = Brush.verticalGradient(0f to rim, 0.5f to rim.copy(alpha = rim.alpha * 0.2f), 1f to rimLow),
+                shape = CircleShape,
+            ),
+    )
+}
+
+/**
+ * The bottom "N Select Photos" pill, a liquid drop like the tabs' selection. Pressed, it swells
+ * with an overshoot into a clearer, more strongly refracting lens and settles back on release;
+ * each change of the count gives it a small wobble, as if the picked photo dripped into it.
+ *
+ * The swell is done in layout, never with a `graphicsLayer` scale (Liquid samples the backdrop
+ * from layout bounds). The pill reports its resting size and places the grown glass centred over
+ * it, so growing never pushes it off its bottom-centre anchor.
+ */
 @Composable
 private fun SelectionPill(
     liquidState: LiquidState,
@@ -545,11 +759,73 @@ private fun SelectionPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 1f else 0f, TabDropSpring)
+    // 0 at rest; a count change kicks it up and a loose spring brings it back with an overshoot.
+    val pulse = remember { Animatable(0f) }
+    var lastCount by remember { mutableIntStateOf(selectedCount) }
+    LaunchedEffect(selectedCount) {
+        if (selectedCount == lastCount) return@LaunchedEffect
+        lastCount = selectedCount
+        pulse.animateTo(1f, tween(durationMillis = 90, easing = FastOutSlowInEasing))
+        pulse.animateTo(0f, PillPulseSpring)
+    }
+    // The springs overshoot slightly past 0 / 1; only the size may use the overshoot.
+    val t = press.coerceIn(0f, 1f)
+    val restTint = glassTint()
+    val rim = Color.White.copy(alpha = if (isLight) 0.85f else 0.35f + 0.3f * t)
+    val rimLow = if (isLight) Color(0xFF787880).copy(alpha = 0.2f + 0.1f * t) else rim.copy(alpha = rim.alpha * 0.3f)
+    val labelScale = 1f + 0.06f * press + 0.04f * pulse.value
+
     Box(
         modifier = modifier
-            .height(48.dp)
-            .galleryGlass(liquidState, CircleShape, glassTint())
-            .clickable(enabled = selectedCount > 0, onClick = onClick)
+            .layout { measurable, _ ->
+                val baseHeight = PillHeight.roundToPx()
+                // Rounded up a pixel so the label never gets less than its full width.
+                val baseWidth = measurable.maxIntrinsicWidth(baseHeight) + 1
+                val growth = press + PillPulseGrowth * pulse.value
+                val w = (baseWidth + PillHeldGrowthWidth.toPx() * growth).roundToInt().coerceAtLeast(0)
+                val h = (baseHeight + PillHeldGrowthHeight.toPx() * growth).roundToInt().coerceAtLeast(0)
+                val placeable = measurable.measure(Constraints.fixed(w, h))
+                layout(baseWidth, baseHeight) {
+                    placeable.place((baseWidth - w) / 2, (baseHeight - h) / 2)
+                }
+            }
+            .clip(CircleShape)
+            .liquid(liquidState) {
+                shape = CircleShape
+                frost = 2.dp * (1f - t)
+                curve = 0.4f + 0.12f * t
+                refraction = 0.35f + 0.15f * t
+                edge = 0.65f + 0.2f * t
+                dispersion = 0.18f + 0.07f * t
+                saturation = 1.2f
+                tint = restTint.copy(alpha = restTint.alpha * (1f - 0.5f * t))
+            }
+            // Light focused onto the drop's lower inside edge, brighter as it swells.
+            .drawWithContent {
+                drawContent()
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        0.6f to Color.White.copy(alpha = 0f),
+                        1f to Color.White.copy(alpha = if (isLight) 0.3f + 0.25f * t else 0.06f + 0.08f * t),
+                    ),
+                    cornerRadius = CornerRadius(size.height / 2f),
+                )
+            }
+            .border(
+                width = 1.dp + 0.5.dp * t,
+                brush = Brush.verticalGradient(0f to rim, 0.5f to rim.copy(alpha = rim.alpha * 0.2f), 1f to rimLow),
+                shape = CircleShape,
+            )
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = selectedCount > 0,
+                onClick = onClick,
+            )
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -558,6 +834,15 @@ private fun SelectionPill(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
+            // The pill is sized from this label's intrinsic width, and rounding that to whole
+            // pixels can leave it a hair short, which would wrap it mid-animation.
+            maxLines = 1,
+            softWrap = false,
+            // Text isn't glass, so a graphicsLayer scale is safe here.
+            modifier = Modifier.graphicsLayer {
+                scaleX = labelScale
+                scaleY = labelScale
+            },
         )
     }
 }

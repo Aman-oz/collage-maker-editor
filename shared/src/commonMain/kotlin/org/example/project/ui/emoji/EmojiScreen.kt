@@ -1,6 +1,7 @@
 package org.example.project.ui.emoji
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,20 +55,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import kotlin.math.min
 import kotlin.math.roundToInt
+import org.example.project.ui.common.EmojiGridFontSizeSp
+import org.example.project.ui.common.StickerFlightOverlay
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.rememberStickerFlights
+import org.example.project.ui.common.springBounce
+import org.example.project.ui.common.stickerFlightTarget
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -114,120 +126,129 @@ private fun EmojiContent(
     var selectedEmojiId by remember { mutableStateOf<Long?>(null) }
     var nextId by remember { mutableLongStateOf(0L) }
     var displayedImageWidthPx by remember { mutableStateOf(0f) }
+    val stickerFlights = rememberStickerFlights(EmojiBaseSizeSp)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Emoji",
-            onClose = onBack,
-            onDone = { onDone(placedEmojis, displayedImageWidthPx) },
-            doneEnabled = sourceImage != null,
-        )
-
-        Box(
+    // The box only exists so the flight overlay can draw over both the photo and the grid.
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(scheme.onSurface.copy(alpha = 0.08f))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center,
+                .fillMaxSize()
+                .background(scheme.surface)
+                .safeDrawingPadding(),
         ) {
-            if (sourceImage != null) {
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val density = LocalDensity.current
-                    val boxWidthPx = with(density) { maxWidth.toPx() }
-                    val boxHeightPx = with(density) { maxHeight.toPx() }
-                    val bitmapWidth = sourceImage.width.toFloat()
-                    val bitmapHeight = sourceImage.height.toFloat()
-                    val fitScale = min(boxWidthPx / bitmapWidth, boxHeightPx / bitmapHeight)
-                    val imageWidthPx = bitmapWidth * fitScale
-                    val imageHeightPx = bitmapHeight * fitScale
-                    val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
-                    displayedImageWidthPx = imageWidthPx
+            ToolTopBar(
+                title = "Emoji",
+                onClose = onBack,
+                onDone = { onDone(placedEmojis, displayedImageWidthPx) },
+                doneEnabled = sourceImage != null,
+            )
 
-                    // Sized to the fitted photo (not the whole box) so the rounded clip hugs the photo.
-                    Image(
-                        bitmap = sourceImage,
-                        contentDescription = "Photo preview",
-                        modifier = Modifier
-                            .offset { IntOffset(imageOffsetPx.x.roundToInt(), imageOffsetPx.y.roundToInt()) }
-                            .size(with(density) { imageWidthPx.toDp() }, with(density) { imageHeightPx.toDp() })
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.FillBounds,
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(scheme.onSurface.copy(alpha = 0.08f))
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sourceImage != null) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val density = LocalDensity.current
+                        val boxWidthPx = with(density) { maxWidth.toPx() }
+                        val boxHeightPx = with(density) { maxHeight.toPx() }
+                        val bitmapWidth = sourceImage.width.toFloat()
+                        val bitmapHeight = sourceImage.height.toFloat()
+                        val fitScale = min(boxWidthPx / bitmapWidth, boxHeightPx / bitmapHeight)
+                        val imageWidthPx = bitmapWidth * fitScale
+                        val imageHeightPx = bitmapHeight * fitScale
+                        val imageOffsetPx = Offset((boxWidthPx - imageWidthPx) / 2f, (boxHeightPx - imageHeightPx) / 2f)
+                        displayedImageWidthPx = imageWidthPx
 
-                    // Tapping empty canvas space deselects whatever sticker is selected.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { selectedEmojiId = null })
-                            },
-                    )
+                        // Sized to the fitted photo (not the whole box) so the rounded clip hugs the photo.
+                        Image(
+                            bitmap = sourceImage,
+                            contentDescription = "Photo preview",
+                            modifier = Modifier
+                                .offset { IntOffset(imageOffsetPx.x.roundToInt(), imageOffsetPx.y.roundToInt()) }
+                                .size(with(density) { imageWidthPx.toDp() }, with(density) { imageHeightPx.toDp() })
+                                .stickerFlightTarget(stickerFlights)
+                                .clip(RoundedCornerShape(16.dp)),
+                            contentScale = ContentScale.FillBounds,
+                        )
 
-                    for (placed in placedEmojis) {
-                        key(placed.id) {
-                            PlacedEmojiView(
-                                placed = placed,
-                                selected = placed.id == selectedEmojiId,
-                                imageOffsetPx = imageOffsetPx,
-                                imageWidthPx = imageWidthPx,
-                                imageHeightPx = imageHeightPx,
-                                onSelectToggle = {
-                                    selectedEmojiId = if (selectedEmojiId == placed.id) null else placed.id
+                        // Tapping empty canvas space deselects whatever sticker is selected.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onTap = { selectedEmojiId = null })
                                 },
-                                onMove = { fractionDelta ->
-                                    placedEmojis = placedEmojis.map {
-                                        if (it.id == placed.id) {
-                                            it.copy(
-                                                offsetFraction = Offset(
-                                                    (it.offsetFraction.x + fractionDelta.x).coerceIn(0f, 1f),
-                                                    (it.offsetFraction.y + fractionDelta.y).coerceIn(0f, 1f),
-                                                ),
-                                            )
-                                        } else {
-                                            it
+                        )
+
+                        for (placed in placedEmojis) {
+                            key(placed.id) {
+                                PlacedEmojiView(
+                                    placed = placed,
+                                    selected = placed.id == selectedEmojiId,
+                                    imageOffsetPx = imageOffsetPx,
+                                    imageWidthPx = imageWidthPx,
+                                    imageHeightPx = imageHeightPx,
+                                    onSelectToggle = {
+                                        selectedEmojiId = if (selectedEmojiId == placed.id) null else placed.id
+                                    },
+                                    onMove = { fractionDelta ->
+                                        placedEmojis = placedEmojis.map {
+                                            if (it.id == placed.id) {
+                                                it.copy(
+                                                    offsetFraction = Offset(
+                                                        (it.offsetFraction.x + fractionDelta.x).coerceIn(0f, 1f),
+                                                        (it.offsetFraction.y + fractionDelta.y).coerceIn(0f, 1f),
+                                                    ),
+                                                )
+                                            } else {
+                                                it
+                                            }
                                         }
-                                    }
-                                },
-                                onResize = { newScale ->
-                                    placedEmojis = placedEmojis.map {
-                                        if (it.id == placed.id) it.copy(scale = newScale.coerceIn(EmojiScaleRange)) else it
-                                    }
-                                },
-                                onDelete = {
-                                    placedEmojis = placedEmojis.filterNot { it.id == placed.id }
-                                    selectedEmojiId = null
-                                },
-                            )
+                                    },
+                                    onResize = { newScale ->
+                                        placedEmojis = placedEmojis.map {
+                                            if (it.id == placed.id) it.copy(scale = newScale.coerceIn(EmojiScaleRange)) else it
+                                        }
+                                    },
+                                    onDelete = {
+                                        placedEmojis = placedEmojis.filterNot { it.id == placed.id }
+                                        selectedEmojiId = null
+                                    },
+                                )
+                            }
                         }
                     }
+                } else {
+                    Text(
+                        text = "No image to add emoji to",
+                        color = scheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
-            } else {
-                Text(
-                    text = "No image to add emoji to",
-                    color = scheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
             }
+
+            EmojiCategoryTabs(selected = selectedCategory, onSelected = { selectedCategory = it })
+
+            EmojiGrid(
+                emojis = selectedCategory?.let { EmojisByCategory[it].orEmpty() } ?: recentEmojis,
+                onEmojiTapped = { emoji, cellBounds ->
+                    stickerFlights.launch(emoji, cellBounds) {
+                        val id = nextId
+                        nextId += 1
+                        placedEmojis = placedEmojis + PlacedEmoji(id = id, emoji = emoji)
+                        selectedEmojiId = id
+                    }
+                    recentEmojis = (listOf(emoji) + (recentEmojis - emoji)).take(MaxRecentEmojis)
+                },
+            )
         }
 
-        EmojiCategoryTabs(selected = selectedCategory, onSelected = { selectedCategory = it })
-
-        EmojiGrid(
-            emojis = selectedCategory?.let { EmojisByCategory[it].orEmpty() } ?: recentEmojis,
-            onEmojiTapped = { emoji ->
-                val id = nextId
-                nextId += 1
-                placedEmojis = placedEmojis + PlacedEmoji(id = id, emoji = emoji)
-                selectedEmojiId = id
-                recentEmojis = (listOf(emoji) + (recentEmojis - emoji)).take(MaxRecentEmojis)
-            },
-        )
+        StickerFlightOverlay(stickerFlights)
     }
 }
 
@@ -412,12 +433,18 @@ internal fun EmojiCategoryTabs(selected: EmojiCategory?, onSelected: (EmojiCateg
 @Composable
 private fun EmojiCategoryTab(icon: ImageVector, contentDescription: String, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .size(32.dp)
             .clip(CircleShape)
             .background(if (selected) scheme.onSurface else Color.Transparent)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -429,11 +456,15 @@ private fun EmojiCategoryTab(icon: ImageVector, contentDescription: String, sele
     }
 }
 
-/** Also shown by the freestyle editor's Stickers panel, which passes its own height via [modifier]. */
+/**
+ * Also shown by the freestyle editor's Stickers panel, which passes its own height via [modifier].
+ * [onEmojiTapped] also gets the tapped cell's bounds in root coordinates, where the panel's sticker
+ * flight to the canvas starts.
+ */
 @Composable
 internal fun EmojiGrid(
     emojis: List<String>,
-    onEmojiTapped: (String) -> Unit,
+    onEmojiTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth().height(180.dp),
 ) {
     if (emojis.isEmpty()) {
@@ -452,14 +483,31 @@ internal fun EmojiGrid(
         modifier = modifier,
     ) {
         items(emojis) { emoji ->
+            // A plain holder, not state: the coordinates are only read when the cell is tapped.
+            val cell = remember { arrayOfNulls<LayoutCoordinates>(1) }
+            val bounce = rememberSpringBounce()
             Box(
                 modifier = Modifier
+                    .springBounce(bounce)
                     .aspectRatio(1f)
+                    .onPlaced { cell[0] = it }
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = { onEmojiTapped(emoji) }),
+                    .clickable(
+                        interactionSource = bounce.interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = {
+                            val coordinates = cell[0]
+                            val bounds = if (coordinates?.isAttached == true) {
+                                Rect(coordinates.positionInRoot(), coordinates.size.toSize())
+                            } else {
+                                Rect.Zero
+                            }
+                            onEmojiTapped(emoji, bounds)
+                        },
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = emoji, fontSize = 24.sp)
+                Text(text = emoji, fontSize = EmojiGridFontSizeSp.sp)
             }
         }
     }

@@ -1,6 +1,10 @@
 package org.example.project.ui.onboarding
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
@@ -33,7 +37,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,10 +69,12 @@ import io.github.alexzhirkevich.compottie.Compottie
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_onboarding_collage_1
 import photocollagemaker.shared.generated.resources.ic_onboarding_collage_2
@@ -97,19 +107,23 @@ private data class OnboardingPage(
 )
 
 private val OnboardingPages = listOf(
-    OnboardingPage(Res.drawable.ic_onboarding_templates, "590+ Templates"),
     OnboardingPage(
+        Res.drawable.ic_onboarding_templates,
+        "590+ Templates",
+        animation = "files/templates_animation.json",
+    ),
+    /*OnboardingPage(
         Res.drawable.ic_onboarding_collage_1,
         "500+ Layouts",
         animation = "files/onboarding_layouts.json",
         horizontalPadding = 8.dp,
         scrollable = true,
         invertInDark = true,
-    ),
+    ),*/
     OnboardingPage(
         Res.drawable.ic_onboarding_collage_2,
         "Easily Customizable",
-        animation = "files/collage_images_animation.json",
+        animation = "files/collage_animation.json",
     ),
     OnboardingPage(
         Res.drawable.ic_onboarding_freestyle,
@@ -122,6 +136,9 @@ private val OnboardingPages = listOf(
         animation = "files/editor_animation.json",
     ),
 )
+
+/** How long after the walkthrough opens before its skip button appears. */
+private const val SkipButtonDelayMillis = 3_000L
 
 /** Inverts RGB and keeps alpha, turning black/grey strokes into white/grey ones. */
 private val InvertColorFilter = ColorFilter.colorMatrix(
@@ -138,14 +155,22 @@ private val InvertColorFilter = ColorFilter.colorMatrix(
 /**
  * Feature walkthrough shown once after the language picker.
  *
- * @param onFinish called from Continue on the last page, or from the close button on any page.
+ * @param onFinish called from Get Started on the last page. The close button only skips ahead to
+ * that page.
  */
 @Composable
 fun OnboardingScreen(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: OnboardingViewModel = koinViewModel(),
 ) {
-    OnboardingContent(onFinish = onFinish, modifier = modifier)
+    OnboardingContent(
+        onFinish = {
+            viewModel.complete()
+            onFinish()
+        },
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -158,6 +183,12 @@ private fun OnboardingContent(
     val scope = rememberCoroutineScope()
     val colors = MaterialTheme.colorScheme
     val isDark = colors.background.luminance() < 0.5f
+    // The skip button only shows up a while after the walkthrough opens, so the first page gets seen.
+    var skipDelayElapsed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(SkipButtonDelayMillis)
+        skipDelayElapsed = true
+    }
 
     Column(
         modifier = modifier
@@ -165,13 +196,22 @@ private fun OnboardingContent(
             .background(colors.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-            IconButton(onClick = onFinish, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Skip",
-                    tint = colors.onBackground,
-                )
+        // Fixed height so the pager doesn't jump when the skip button appears or hides.
+        Box(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = skipDelayElapsed && pagerState.currentPage != OnboardingPages.lastIndex,
+                enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                exit = fadeOut() + scaleOut(targetScale = 0.6f),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                // Skip jumps to the last page rather than leaving, so Get Started is still the only way on.
+                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(OnboardingPages.lastIndex) } }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Skip",
+                        tint = colors.onBackground,
+                    )
+                }
             }
         }
 
@@ -257,7 +297,12 @@ private fun OnboardingContent(
                 contentColor = Color.White,
             ),
         ) {
-            Text(text = "Continue", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            val isLastPage = pagerState.currentPage == OnboardingPages.lastIndex
+            Text(
+                text = if (isLastPage) "Get Started" else "Continue",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
         Spacer(Modifier.height(16.dp))
     }

@@ -19,14 +19,18 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.liquid
 import io.github.fletchmckee.liquid.rememberLiquidState
+import kotlin.math.roundToInt
+import org.example.project.ui.theme.Brand
 
 /** Height every screen's top bar uses, so the title and buttons sit at the same spot app-wide. */
 internal val TopBarHeight = 56.dp
@@ -45,12 +49,13 @@ internal enum class GlassButtonStyle {
     /** Clear glass over a faint content-colored wash: back / close. */
     Neutral,
 
-    /** Glass over the primary color: done. */
+    /** A solid primary disc with the bubble tap effect: done. */
     Primary,
 }
 
 /**
- * A circular Liquid Glass button for the top bars' back/close and done actions.
+ * A circular top-bar button: Liquid Glass for back/close ([GlassButtonStyle.Neutral]), a solid
+ * primary disc for done ([GlassButtonStyle.Primary], see [SolidDoneButton]).
  *
  * Top bars sit above the content rather than over it, so there is nothing of the screen for the
  * glass to refract. Instead each button carries its own backdrop: a small diagonal gradient drawn
@@ -70,43 +75,51 @@ internal fun GlassTopBarButton(
     style: GlassButtonStyle = GlassButtonStyle.Neutral,
     enabled: Boolean = true,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
-    onAccentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    // The brand violet rather than `colorScheme.primary`: the dark scheme's primary is a pastel
+    // lavender, which would wash every Done button out on dark screens.
+    accentColor: Color = Brand,
+    onAccentColor: Color = Color.White,
 ) {
+    if (style == GlassButtonStyle.Primary) {
+        SolidDoneButton(icon, contentDescription, onClick, modifier, enabled, accentColor, onAccentColor)
+        return
+    }
     val liquidState = rememberLiquidState()
     val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    val backdrop = when (style) {
-        // Light mode needs a stronger wash: over a white screen the faint dark gradient that
-        // reads as glass in dark mode vanishes.
-        GlassButtonStyle.Neutral -> Brush.linearGradient(
-            if (isLight) {
-                listOf(contentColor.copy(alpha = 0.05f), contentColor.copy(alpha = 0.16f))
-            } else {
-                listOf(contentColor.copy(alpha = 0.16f), contentColor.copy(alpha = 0.04f))
-            },
-        )
-        GlassButtonStyle.Primary -> Brush.linearGradient(
-            listOf(lerp(accentColor, Color.White, 0.3f), accentColor, lerp(accentColor, Color.Black, 0.15f)),
-        )
-    }
-    val glassTint = when (style) {
-        GlassButtonStyle.Neutral -> Color.White.copy(alpha = if (isLight) 0.1f else 0.08f)
-        GlassButtonStyle.Primary -> Color.White.copy(alpha = 0.12f)
-    }
-    val iconTint = when (style) {
-        GlassButtonStyle.Neutral -> contentColor
-        GlassButtonStyle.Primary -> onAccentColor
+    // Light mode needs a stronger wash: over a white screen the faint dark gradient that reads as
+    // glass in dark mode vanishes.
+    val backdrop = Brush.linearGradient(
+        if (isLight) {
+            listOf(contentColor.copy(alpha = 0.05f), contentColor.copy(alpha = 0.16f))
+        } else {
+            listOf(contentColor.copy(alpha = 0.16f), contentColor.copy(alpha = 0.04f))
+        },
+    )
+    val glassTint = Color.White.copy(alpha = if (isLight) 0.1f else 0.08f)
+    val iconTint = contentColor
+    val bubble = rememberBubbleClick()
+    // Glass can't take the Done button's graphicsLayer squish (Liquid samples from layout bounds),
+    // so the glass is resized in layout instead; the underdamped press spring overshoots past full
+    // size on release, which is the bounce. The slot stays [TopBarButtonSize] so nothing shifts.
+    val glassSize = Modifier.layout { measurable, constraints ->
+        val side = (constraints.maxWidth * bubble.pressScale).roundToInt().coerceAtLeast(0)
+        val placeable = measurable.measure(Constraints.fixed(side, side))
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            placeable.place((constraints.maxWidth - side) / 2, (constraints.maxHeight - side) / 2)
+        }
     }
 
     Box(
         modifier = modifier
             .size(TopBarButtonSize)
-            .alpha(if (enabled) 1f else 0.4f),
+            .alpha(if (enabled) 1f else 0.4f)
+            .bubbleBurstRing(bubble, contentColor.copy(alpha = 0.6f)),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(glassSize)
                 .clip(CircleShape)
                 .liquefiable(liquidState)
                 .background(backdrop),
@@ -114,6 +127,7 @@ internal fun GlassTopBarButton(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(glassSize)
                 .clip(CircleShape)
                 .liquid(liquidState) {
                     shape = CircleShape
@@ -125,12 +139,18 @@ internal fun GlassTopBarButton(
                     saturation = 1.25f
                     tint = glassTint
                 }
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .clickable(
+                    interactionSource = bubble.interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = { bubble.tap(onClick) },
+                )
                 // A white hairline highlight so the rim still reads on a flat backdrop. A white rim
                 // is invisible on a white screen, so light-mode neutral buttons get a faint dark
                 // outer edge with the highlight inset just inside it.
                 .then(
-                    if (isLight && style == GlassButtonStyle.Neutral) {
+                    if (isLight) {
                         Modifier
                             .border(0.75.dp, contentColor.copy(alpha = 0.14f), CircleShape)
                             .padding(0.75.dp)
@@ -138,7 +158,7 @@ internal fun GlassTopBarButton(
                     } else {
                         Modifier.border(
                             width = 0.75.dp,
-                            color = Color.White.copy(alpha = if (style == GlassButtonStyle.Primary) 0.55f else 0.22f),
+                            color = Color.White.copy(alpha = 0.22f),
                             shape = CircleShape,
                         )
                     },
@@ -149,8 +169,50 @@ internal fun GlassTopBarButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = iconTint,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(22.dp).graphicsLayer {
+                    scaleX = bubble.pressScale
+                    scaleY = bubble.pressScale
+                },
             )
         }
+    }
+}
+
+/**
+ * Done is a flat, solid disc rather than glass so it reads as the screen's one committing action.
+ * Being plain, it can take the bubble squish (a `graphicsLayer` scale) that glass can't.
+ */
+@Composable
+internal fun SolidDoneButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    color: Color = Brand,
+    onColor: Color = Color.White,
+) {
+    val bubble = rememberBubbleClick()
+    Box(
+        modifier = modifier
+            .size(TopBarButtonSize)
+            .alpha(if (enabled) 1f else 0.4f)
+            .bubbleClick(bubble, color)
+            .background(color, CircleShape)
+            .clickable(
+                interactionSource = bubble.interactionSource,
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = { bubble.tap(onClick) },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = onColor,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }

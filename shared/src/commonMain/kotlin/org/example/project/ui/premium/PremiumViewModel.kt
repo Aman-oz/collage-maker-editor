@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlin.time.Clock
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.billing.AppBillingWrapper
 import org.example.project.data.billing.BillingState
 import org.example.project.data.billing.BillingStatus
@@ -33,7 +35,10 @@ sealed interface PremiumEvent {
 }
 
 /** Runs the paywall's purchase and restore through [AppBillingWrapper] and reports the outcome. */
-class PremiumViewModel(private val billing: AppBillingWrapper) : ViewModel() {
+class PremiumViewModel(
+    private val billing: AppBillingWrapper,
+    private val settings: AppSettings,
+) : ViewModel() {
 
     private val busy = MutableStateFlow(false)
 
@@ -50,6 +55,19 @@ class PremiumViewModel(private val billing: AppBillingWrapper) : ViewModel() {
     init {
         // Prices may not have loaded at launch (offline, store still connecting); retry on open.
         if (billing.state.value.status != BillingStatus.Ready) billing.refresh()
+    }
+
+    /**
+     * Claims the launch-flow limited-time offer when the paywall is closed: returns when it ends
+     * (epoch millis), or null when there is none to show — premium already, or its two hours have
+     * run out. The first claim starts the clock. It doesn't wait on the Annual price: the offer still
+     * shows (with the price left out) when the store hasn't answered, and Try Now reports why.
+     */
+    fun claimLaunchOffer(): Long? {
+        if (billing.isPremium.value) return null
+        val now = Clock.System.now().toEpochMilliseconds()
+        val startedAt = settings.launchOfferStartedAt ?: now.also { settings.launchOfferStartedAt = it }
+        return launchOfferEndsAt(startedAt, now)
     }
 
     fun purchase(plan: SubscriptionPlan) = runBusy {

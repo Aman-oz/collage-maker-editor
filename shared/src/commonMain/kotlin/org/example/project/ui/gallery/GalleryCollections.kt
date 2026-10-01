@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import org.example.project.gallery.GalleryAlbum
 import org.example.project.gallery.GalleryAlbumSection
 import org.example.project.gallery.loadGalleryThumbnail
+import org.example.project.ui.common.bubbleClick
+import org.example.project.ui.common.rememberBubbleClick
 
 /**
  * Where the Collections tab is: the sectioned overview, one section expanded into a grid (via a
@@ -190,10 +192,16 @@ internal fun CollectionsBackHeader(title: String, onBack: () -> Unit) {
             .padding(bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val bubble = rememberBubbleClick()
         Row(
             modifier = Modifier
+                .bubbleClick(bubble, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
                 .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onBack)
+                .clickable(
+                    interactionSource = bubble.interactionSource,
+                    indication = null,
+                    onClick = { bubble.tap(onBack) },
+                )
                 .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

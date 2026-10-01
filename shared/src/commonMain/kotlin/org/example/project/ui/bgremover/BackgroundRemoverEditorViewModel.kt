@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import org.example.project.AppLog
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.bgremover.BackgroundRemoverApi
@@ -24,6 +25,8 @@ import org.example.project.ui.common.copyBitmap
  * Set Background over this screen, which takes it out of composition, and Back must come back to
  * the same erase history instead of starting over.
  */
+private const val Tag = "BgRemoverVM"
+
 class BackgroundRemoverEditorViewModel internal constructor(
     private val session: ImageEditSession,
     private val api: BackgroundRemoverApi,
@@ -86,20 +89,36 @@ class BackgroundRemoverEditorViewModel internal constructor(
      * only says so.
      */
     fun removeBackgroundWithAi() {
-        val photo = sourceImage ?: return
-        if (aiRunning) return
+        val photo = sourceImage
+        if (photo == null) {
+            AppLog.w(Tag, "Ai Magic ignored: no source photo in the session")
+            return
+        }
+        if (aiRunning) {
+            AppLog.d(Tag, "Ai Magic ignored: a removal is already running")
+            return
+        }
         if (hasAiCutOut) {
+            AppLog.d(Tag, "Ai Magic ignored: a cut-out is already applied")
             _messages.trySend("Background is already removed")
             return
         }
+        AppLog.i(Tag, "Ai Magic started on a ${photo.width}x${photo.height} photo (configured: ${api.isConfigured})")
         aiRunning = true
         viewModelScope.launch {
             try {
                 val cutOut = api.removeBackground(photo)
+                if (cutOut.width != photo.width || cutOut.height != photo.height) {
+                    // Still usable: the cut-out's alpha is scaled onto the photo when drawn.
+                    AppLog.w(Tag, "Cut-out is ${cutOut.width}x${cutOut.height}, photo is ${photo.width}x${photo.height}")
+                }
                 // A network-decoded bitmap does not redraw reliably as a scaled draw source.
                 push(EraseOp.AiCutOut(copyBitmap(cutOut)))
+                AppLog.i(Tag, "Ai Magic applied (${ops.size} ops in history)")
             } catch (e: BackgroundRemoverException) {
-                _messages.trySend(aiErrorMessage(e))
+                val message = aiErrorMessage(e)
+                AppLog.e(Tag, "Ai Magic failed (${e::class.simpleName}: ${e.message}); showing \"$message\"", e)
+                _messages.trySend(message)
             } finally {
                 aiRunning = false
             }
@@ -113,6 +132,7 @@ class BackgroundRemoverEditorViewModel internal constructor(
     }
 
     fun applyResult(bitmap: ImageBitmap) {
+        AppLog.d(Tag, "Done: ${bitmap.width}x${bitmap.height} cut-out from ${ops.size} ops")
         session.set(bitmap)
     }
 }

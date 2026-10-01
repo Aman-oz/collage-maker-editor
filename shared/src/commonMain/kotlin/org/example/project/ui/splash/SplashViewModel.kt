@@ -7,24 +7,41 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
+
+/** Where the splash hands off to once its loading time is over. */
+enum class SplashNext {
+    /** First install (onboarding not finished yet): the language → onboarding → paywall flow. */
+    FirstRun,
+
+    /** Returning, non-premium user: the paywall, then Home. */
+    Premium,
+
+    /** Returning premium user: nothing to sell, straight to Home. */
+    Home,
+}
 
 /**
- * Holds the splash screen state. [isReady] gates the Get started button. Any real start-up work
- * (remote config, billing, assets) belongs here, replacing the fixed delay below.
+ * Holds the splash screen state. [next] stays `null` for the loading time, then says where to go.
+ * Any real start-up work (remote config, assets) belongs here, alongside the fixed delay below.
  */
-class SplashViewModel : ViewModel() {
+class SplashViewModel(private val settings: AppSettings) : ViewModel() {
 
-    private val _isReady = MutableStateFlow(false)
-    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
+    private val _next = MutableStateFlow<SplashNext?>(null)
+    val next: StateFlow<SplashNext?> = _next.asStateFlow()
 
     init {
         viewModelScope.launch {
             delay(SPLASH_DURATION_MS)
-            _isReady.value = true
+            _next.value = when {
+                !settings.hasCompletedOnboarding -> SplashNext.FirstRun
+                settings.isPremium.value -> SplashNext.Home
+                else -> SplashNext.Premium
+            }
         }
     }
 
     private companion object {
-        const val SPLASH_DURATION_MS = 1_500L
+        const val SPLASH_DURATION_MS = 3_000L
     }
 }

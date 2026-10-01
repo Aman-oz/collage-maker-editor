@@ -154,11 +154,33 @@ internal fun magicTolerance(strength: Float): Int {
 internal fun maskToArgb(inside: BooleanArray): IntArray =
     IntArray(inside.size) { if (inside[it]) 0xFF000000.toInt() else 0 }
 
-internal const val MinZoom = 1f
+/** Zoom at which the photo fits the stage; the zoom slider's centre. */
+internal const val FitZoom = 1f
+
+/** Below [FitZoom], so the zoom slider's left half has room to zoom out. */
+internal const val MinZoom = 0.5f
 internal const val MaxZoom = 5f
 
-/** Keeps a pinch-zoom factor between fit-to-stage and [MaxZoom]. */
+/** Keeps a zoom factor between [MinZoom] and [MaxZoom]. */
 internal fun clampZoom(zoom: Float): Float = zoom.coerceIn(MinZoom, MaxZoom)
+
+/** The zoom slider's value range: centre is [FitZoom], left zooms out, right zooms in. */
+internal val ZoomSliderRange = -1f..1f
+
+/**
+ * Maps a zoom slider [value] in [ZoomSliderRange] to a zoom factor. Each half is linear on its own
+ * side of [FitZoom] (which is not the midpoint of [MinZoom]..[MaxZoom]), so the centre is always fit.
+ */
+internal fun sliderToZoom(value: Float): Float {
+    val v = value.coerceIn(ZoomSliderRange)
+    return if (v >= 0f) FitZoom + v * (MaxZoom - FitZoom) else FitZoom + v * (FitZoom - MinZoom)
+}
+
+/** Inverse of [sliderToZoom], so a pinch keeps the slider's thumb in step. */
+internal fun zoomToSlider(zoom: Float): Float {
+    val z = clampZoom(zoom)
+    return if (z >= FitZoom) (z - FitZoom) / (MaxZoom - FitZoom) else (z - FitZoom) / (FitZoom - MinZoom)
+}
 
 /** Smallest brush, so the slider's zero end still erases something. */
 internal const val MinBrushRadiusFraction = 0.004f

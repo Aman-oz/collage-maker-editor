@@ -1,5 +1,7 @@
 package org.example.project.ui.templates
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +25,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,9 +51,14 @@ import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.TopBarHeight
 import org.example.project.ui.common.TopBarHorizontalPadding
 import org.example.project.ui.common.navSharedElement
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_premium_icon
 
 private val PremiumGold = Color(0xFFFFB300)
 
@@ -144,7 +151,7 @@ private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Un
         verticalAlignment = Alignment.CenterVertically,
     ) {
         GlassTopBarButton(
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
@@ -158,8 +165,14 @@ private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Un
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
         )
-        IconButton(onClick = onGoPro) {
-            Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = "Premium", tint = PremiumGold)
+        val proBounce = rememberSpringBounce()
+        IconButton(
+            onClick = onGoPro,
+            interactionSource = proBounce.interactionSource,
+            modifier = Modifier.springBounce(proBounce),
+        ) {
+            Image(painter = painterResource(Res.drawable.ic_premium_icon), contentDescription = "Premium")
+//            Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = "Premium", tint = PremiumGold)
         }
     }
 }
@@ -185,11 +198,13 @@ private fun CategoryRow(categories: List<TemplateCategory>, selectedId: String?,
 private fun CategoryPill(category: TemplateCategory, selected: Boolean, onClick: () -> Unit) {
     val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            .springBounce(bounce)
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 9.dp),
     ) {
         Text(
@@ -218,15 +233,21 @@ private fun FramesGrid(frames: List<TemplateFrame>, onFrameClick: (TemplateFrame
 
 @Composable
 private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
+    val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(frame.layout.aspectRatio)
             // Before the clip, so the rounded corners travel with the thumbnail into the editor.
             .navSharedElement(templateFrameKey(frame.id))
+            .springBounce(bounce)
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
     ) {
         NetworkImage(
             url = frame.thumbnailUrl,
@@ -239,17 +260,23 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp)
-                    .size(24.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.WorkspacePremium,
+
+                Image(
+                    painter = painterResource(Res.drawable.ic_premium_icon),
                     contentDescription = "Premium",
-                    tint = PremiumGold,
-                    modifier = Modifier.size(15.dp),
+                    modifier = Modifier.size(20.dp)
                 )
+//                Icon(
+//                    imageVector = Icons.Filled.WorkspacePremium,
+//                    contentDescription = "Premium",
+//                    tint = PremiumGold,
+//                    modifier = Modifier.size(15.dp),
+//                )
             }
         }
     }
@@ -265,11 +292,13 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(12.dp))
+        val bounce = rememberSpringBounce()
         Row(
             modifier = Modifier
+                .springBounce(bounce)
                 .clip(RoundedCornerShape(50))
                 .background(MaterialTheme.colorScheme.primary)
-                .clickable(onClick = onRetry)
+                .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onRetry)
                 .padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

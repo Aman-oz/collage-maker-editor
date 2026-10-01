@@ -132,3 +132,17 @@ internal fun buildStrokePath(points: List<Offset>, imageOffset: Offset, imageSiz
     }
     return path
 }
+
+/** A [width] x [height] copy of [source], smoothly scaled; like [copyBitmap], safe to redraw. */
+internal fun scaledBitmap(source: ImageBitmap, width: Int, height: Int): ImageBitmap {
+    val scaled = ImageBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1))
+    Canvas(scaled).drawImageRect(
+        image = source,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(source.width, source.height),
+        dstOffset = IntOffset.Zero,
+        dstSize = IntSize(scaled.width, scaled.height),
+        paint = Paint().apply { filterQuality = FilterQuality.High },
+    )
+    return scaled
+}

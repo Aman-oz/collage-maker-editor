@@ -3,6 +3,7 @@ package org.example.project.ui.save
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +58,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.imageResource
@@ -157,12 +160,15 @@ private fun SaveImageContent(
             }
 
             if (isPremium) {
+                val saveBounce = rememberSpringBounce()
                 Button(
                     onClick = onSaveClean,
+                    interactionSource = saveBounce.interactionSource,
                     enabled = !saving && image != null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp)
+                        .springBounce(saveBounce)
                         .height(48.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
@@ -174,20 +180,24 @@ private fun SaveImageContent(
                     modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    val watermarkSaveBounce = rememberSpringBounce()
                     OutlinedButton(
                         onClick = onSaveWithWatermark,
+                        interactionSource = watermarkSaveBounce.interactionSource,
                         enabled = !saving && image != null,
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier.springBounce(watermarkSaveBounce).weight(1f).height(52.dp),
                         shape = CircleShape,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
                         ButtonLabel(text = "Save with\nwatermark", color = MaterialTheme.colorScheme.onSurface)
                     }
+                    val removeBounce = rememberSpringBounce()
                     Button(
                         onClick = onRemoveWatermark,
+                        interactionSource = removeBounce.interactionSource,
                         enabled = !saving && image != null,
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier.springBounce(removeBounce).weight(1f).height(52.dp),
                         shape = CircleShape,
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
@@ -250,7 +260,9 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
         if (watermark != null) {
             // Measure in whole dp so the fractions from watermarkRect apply unchanged.
             val rect = watermarkRect(maxWidth.value.toInt(), maxHeight.value.toInt())
-            Box(modifier = Modifier.offset(rect.left.dp, rect.top.dp).size(rect.width.dp)) {
+            // One bounce for the logo and its ✕ badge, so the badge moves with the logo it sits on.
+            val watermarkBounce = rememberSpringBounce()
+            Box(modifier = Modifier.offset(rect.left.dp, rect.top.dp).size(rect.width.dp).springBounce(watermarkBounce)) {
                 val corner = (rect.width * WatermarkCornerFraction).dp
                 Image(
                     bitmap = watermark,
@@ -259,7 +271,11 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                         .fillMaxSize()
                         .clip(RoundedCornerShape(corner))
                         .border(1.5.dp, Color.White, RoundedCornerShape(corner))
-                        .clickable(onClick = onRemoveWatermark),
+                        .clickable(
+                            interactionSource = watermarkBounce.interactionSource,
+                            indication = LocalIndication.current,
+                            onClick = onRemoveWatermark,
+                        ),
                     contentScale = ContentScale.Crop,
                 )
                 Box(
@@ -269,7 +285,11 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                         .size(14.dp)
                         .clip(CircleShape)
                         .background(Color.White)
-                        .clickable(onClick = onRemoveWatermark),
+                        .clickable(
+                            interactionSource = watermarkBounce.interactionSource,
+                            indication = LocalIndication.current,
+                            onClick = onRemoveWatermark,
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -296,8 +316,16 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
 /** Green hint bubble whose notch points down at the watermark below it. Tapping it opens the paywall. */
 @Composable
 private fun RemoveWatermarkHint(notchEndPadding: Dp, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val bounce = rememberSpringBounce()
     Column(
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier
+            .springBounce(bounce)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onClick,
+            ),
         horizontalAlignment = Alignment.End,
     ) {
         Text(

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GridView
@@ -68,6 +69,8 @@ import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.navSharedElement
+import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.common.topBar
 import org.koin.compose.viewmodel.koinViewModel
@@ -318,7 +321,7 @@ private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         GlassTopBarButton(
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = "Back",
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
@@ -353,10 +356,12 @@ private fun BottomActions(
     // Buttons' default 24dp side padding leaves too little room for icon + label on narrow phones.
     val contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        val imageBounce = rememberSpringBounce()
         Button(
             onClick = onImageAction,
+            interactionSource = imageBounce.interactionSource,
             enabled = enabled,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.springBounce(imageBounce).weight(1f),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             contentPadding = contentPadding,
@@ -371,9 +376,11 @@ private fun BottomActions(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        val frameBounce = rememberSpringBounce()
         Button(
             onClick = onChangeFrame,
-            modifier = Modifier.weight(1f),
+            interactionSource = frameBounce.interactionSource,
+            modifier = Modifier.springBounce(frameBounce).weight(1f),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             contentPadding = contentPadding,

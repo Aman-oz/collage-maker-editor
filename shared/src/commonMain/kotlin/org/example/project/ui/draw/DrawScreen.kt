@@ -1,6 +1,16 @@
 package org.example.project.ui.draw
 
 import androidx.compose.foundation.Canvas
+import org.example.project.ui.common.scaledBitmap
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.geometry.Size
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,7 +48,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -55,7 +64,7 @@ import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.SelectableSwatch
 import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.ToolTopBar
-import org.example.project.ui.common.buildStrokePath
+import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.preview.ThemePreviews
@@ -82,9 +91,9 @@ fun DrawScreen(
     DrawContent(
         sourceImage = viewModel.sourceImage,
         onBack = onBack,
-        onDone = { actions, canvasWidthPx ->
+        onDone = { actions ->
             viewModel.sourceImage?.let { image ->
-                viewModel.applyDrawing(bakeDrawing(source = image, actions = actions, previewCanvasWidthPx = canvasWidthPx))
+                viewModel.applyDrawing(bakeDrawing(source = image, actions = actions))
             }
             onApplied()
         },
@@ -92,11 +101,22 @@ fun DrawScreen(
     )
 }
 
+/**
+ * The bitmap a [pattern] stroke reveals in the preview, rendered at [base]'s (the canvas's) own
+ * size so it can be an [ImageShader] lined up 1:1 with the canvas. Same patterns as [renderMosaic]:
+ * pixelate cells are fractions of the width and textures use normalized coordinates, so the
+ * preview-sized render looks just like the full-resolution bake.
+ */
+private fun renderPreviewMosaic(base: ImageBitmap, pattern: MosaicPattern): ImageBitmap = when (pattern) {
+    is PixelateMosaic -> computeMosaicBitmap(base, pattern.cellFractionX, pattern.cellFractionY)
+    is TextureMosaic -> renderMosaicTexture(pattern.texture, base.width, base.height)
+}
+
 @Composable
 private fun DrawContent(
     sourceImage: ImageBitmap?,
     onBack: () -> Unit,
-    onDone: (actions: List<DrawAction>, canvasWidthPx: Float) -> Unit,
+    onDone: (actions: List<DrawAction>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -129,7 +149,9 @@ private fun DrawContent(
     var selectedPattern by remember { mutableStateOf(MosaicPatternDefault) }
     var isEraserActive by remember { mutableStateOf(false) }
     var brushSize by remember { mutableFloatStateOf(BrushSizeDefault) }
-    var currentPoints by remember { mutableStateOf(emptyList<Offset>()) }
+    // The stroke in progress. Only the canvas's draw phase reads these, so a finger move redraws
+    // the canvas without recomposing the screen.
+    val livePoints = remember { mutableStateListOf<Offset>() }
     var isDragging by remember { mutableStateOf(false) }
     var isAdjustingBrush by remember { mutableStateOf(false) }
     var cursorPositionPx by remember { mutableStateOf(Offset.Zero) }
@@ -144,19 +166,43 @@ private fun DrawContent(
         }
     }
 
-    val sharpImage = remember(sourceImage) { sourceImage?.let { copyBitmap(it) } }
-    // Full-size mosaic bitmaps are rendered lazily — only for patterns actually picked — since
-    // rendering every pattern up front would hold a dozen photo-sized bitmaps for nothing.
-    val mosaicCache = remember(sharpImage) { mutableMapOf<MosaicPattern, ImageBitmap>() }
-    fun mosaicFor(pattern: MosaicPattern): ImageBitmap? =
-        sharpImage?.let { image -> mosaicCache.getOrPut(pattern) { renderMosaic(image, pattern) } }
-    // Warms the cache on selection so the first stroke doesn't stall mid-drag.
-    LaunchedEffect(sharpImage, selectedPattern, selectedTab) {
-        if (selectedTab == DrawTab.Mosaic) mosaicFor(selectedPattern)
+    // Every bitmap below is rendered off the main thread: a full-size photo copy or a per-pixel
+    // texture takes long enough on the main thread to freeze touch handling.
+    val sharpImage by produceState<ImageBitmap?>(null, sourceImage) {
+        value = sourceImage?.let { withContext(Dispatchers.Default) { copyBitmap(it) } }
     }
-    val mosaicSwatches = remember(sharpImage) {
-        sharpImage?.let { image -> MosaicPatterns.associateWith { renderMosaicSwatch(image, it) } }
-    } ?: emptyMap()
+    // The photo at the canvas's pixel size: drawn 1:1 each frame, and the erase brush's shader.
+    val previewBase by produceState<ImageBitmap?>(null, sharpImage, canvasSize) {
+        val image = sharpImage
+        value = if (image == null || canvasSize.width <= 0 || canvasSize.height <= 0) {
+            null
+        } else {
+            withContext(Dispatchers.Default) { scaledBitmap(image, canvasSize.width, canvasSize.height) }
+        }
+    }
+    val eraseBrush = remember(previewBase) { previewBase?.let { ShaderBrush(ImageShader(it)) } }
+    // Mosaic brushes are rendered lazily, only for patterns picked or already on the canvas, since
+    // rendering every pattern up front would hold a dozen canvas-sized bitmaps for nothing.
+    val mosaicBrushes = remember(previewBase) { mutableStateMapOf<MosaicPattern, ShaderBrush>() }
+    LaunchedEffect(previewBase, selectedPattern, selectedTab, actions) {
+        val base = previewBase ?: return@LaunchedEffect
+        val needed = actions.filterIsInstance<MosaicAction>().map { it.pattern }.toMutableSet()
+        // Warms the picked pattern on selection, so the first stroke has it ready.
+        if (selectedTab == DrawTab.Mosaic) needed += selectedPattern
+        for (pattern in needed - mosaicBrushes.keys) {
+            val bitmap = withContext(Dispatchers.Default) { renderPreviewMosaic(base, pattern) }
+            mosaicBrushes[pattern] = ShaderBrush(ImageShader(bitmap))
+        }
+    }
+    val mosaicSwatches by produceState(emptyMap<MosaicPattern, ImageBitmap>(), sharpImage) {
+        val image = sharpImage ?: return@produceState
+        value = withContext(Dispatchers.Default) { MosaicPatterns.associateWith { renderMosaicSwatch(image, it) } }
+    }
+    // Committed strokes only change on commit/undo/redo, so their paths are built once, not per frame.
+    val committedPaths = remember(actions, canvasSize) {
+        val size = Size(canvasSize.width.toFloat(), canvasSize.height.toFloat())
+        actions.map { strokePolyline(it.points, size) }
+    }
 
     Column(
         modifier = modifier
@@ -167,7 +213,7 @@ private fun DrawContent(
         ToolTopBar(
             title = "Draw",
             onClose = onBack,
-            onDone = { onDone(actions, canvasSize.width.toFloat()) },
+            onDone = { onDone(actions) },
             doneEnabled = sourceImage != null,
         )
 
@@ -179,9 +225,8 @@ private fun DrawContent(
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (sourceImage != null && sharpImage != null) {
-                val liveAction = if (currentPoints.isNotEmpty()) buildAction(currentPoints) else null
-
+            val sharp = sharpImage
+            if (sourceImage != null && sharp != null) {
                 // aspectRatio sizes the canvas to the photo itself, so the canvas bounds are the
                 // image bounds (no letterbox offset) and the rounded clip follows the photo's edges.
                 Canvas(
@@ -194,45 +239,60 @@ private fun DrawContent(
                                 (position.x / size.width).coerceIn(0f, 1f),
                                 (position.y / size.height).coerceIn(0f, 1f),
                             )
+                            var lastKeptPx = Offset.Zero
                             detectDragGestures(
                                 onDragStart = { position ->
                                     isDragging = true
                                     cursorPositionPx = position
-                                    currentPoints = listOf(fractionFor(position))
+                                    lastKeptPx = position
+                                    livePoints.clear()
+                                    livePoints += fractionFor(position)
                                 },
                                 onDragEnd = {
                                     isDragging = false
-                                    if (currentPoints.isNotEmpty()) {
-                                        commit(actions + buildAction(currentPoints))
+                                    if (livePoints.isNotEmpty()) {
+                                        commit(actions + buildAction(livePoints.toList()))
                                     }
-                                    currentPoints = emptyList()
+                                    livePoints.clear()
                                 },
                                 onDragCancel = {
                                     isDragging = false
-                                    currentPoints = emptyList()
+                                    livePoints.clear()
                                 },
                                 onDrag = { change, _ ->
                                     change.consume()
                                     cursorPositionPx = change.position
-                                    currentPoints = currentPoints + fractionFor(change.position)
+                                    // Spacing points by a quarter radius keeps the stroke smooth
+                                    // while a long stroke stays a few hundred points, not thousands.
+                                    val radiusPx = brushRadiusFraction(brushSize) * size.width
+                                    if (isFarEnough(lastKeptPx, change.position, maxOf(2f, radiusPx * 0.25f))) {
+                                        lastKeptPx = change.position
+                                        livePoints += fractionFor(change.position)
+                                    }
                                 },
                             )
                         },
                 ) {
                     val dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1))
-                    drawImageScaled(sharpImage, IntOffset.Zero, dstSize)
-                    for (action in actions + listOfNotNull(liveAction)) {
-                        val radiusPx = action.radiusFraction * size.width
-                        val path = buildStrokePath(action.points, Offset.Zero, size, radiusPx)
+                    val base = previewBase
+                    drawImageScaled(base ?: sharp, IntOffset.Zero, dstSize)
+
+                    fun drawAction(action: DrawAction, path: Path) {
+                        val stroke = brushStroke(action.radiusFraction * size.width)
                         when (action) {
-                            is PaintAction -> drawPath(path, color = action.color)
-                            is MosaicAction -> clipPath(path) {
-                                mosaicFor(action.pattern)?.let { drawImageScaled(it, IntOffset.Zero, dstSize) }
-                            }
-                            is EraseAction -> clipPath(path) {
-                                drawImageScaled(sharpImage, IntOffset.Zero, dstSize)
-                            }
+                            is PaintAction -> drawPath(path, color = action.color, style = stroke)
+                            // Not ready yet (rendering in the background): the stroke appears once it is.
+                            is MosaicAction -> mosaicBrushes[action.pattern]?.let { drawPath(path, brush = it, style = stroke) }
+                            is EraseAction -> eraseBrush?.let { drawPath(path, brush = it, style = stroke) }
                         }
+                    }
+
+                    if (committedPaths.size == actions.size) {
+                        actions.forEachIndexed { index, action -> drawAction(action, committedPaths[index]) }
+                    }
+                    if (livePoints.isNotEmpty()) {
+                        val points = livePoints.toList()
+                        drawAction(buildAction(points), strokePolyline(points, size))
                     }
                     if (isDragging || isAdjustingBrush) {
                         drawCircle(
@@ -287,8 +347,8 @@ private fun DrawContent(
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
             fillColor = scheme.primary,
             thumbColor = scheme.primary,
-            thumbWidth = 26.dp,
-            thumbHeight = 14.dp,
+            thumbWidth = 32.dp,
+            thumbHeight = 18.dp,
             horizontalPadding = 12.dp,
             glassThumb = true,
             glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
@@ -358,8 +418,8 @@ private fun DrawToolRow(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DrawToolIcon(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
-        DrawToolIcon(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
         DrawToolIcon(icon = vectorResource(Res.drawable.ic_trash), contentDescription = "Clear all", enabled = deleteEnabled, onClick = onDelete)
         DrawToolIcon(icon = vectorResource(Res.drawable.ic_eraser), contentDescription = "Eraser", selected = eraserActive, onClick = onToggleEraser)
     }
@@ -468,6 +528,6 @@ private fun MosaicPatternRow(
 @Composable
 private fun DrawScreenPreview() {
     ThemePreviews {
-        DrawContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onDone = { _, _ -> })
+        DrawContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onDone = {})
     }
 }

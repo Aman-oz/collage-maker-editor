@@ -121,4 +121,22 @@ class BackgroundRemoverMathTest {
         assertEquals(MaxMagicTolerance, magicTolerance(2f))
         assertTrue(magicTolerance(0.5f) in MinMagicTolerance..MaxMagicTolerance)
     }
+
+    @Test
+    fun zoomSlider_centreIsFitAndEndsAreLimits() {
+        assertEquals(FitZoom, sliderToZoom(0f))
+        assertEquals(MinZoom, sliderToZoom(-1f))
+        assertEquals(MaxZoom, sliderToZoom(1f))
+        assertEquals(MaxZoom, sliderToZoom(3f))
+        assertTrue(sliderToZoom(-0.5f) < FitZoom)
+        assertTrue(sliderToZoom(0.5f) > FitZoom)
+    }
+
+    @Test
+    fun zoomToSlider_invertsSliderToZoom() {
+        for (value in listOf(-1f, -0.4f, 0f, 0.25f, 1f)) {
+            assertEquals(value, zoomToSlider(sliderToZoom(value)), 1e-5f)
+        }
+        assertEquals(1f, zoomToSlider(50f))
+    }
 }

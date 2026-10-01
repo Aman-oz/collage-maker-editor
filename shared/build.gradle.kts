@@ -47,12 +47,17 @@ val localProperties: Provider<Properties> = providers
     .map { text -> Properties().apply { load(text.reader()) } }
     .orElse(Properties())
 
-fun localProperty(key: String): Provider<String> = localProperties.map { it.getProperty(key).orEmpty().trim() }
+/** The first of [keys] that `local.properties` sets to a non-blank value, or "" if none does. */
+fun localProperty(vararg keys: String): Provider<String> = localProperties.map { properties ->
+    keys.firstNotNullOfOrNull { key -> properties.getProperty(key)?.trim()?.takeIf(String::isNotEmpty) }.orEmpty()
+}
 
 val generateBgRemoverConfig = tasks.register<GenerateBgRemoverConfig>("generateBgRemoverConfig") {
-    baseUrl = localProperty("BG_REMOVER_BASE_URL")
-    apiKeyHeader = localProperty("BG_REMOVER_API_KEY_HEADER")
-    apiKey = localProperty("BG_REMOVER_API_KEY")
+    // The LAS app's key names (BASE_URL, KEY, X_API_KEY) also work, so its local.properties
+    // entries can be copied over as they are.
+    baseUrl = localProperty("BG_REMOVER_BASE_URL", "BASE_URL")
+    apiKeyHeader = localProperty("BG_REMOVER_API_KEY_HEADER", "KEY")
+    apiKey = localProperty("BG_REMOVER_API_KEY", "X_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/bgRemoverConfig/kotlin")
 }
 

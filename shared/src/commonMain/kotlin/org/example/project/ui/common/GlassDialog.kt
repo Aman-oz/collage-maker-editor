@@ -1,4 +1,4 @@
-package org.example.project.ui.settings
+package org.example.project.ui.common
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -9,7 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,6 +41,9 @@ internal val DialogShape = RoundedCornerShape(28.dp)
  * glass inside a real dialog would have nothing to refract. Place this as a sibling drawn above
  * the `liquefiable(liquidState)` screen content, never inside it.
  *
+ * [footer] sits below the panel, outside the glass (e.g. a close button). Pass
+ * `dismissOnScrimClick = false` when the dialog must be closed explicitly through it.
+ *
  * The panel animates with fade + slide only. Both are placement/alpha changes, whereas a
  * `graphicsLayer` scale would make Liquid sample the backdrop from the unscaled bounds.
  */
@@ -47,6 +52,8 @@ internal fun GlassDialogHost(
     visible: Boolean,
     liquidState: LiquidState,
     onDismiss: () -> Unit,
+    dismissOnScrimClick: Boolean = true,
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val noRipple = remember { MutableInteractionSource() }
@@ -56,7 +63,12 @@ internal fun GlassDialogHost(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.3f))
-                .clickable(interactionSource = noRipple, indication = null, onClick = onDismiss),
+                .clickable(
+                    interactionSource = noRipple,
+                    indication = null,
+                    // Still clickable when not dismissing, so taps never reach the screen under it.
+                    onClick = { if (dismissOnScrimClick) onDismiss() },
+                ),
         )
     }
     AnimatedVisibility(
@@ -64,9 +76,10 @@ internal fun GlassDialogHost(
         enter = fadeIn() + slideInVertically { it / 10 },
         exit = fadeOut() + slideOutVertically { it / 10 },
     ) {
-        Box(
+        Column(
             modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
-            contentAlignment = Alignment.Center,
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 modifier = Modifier
@@ -78,6 +91,7 @@ internal fun GlassDialogHost(
             ) {
                 content()
             }
+            footer?.invoke()
         }
     }
 }
@@ -87,7 +101,7 @@ internal fun GlassDialogHost(
  * text legible, with modest refraction and a bright rim so it still reads as glass, not a card.
  */
 @Composable
-private fun Modifier.glassPanel(liquidState: LiquidState): Modifier {
+internal fun Modifier.glassPanel(liquidState: LiquidState): Modifier {
     val surface = MaterialTheme.colorScheme.surface
     val isLight = surface.luminance() > 0.5f
     val rim = Color.White.copy(alpha = if (isLight) 0.7f else 0.18f)
