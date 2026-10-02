@@ -4,6 +4,9 @@ import org.example.project.ui.templates.MaxSlotZoom
 import org.example.project.ui.templates.SlotTransform
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import org.example.project.ui.collage.geom.TemplateItem
 
 class CollageMathTest {
 
@@ -68,5 +71,20 @@ class CollageMathTest {
         // Panned fully right in a square slot, then the slot turns 2:1 wide: no horizontal overhang left.
         val stale = SlotTransform(offsetX = 0.5f)
         assertEquals(0f, stale.clampedToSlot(400f, 200f, 200f, 100f).offsetX, 1e-4f)
+    }
+
+    @Test
+    fun isPremiumCollageEdit_defaultCollageIsFree() {
+        val default = CollageState(template = TemplateItem())
+        assertFalse(isPremiumCollageEdit(default.space, default.ratio))
+    }
+
+    @Test
+    fun isPremiumCollageEdit_borderWidthBandOrPortraitRatio() {
+        assertTrue(isPremiumCollageEdit(2f, CollageRatio.Square))
+        assertTrue(isPremiumCollageEdit(5f, CollageRatio.Square))
+        assertFalse(isPremiumCollageEdit(1.9f, CollageRatio.Square))
+        assertFalse(isPremiumCollageEdit(5.1f, CollageRatio.Story))
+        assertTrue(isPremiumCollageEdit(20f, CollageRatio.Portrait))
     }
 }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
+import org.example.project.i18n.tr
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplatesUiState
 
@@ -40,7 +41,7 @@ class FramesViewModel(
                     categories.firstOrNull()?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: "Couldn't load frames") }
+                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load frames")) }
                 }
         }
     }
@@ -58,7 +59,7 @@ class FramesViewModel(
                 }
                 .onFailure { e ->
                     if (_uiState.value.selectedCategoryId == category.id) {
-                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: "Couldn't load these frames") }
+                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: tr("Couldn't load these frames")) }
                     }
                 }
         }

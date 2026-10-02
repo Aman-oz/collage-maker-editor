@@ -1,7 +1,6 @@
 package org.example.project.ui.pip
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
@@ -16,10 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.i18n.tr
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
+import org.example.project.ui.freestyle.isPremiumFreestyle
 import org.example.project.ui.freestyle.FreestyleContent
+import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
 import org.example.project.ui.freestyle.retyped
@@ -56,7 +59,23 @@ class PipEditorViewModel(
     private val imagePaths: List<String>,
     private val session: ImageEditSession,
     private val assetLoader: PipAssetLoader,
+    private val settings: AppSettings,
 ) : ViewModel() {
+
+    private var premiumOfferShown = false
+
+    /**
+     * Whether Done should open the paywall once before creating the picture: `true` a single time,
+     * for a non-subscriber whose text and sticker layers are premium by the freestyle editor's rule
+     * ([isPremiumFreestyle]: more than two stickers, or text in the premium red or Stylish font).
+     * It is an offer, not a gate, so asking marks it as made and the next Done goes through either
+     * way.
+     */
+    fun consumePremiumOffer(): Boolean {
+        if (settings.isPremium.value || premiumOfferShown || !history.current.layers.isPremiumFreestyle()) return false
+        premiumOfferShown = true
+        return true
+    }
 
     val template: PipTemplate? = pipTemplate(templateName)
 
@@ -86,14 +105,14 @@ class PipEditorViewModel(
     private fun load() {
         val template = template
         if (template == null) {
-            _uiState.value = PipEditorUiState(error = "This template isn't available")
+            _uiState.value = PipEditorUiState(error = tr("This template isn't available"))
             return
         }
         viewModelScope.launch {
             val photos = imagePaths.take(template.slots.size).map { path -> async { loadPhoto(path) } }
             val loaded = assetLoader.frameAssets(template)
             if (loaded == null) {
-                _uiState.value = PipEditorUiState(error = "Couldn't load this template")
+                _uiState.value = PipEditorUiState(error = tr("Couldn't load this template"))
                 return@launch
             }
             assets = loaded
@@ -124,13 +143,13 @@ class PipEditorViewModel(
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
 
-    fun addText(text: String, color: Color, font: TextFontStyleOption) {
+    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
         if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, color, font))
+        addLayer(FreestyleContent.TextContent(text, fill, font, background))
     }
 
-    fun updateText(id: Long, text: String, color: Color, font: TextFontStyleOption) =
-        updateLayers { it.withText(id, text, color, font) }
+    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) =
+        updateLayers { it.withText(id, text, fill, font, background) }
 
     /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
     fun retypeText(id: Long, text: String) = updateLayers(coalesceKey = "text:$id") { it.retyped(id, text) }

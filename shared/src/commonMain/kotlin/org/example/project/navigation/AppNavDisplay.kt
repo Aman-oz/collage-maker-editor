@@ -18,35 +18,24 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
+import org.example.project.i18n.tr
 import org.example.project.ui.common.LocalNavAnimatedScope
 import org.example.project.ui.common.LocalSharedTransitionScope
-import org.example.project.ui.adjust.AdjustScreen
-import org.example.project.ui.auto.AutoScreen
 import org.example.project.ui.bgremover.BackgroundRemoverCropScreen
 import org.example.project.ui.bgremover.BackgroundRemoverEditorScreen
-import org.example.project.ui.blur.BlurScreen
 import org.example.project.ui.collage.CollageEditorScreen
-import org.example.project.ui.crop.CropScreen
-import org.example.project.ui.draw.DrawScreen
 import org.example.project.ui.editor.EditorScreen
-import org.example.project.ui.emoji.EmojiScreen
-import org.example.project.ui.filter.FilterScreen
-import org.example.project.ui.frame.FrameScreen
 import org.example.project.ui.frames.FramesScreen
 import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.language.LanguageScreen
 import org.example.project.ui.onboarding.OnboardingScreen
-import org.example.project.ui.overlay.OverlayScreen
 import org.example.project.ui.pip.PipEditorScreen
 import org.example.project.ui.pip.PipScreen
 import org.example.project.ui.premium.PremiumScreen
 import org.example.project.ui.projects.PreviewScreen
 import org.example.project.ui.proeditor.ProEditorScreen
-import org.example.project.ui.colorsplash.ColorSplashScreen
-import org.example.project.ui.ratio.RatioScreen
-import org.example.project.ui.rotate.RotateScreen
 import org.example.project.ui.home.CollageMaxSelection
 import org.example.project.ui.home.FreestyleMaxSelection
 import org.example.project.ui.save.SaveImageScreen
@@ -54,18 +43,15 @@ import org.example.project.ui.setbackground.SetBackgroundScreen
 import org.example.project.ui.share.ShareImageScreen
 import org.example.project.ui.share.ShareSuggestion
 import org.example.project.ui.settings.SettingsScreen
-import org.example.project.ui.shapereveal.SelectiveBlurScreen
-import org.example.project.ui.shapereveal.SelectiveSplashScreen
 import org.example.project.ui.splash.SplashNext
 import org.example.project.ui.splash.SplashScreen
 import org.example.project.ui.templates.TemplatesEditorScreen
 import org.example.project.ui.templates.TemplatesScreen
-import org.example.project.ui.text.TextScreen
 
-/** How long a tool screen (crop, filter, ...) takes to slide up over / down off the editor. */
+/** How long a slide-up screen (gallery, save, paywall, ...) takes to slide up over / down off what is underneath. */
 private const val ToolScreenTransitionMillis = 320
 
-/** Slides a tool screen up from the bottom over whatever is underneath, and back down on pop. */
+/** Slides a screen up from the bottom over whatever is underneath, and back down on pop. */
 private fun slideUpMetadata(): Map<String, Any> = metadata {
     // Slide new content up, keeping the old content in place underneath.
     put(NavDisplay.TransitionKey) {
@@ -170,7 +156,14 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                     entry<Destination.Preview> { key ->
                         WithNavAnimatedScope {
-                            PreviewScreen(imagePath = key.imagePath, onBack = { backStack.removeLastOrNull() })
+                            PreviewScreen(
+                                imagePath = key.imagePath,
+                                onBack = { backStack.removeLastOrNull() },
+                                // The project's file is the editor's starting photo; the preview stays
+                                // underneath, so Back from the editor returns to it. Saving the edit
+                                // makes a new project and leaves this one as it was.
+                                onEdit = { backStack.add(Destination.Editor(key.imagePath)) },
+                            )
                         }
                     }
 
@@ -232,6 +225,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // Like Collage: the baked picture is in the session and the Pip editor stays
                             // underneath, so Back from the photo editor returns to it for further tweaks.
                             onApplied = { backStack.add(Destination.Editor()) },
+                            onPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -249,7 +243,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             TemplatesEditorScreen(
                                 frame = key.frame,
-                                title = "Frames",
+                                title = tr("Frames"),
                                 onBack = { backStack.removeLastOrNull() },
                                 // Same as Templates: the baked frame is in the session and the frame editor
                                 // stays underneath, so Back from the editor returns to it.
@@ -297,6 +291,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             // Same as Collage: the baked canvas is in the session, and the freestyle stays
                             // underneath so Back from the editor returns to it for further tweaks.
                             onOpenEditor = { backStack.add(Destination.Editor()) },
+                            onPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -306,128 +301,18 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             openFilterOnLoad = key.openFilter,
                             onBack = { backStack.removeLastOrNull() },
                             onDone = { backStack.add(Destination.SaveImage) },
-                            onOpenAuto = { backStack.add(Destination.Auto) },
-                            onOpenCrop = { backStack.add(Destination.Crop) },
-                            onOpenFilter = { backStack.add(Destination.Filter) },
-                            onOpenAdjust = { backStack.add(Destination.Adjust) },
-                            onOpenOverlay = { backStack.add(Destination.Overlay) },
-                            onOpenRatio = { backStack.add(Destination.Ratio) },
-                            onOpenText = { backStack.add(Destination.Text) },
-                            onOpenEmoji = { backStack.add(Destination.Emoji) },
-                            onOpenBlur = { backStack.add(Destination.Blur) },
-                            onOpenSplash = { backStack.add(Destination.ColorSplash) },
-                            onOpenSelectiveBlur = { backStack.add(Destination.SelectiveBlur) },
-                            onOpenSelectiveSplash = { backStack.add(Destination.SelectiveSplash) },
-                            onOpenFrame = { backStack.add(Destination.Frame) },
-                            onOpenDraw = { backStack.add(Destination.Draw) },
-                            onOpenRotate = { backStack.add(Destination.Rotate) },
-                        )
-                    }
-
-                    entry<Destination.Auto>(metadata = slideUpMetadata()) {
-                        AutoScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Crop>(metadata = slideUpMetadata()) {
-                        CropScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onCropped = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Filter>(metadata = slideUpMetadata()) {
-                        FilterScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Adjust>(metadata = slideUpMetadata()) {
-                        AdjustScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Overlay>(metadata = slideUpMetadata()) {
-                        OverlayScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Ratio>(metadata = slideUpMetadata()) {
-                        RatioScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Text>(metadata = slideUpMetadata()) {
-                        TextScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Emoji>(metadata = slideUpMetadata()) {
-                        EmojiScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Blur>(metadata = slideUpMetadata()) {
-                        BlurScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.ColorSplash>(metadata = slideUpMetadata()) {
-                        ColorSplashScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.SelectiveBlur>(metadata = slideUpMetadata()) {
-                        SelectiveBlurScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.SelectiveSplash>(metadata = slideUpMetadata()) {
-                        SelectiveSplashScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Frame>(metadata = slideUpMetadata()) {
-                        FrameScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
-
-                    entry<Destination.Draw>(metadata = slideUpMetadata()) {
-                        DrawScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
+                            onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
                     entry<Destination.SaveImage>(metadata = slideUpMetadata()) {
-                        SaveImageScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
-                            onOpenPremium = { backStack.add(Destination.Premium()) },
-                        )
+                        WithNavAnimatedScope {
+                            SaveImageScreen(
+                                onBack = { backStack.removeLastOrNull() },
+                                onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
+                                onOpenPremium = { backStack.add(Destination.Premium()) },
+                            )
+                        }
                     }
 
                     entry<Destination.ShareImage> { key ->
@@ -439,40 +324,46 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         } else {
                             ShareSuggestion.NewCollage
                         }
-                        ShareImageScreen(
-                            imagePath = key.imagePath,
-                            onBack = { backStack.removeLastOrNull() },
-                            onHome = { backStack.popToHome() },
-                            suggestion = suggestion,
-                            onSuggestion = {
-                                backStack.popToHome()
-                                when (suggestion) {
-                                    ShareSuggestion.Freestyle ->
-                                        backStack.add(Destination.Gallery(FreestyleMaxSelection, GalleryTarget.Freestyle))
-                                    ShareSuggestion.NewCollage ->
-                                        backStack.add(Destination.Gallery(CollageMaxSelection, GalleryTarget.Collage))
-                                }
-                            },
-                        )
+                        WithNavAnimatedScope {
+                            ShareImageScreen(
+                                imagePath = key.imagePath,
+                                onBack = { backStack.removeLastOrNull() },
+                                onHome = { backStack.popToHome() },
+                                suggestion = suggestion,
+                                onSuggestion = {
+                                    backStack.popToHome()
+                                    when (suggestion) {
+                                        ShareSuggestion.Freestyle ->
+                                            backStack.add(Destination.Gallery(FreestyleMaxSelection, GalleryTarget.Freestyle))
+                                        ShareSuggestion.NewCollage ->
+                                            backStack.add(Destination.Gallery(CollageMaxSelection, GalleryTarget.Collage))
+                                    }
+                                },
+                            )
+                        }
                     }
 
                     entry<Destination.BackgroundRemoverCrop> { key ->
-                        BackgroundRemoverCropScreen(
-                            imagePath = key.imagePath,
-                            onBack = { backStack.removeLastOrNull() },
-                            // The crop stays underneath, so Back from the eraser returns to re-crop.
-                            onCropped = { backStack.add(Destination.BackgroundRemoverEditor) },
-                        )
+                        WithNavAnimatedScope {
+                            BackgroundRemoverCropScreen(
+                                imagePath = key.imagePath,
+                                onBack = { backStack.removeLastOrNull() },
+                                // The crop stays underneath, so Back from the eraser returns to re-crop.
+                                onCropped = { backStack.add(Destination.BackgroundRemoverEditor) },
+                            )
+                        }
                     }
 
                     entry<Destination.BackgroundRemoverEditor> {
-                        BackgroundRemoverEditorScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            // The cut-out is in the session and the eraser stays underneath, so Back from
-                            // the background picker returns to it for further touch-ups.
-                            onApplied = { backStack.add(Destination.SetBackground) },
-                            onOpenPremium = { backStack.add(Destination.Premium()) },
-                        )
+                        WithNavAnimatedScope {
+                            BackgroundRemoverEditorScreen(
+                                onBack = { backStack.removeLastOrNull() },
+                                // The cut-out is in the session and the eraser stays underneath, so Back from
+                                // the background picker returns to it for further touch-ups.
+                                onApplied = { backStack.add(Destination.SetBackground) },
+                                onOpenPremium = { backStack.add(Destination.Premium()) },
+                            )
+                        }
                     }
 
                     entry<Destination.SetBackground> {
@@ -481,15 +372,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         SetBackgroundScreen(
                             onBack = { backStack.removeLastOrNull() },
                             onApplied = { backStack.add(Destination.Editor()) },
+                            onPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
-                    entry<Destination.Rotate>(metadata = slideUpMetadata()) {
-                        RotateScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            onApplied = { backStack.removeLastOrNull() },
-                        )
-                    }
                 },
             )
         }

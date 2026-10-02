@@ -42,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
+import org.example.project.i18n.tr
 import org.example.project.ui.common.EditorCircleIconButton
 import org.example.project.ui.glassnav.GlassBottomNav
 import org.example.project.ui.glassnav.GlassNavItem
@@ -117,17 +118,17 @@ fun ProEditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun ProEditorHeader(onBack: () -> Unit) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {
-        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", onClick = onBack)
+        EditorCircleIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), onClick = onBack)
 
         Text(
-            text = "Discover",
+            text = tr("Discover"),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             modifier = Modifier.padding(top = 12.dp),
         )
         Text(
-            text = "Pro Editor",
+            text = tr("Pro Editor"),
             style = MaterialTheme.typography.bodyLarge,
             color = Color.White.copy(alpha = 0.5f),
             modifier = Modifier.padding(top = 2.dp),

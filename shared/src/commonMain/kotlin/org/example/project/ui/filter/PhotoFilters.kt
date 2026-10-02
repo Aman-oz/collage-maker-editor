@@ -10,12 +10,19 @@ import androidx.compose.ui.graphics.Paint
 /**
  * A selectable filter. [matrix] is `null` for the "None" option, which the filmstrip shows as an
  * icon rather than a photo thumbnail.
+ *
+ * An [isPremium] filter can be tried on the photo by anyone, but only a subscriber can apply it:
+ * for everyone else Done opens the paywall instead.
  */
 internal data class PhotoFilter(
     val label: String,
     val matrix: FloatArray?,
     val isNoneOption: Boolean = false,
+    val isPremium: Boolean = false,
 )
+
+/** The filters only subscribers can apply, by label. */
+private val PremiumFilterLabels = setOf("Cinema", "Lush", "Cool", "Lomo", "Sepia")
 
 private fun saturationMatrix(saturation: Float): FloatArray {
     val lumR = 0.213f
@@ -181,7 +188,7 @@ internal val PhotoFilters: List<PhotoFilter> = listOf(
             offsetMatrix(0f, 10f, 30f),
         ),
     ),
-)
+).map { it.copy(isPremium = it.label in PremiumFilterLabels) }
 
 /** The filter's color filter at [intensity] (0..1), or `null` when it would change nothing. */
 internal fun PhotoFilter.toColorFilter(intensity: Float = 1f): ColorFilter? {

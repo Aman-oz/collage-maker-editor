@@ -90,6 +90,8 @@ import kotlinx.coroutines.launch
 import org.example.project.data.billing.BillingStatus
 import org.example.project.data.billing.SubscriptionPlan
 import org.example.project.data.billing.SubscriptionProduct
+import org.example.project.i18n.AppLocale
+import org.example.project.i18n.tr
 import org.example.project.ui.common.bubbleClick
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.preview.ThemePreviews
@@ -153,12 +155,16 @@ private const val CloseButtonDelayMillis = 3_000L
  */
 internal enum class PremiumPlan(
     val plan: SubscriptionPlan,
-    val title: String,
-    val fallbackUnit: String,
+    private val englishTitle: String,
+    private val englishFallbackUnit: String,
 ) {
     Weekly(SubscriptionPlan.Weekly, "Weekly", "week"),
     Annual(SubscriptionPlan.Yearly, "Annual", "year"),
     ;
+
+    // In the app's current language; read them where they are shown, never keep them.
+    val title: String get() = tr(englishTitle)
+    val fallbackUnit: String get() = tr(englishFallbackUnit)
 
     companion object {
         /** Null for a store plan no longer on sale here (an old Monthly subscriber). */
@@ -243,7 +249,7 @@ fun PremiumScreen(
         onRestore = viewModel::restore,
         onTermsAndPrivacy = {
             val url = SettingsLinks.PrivacyPolicyUrl.ifBlank { SettingsLinks.TermsOfUseUrl }
-            if (url.isBlank()) showMessage("Terms & Privacy is coming soon") else uriHandler.openUri(url)
+            if (url.isBlank()) showMessage(tr("Terms & Privacy is coming soon")) else uriHandler.openUri(url)
         },
         modifier = modifier,
     )
@@ -305,8 +311,8 @@ private fun PremiumContent(
                             product = products[plan.plan],
                             loading = uiState.billing.status == BillingStatus.Connecting,
                             badge = when {
-                                plan == activePlan -> "CURRENT"
-                                plan == PremiumPlan.Annual && savings != null -> "SAVE $savings%"
+                                plan == activePlan -> tr("CURRENT")
+                                plan == PremiumPlan.Annual && savings != null -> tr("SAVE {0}%", savings)
                                 else -> null
                             },
                             selected = plan == selected,
@@ -318,10 +324,10 @@ private fun PremiumContent(
             }
             PremiumFooter(
                 startLabel = when {
-                    selected == activePlan -> "Current Plan"
-                    subscribed -> "Switch Plan"
-                    products[selected.plan]?.freeTrial != null -> "Start Free Trial"
-                    else -> "Continue"
+                    selected == activePlan -> tr("Current Plan")
+                    subscribed -> tr("Switch Plan")
+                    products[selected.plan]?.freeTrial != null -> tr("Start Free Trial")
+                    else -> tr("Continue")
                 },
                 startEnabled = selected != activePlan,
                 busy = uiState.busy,
@@ -471,7 +477,7 @@ private fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.Black, modifier = Modifier.size(24.dp))
+            Icon(Icons.Filled.Close, contentDescription = tr("Close"), tint = Color.Black, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -480,7 +486,7 @@ private fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun RestoreChip(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Text(
-        text = "Restore",
+        text = tr("Restore"),
         modifier = modifier
             .clip(PillShape)
             .background(Color.Black.copy(alpha = 0.35f))
@@ -512,7 +518,7 @@ private fun FeaturesCard(modifier: Modifier = Modifier) {
                     Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PremiumRed, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = feature,
+                        text = tr(feature),
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -543,12 +549,12 @@ private fun PlanPill(
     selected: Boolean,
     onSelect: () -> Unit,
 ) {
-    val trial = product?.freeTrial?.trialLabel
-    val unit = product?.billingPeriod?.unitLabel ?: plan.fallbackUnit
+    val trial = product?.freeTrial?.localizedTrialLabel()
+    val unit = product?.billingPeriod?.localizedUnitLabel() ?: plan.fallbackUnit
     val subtitle = when {
-        product == null -> if (loading) "Loading price…" else "Price unavailable"
-        trial != null -> "$trial, then every $unit"
-        else -> "Renews every $unit"
+        product == null -> if (loading) tr("Loading price…") else tr("Price unavailable")
+        trial != null -> tr("{0}, then every {1}", trial, unit)
+        else -> tr("Renews every {0}", unit)
     }
     val surface = MaterialTheme.colorScheme.surface
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -631,18 +637,19 @@ private fun PremiumFooter(
 ) {
     val linkColor = PremiumText
     // Both stores require the auto-renewal terms beside the purchase button.
-    val terms = remember(linkColor, onTermsAndPrivacy) {
+    // Keyed on the language too: the translated text is built inside the remembered value.
+    val terms = remember(linkColor, onTermsAndPrivacy, AppLocale.code) {
         buildAnnotatedString {
-            append("By continuing you agree to our ")
+            append(tr("By continuing you agree to our "))
             withLink(
                 LinkAnnotation.Clickable(
                     tag = "terms",
                     styles = TextLinkStyles(SpanStyle(color = linkColor, fontWeight = FontWeight.SemiBold)),
                 ) { onTermsAndPrivacy() },
             ) {
-                append("Terms & Privacy policies")
+                append(tr("Terms & Privacy policies"))
             }
-            append(". Subscription will auto-renew. Cancel anytime.")
+            append(tr(". Subscription will auto-renew. Cancel anytime."))
         }
     }
     Column(
@@ -659,7 +666,7 @@ private fun PremiumFooter(
         Spacer(Modifier.height(12.dp))
         ContinueButton(label = startLabel, enabled = startEnabled && !busy, busy = busy, onClick = onStart)
         Spacer(Modifier.height(8.dp))
-        Text("Auto Renewable. Cancel Anytime", color = PremiumSubtext, fontSize = 11.sp)
+        Text(tr("Auto Renewable. Cancel Anytime"), color = PremiumSubtext, fontSize = 11.sp)
         Spacer(Modifier.height(8.dp))
     }
 }

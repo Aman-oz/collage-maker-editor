@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
 import org.example.project.ui.common.EditorBackground
 import org.example.project.ui.common.EditorControlBackground
 import org.example.project.ui.common.EditorIconTint
@@ -65,6 +67,7 @@ import org.koin.core.parameter.parametersOf
 fun PreviewScreen(
     imagePath: String,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
     viewModel: PreviewViewModel = koinViewModel { parametersOf(imagePath) },
 ) {
     val image by viewModel.image.collectAsStateWithLifecycle()
@@ -81,6 +84,7 @@ fun PreviewScreen(
         sharedKey = projectImageKey(imagePath),
         snackbarHostState = snackbarHostState,
         onBack = onBack,
+        onEdit = onEdit,
         onShare = viewModel::share,
         onDelete = viewModel::delete,
     )
@@ -93,6 +97,7 @@ private fun PreviewContent(
     sharedKey: String,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -119,16 +124,17 @@ private fun PreviewContent(
             ) {
                 GlassTopBarButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = tr("Back"),
                     onClick = onBack,
                     contentColor = EditorIconTint,
                 )
                 Spacer(Modifier.weight(1f))
-                // Nothing to share until the file loads; a broken entry can still be deleted.
-                CircleButton(Icons.Outlined.Share, "Share", onShare, enabled = image != null)
+                // Nothing to edit or share until the file loads; a broken entry can still be deleted.
+                CircleButton(Icons.Outlined.Edit, tr("Edit"), onEdit, enabled = image != null)
+                CircleButton(Icons.Outlined.Share, tr("Share"), onShare, enabled = image != null)
                 CircleButton(
                     Icons.Outlined.Delete,
-                    "Delete",
+                    tr("Delete"),
                     { confirmingDelete = true },
                     enabled = image != null || loadFailed,
                 )
@@ -140,7 +146,7 @@ private fun PreviewContent(
                 when {
                     image != null -> Image(
                         bitmap = image,
-                        contentDescription = "Project",
+                        contentDescription = tr("Project"),
                         // Crop at the image's own ratio shows the whole picture at rest, and lets it
                         // grow smoothly out of the grid's square crop during the shared transition.
                         contentScale = ContentScale.Crop,
@@ -150,7 +156,7 @@ private fun PreviewContent(
                             .clip(RoundedCornerShape(8.dp)),
                     )
                     loadFailed -> Text(
-                        text = "This project is no longer available",
+                        text = tr("This project is no longer available"),
                         color = EditorLabelTint,
                         textAlign = TextAlign.Center,
                     )
@@ -190,17 +196,17 @@ private fun CircleButton(
 private fun DeleteProjectDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Delete project?", fontWeight = FontWeight.Bold) },
+        title = { Text(text = tr("Delete project?"), fontWeight = FontWeight.Bold) },
         text = {
-            Text(text = "It will be removed from Projects. The copy saved to your photo library stays.")
+            Text(text = tr("It will be removed from Projects. The copy saved to your photo library stays."))
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(text = "Delete", color = MaterialTheme.colorScheme.error)
+                Text(text = tr("Delete"), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(text = "Cancel") }
+            TextButton(onClick = onDismiss) { Text(text = tr("Cancel")) }
         },
     )
 }
@@ -215,6 +221,7 @@ private fun PreviewScreenPreview() {
             sharedKey = "preview",
             snackbarHostState = remember { SnackbarHostState() },
             onBack = {},
+            onEdit = {},
             onShare = {},
             onDelete = {},
         )

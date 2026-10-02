@@ -1,20 +1,26 @@
 package org.example.project.ui.text
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 
 /**
  * Renders [content] on [source] at full image resolution, centered at [offsetFraction] — a
@@ -29,7 +35,8 @@ import androidx.compose.ui.unit.sp
  * on-screen displayed width), so the baked text matches the preview's proportions exactly.
  *
  * [rotationDegrees] turns the text clockwise around its own center, matching the preview's
- * `graphicsLayer { rotationZ }` (whose default pivot is the text box's center).
+ * `graphicsLayer { rotationZ }` (whose default pivot is the text box's center). [background], when
+ * set, is the plate behind the words ([drawTextPlate]).
  */
 internal fun bakeText(
     source: ImageBitmap,
@@ -41,6 +48,7 @@ internal fun bakeText(
     previewCanvasWidthPx: Float,
     offsetFraction: Offset,
     rotationDegrees: Float = 0f,
+    background: Color? = null,
 ): ImageBitmap {
     if (content.isBlank() || previewCanvasWidthPx <= 0f) return source
 
@@ -67,10 +75,31 @@ internal fun bakeText(
         )
         rotate(rotationDegrees, pivot = centerPx) {
             scale(scaleFactor, scaleFactor, pivot = Offset.Zero) {
+                background?.let { drawTextPlate(SolidColor(it), innerTopLeft, previewLayout.size.toSize()) }
                 drawText(previewLayout, topLeft = innerTopLeft)
             }
         }
     }
 
     return output
+}
+
+/**
+ * The plate behind a text label whose text box is [textSize] at [textTopLeft]: a rounded rectangle
+ * reaching a little past the words. Shared by every text preview and bake (this tool's and the
+ * freestyle layers') so they all match.
+ */
+internal fun DrawScope.drawTextPlate(brush: Brush, textTopLeft: Offset, textSize: Size) {
+    val padX = textSize.height * TextBackgroundPadXFraction
+    val padY = textSize.height * TextBackgroundPadYFraction
+    val corner = textSize.height * TextBackgroundCornerFraction
+    // Translated rather than offset through topLeft: a gradient brush resolves against the scope it
+    // is drawn in, so this makes it span the plate itself, wherever on the canvas the label sits.
+    translate(textTopLeft.x - padX, textTopLeft.y - padY) {
+        drawRoundRect(
+            brush = brush,
+            size = Size(textSize.width + padX * 2f, textSize.height + padY * 2f),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+    }
 }

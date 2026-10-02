@@ -64,8 +64,10 @@ import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.example.project.i18n.tr
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.common.TopBarHeight
+import org.example.project.ui.common.TopBarPremiumIconSize
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.projects.ProjectsTabContent
 import org.example.project.ui.projects.ProjectsViewModel
@@ -231,8 +233,8 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
         BouncyIconButton(onClick = onPremium) {
             Image(
                 painter = painterResource(Res.drawable.ic_premium_icon),
-                contentDescription = "Premium",
-                modifier = Modifier.size(28.dp),
+                contentDescription = tr("Premium"),
+                modifier = Modifier.size(TopBarPremiumIconSize),
             )
         }
         BouncyIconButton(onClick = onSettings) {
@@ -240,7 +242,7 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
             // disappears on the dark theme.
             Icon(
                 painter = painterResource(Res.drawable.ic_settings_icon),
-                contentDescription = "Settings",
+                contentDescription = tr("Settings"),
                 tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(24.dp),
             )
@@ -272,9 +274,9 @@ private fun HomeTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             FeatureCard(
-                title = "Create Collages",
+                title = tr("Create Collages"),
                 icon = Res.drawable.ic_collage_icon,
-                iconSize = 50.dp,
+                iconSize = 60.dp,
                 gradient = CollageGradient,
                 vertical = true,
                 onClick = onCreateCollage,
@@ -285,9 +287,9 @@ private fun HomeTabContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FeatureCard(
-                    title = "Free Style",
+                    title = tr("Free Style"),
                     icon = Res.drawable.ic_freestyle_icon,
-                    iconSize = 34.dp,
+                    iconSize = 36.dp,
                     gradient = FreestyleGradient,
                     vertical = false,
                     onClick = onOpenFreestyle,
@@ -298,20 +300,22 @@ private fun HomeTabContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FeatureCard(
-                        title = "Templates",
+                        title = tr("Templates"),
                         icon = Res.drawable.ic_template_icon,
-                        iconSize = 30.dp,
+                        iconSize = 34.dp,
                         gradient = TemplatesGradient,
                         vertical = true,
+                        iconGap = 2.dp,
                         onClick = onOpenTemplates,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                     FeatureCard(
-                        title = "Editor",
+                        title = tr("Editor"),
                         icon = Res.drawable.ic_editor_icon,
-                        iconSize = 28.dp,
+                        iconSize = 34.dp,
                         gradient = EditorGradient,
                         vertical = true,
+                        iconGap = 2.dp,
                         onClick = onOpenEditor,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
@@ -322,10 +326,10 @@ private fun HomeTabContent(
         HomeToolsCard(
             modifier = Modifier.padding(top = 16.dp),
             tools = listOf(
-                HomeTool("PIP", Res.drawable.ic_pip_icon, onOpenPip),
-                HomeTool("BG Remove", Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
-                HomeTool("Filters", Res.drawable.ic_filter_icon, onOpenFilters),
-                HomeTool("Frames", Res.drawable.ic_frame_icon, onOpenFrames),
+                HomeTool(tr("PIP"), Res.drawable.ic_pip_icon, onOpenPip),
+                HomeTool(tr("BG Remove"), Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
+                HomeTool(tr("Filters"), Res.drawable.ic_filter_icon, onOpenFilters),
+                HomeTool(tr("Frames"), Res.drawable.ic_frame_icon, onOpenFrames),
             ),
         )
     }
@@ -333,7 +337,8 @@ private fun HomeTabContent(
 
 /**
  * A gradient entry card. [vertical] stacks the icon above the title (square-ish cards); otherwise
- * they sit side by side (the wide Free Style card).
+ * they sit side by side (the wide Free Style card). [iconGap] is the space between the stacked icon
+ * and title; the small Templates and Editor cards tighten it.
  *
  * Pressing squeezes the card in under a white ripple and a glassy highlight, with the icon zooming
  * a little; releasing springs it back with an overshoot. A tap holds that pressed state for
@@ -350,6 +355,7 @@ private fun FeatureCard(
     vertical: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconGap: Dp = 8.dp,
 ) {
     val shape = RoundedCornerShape(14.dp)
     val interaction = remember { MutableInteractionSource() }
@@ -405,7 +411,7 @@ private fun FeatureCard(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = if (vertical) 14.sp else 15.sp,
+                fontSize = if (vertical) 15.sp else 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
@@ -425,7 +431,7 @@ private fun FeatureCard(
         if (vertical) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(iconGap),
             ) {
                 image()
                 label()

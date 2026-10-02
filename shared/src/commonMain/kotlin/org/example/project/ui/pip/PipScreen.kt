@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.topBar
@@ -102,13 +103,13 @@ private fun PipTopBar(onBack: () -> Unit) {
     Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onBack,
             contentColor = scheme.onBackground,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Pip maker",
+            text = tr("Pip Templates"),
             color = scheme.onBackground,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -135,7 +136,7 @@ private fun PipTile(preview: ImageBitmap?, onClick: () -> Unit) {
         if (preview != null) {
             Image(
                 bitmap = preview,
-                contentDescription = "PIP template",
+                contentDescription = tr("PIP template"),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )

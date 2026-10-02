@@ -16,6 +16,7 @@ import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.bgremover.BackgroundRemoverApi
 import org.example.project.data.bgremover.BackgroundRemoverException
+import org.example.project.i18n.tr
 import org.example.project.ui.common.copyBitmap
 
 /**
@@ -100,7 +101,7 @@ class BackgroundRemoverEditorViewModel internal constructor(
         }
         if (hasAiCutOut) {
             AppLog.d(Tag, "Ai Magic ignored: a cut-out is already applied")
-            _messages.trySend("Background is already removed")
+            _messages.trySend(tr("Background is already removed"))
             return
         }
         AppLog.i(Tag, "Ai Magic started on a ${photo.width}x${photo.height} photo (configured: ${api.isConfigured})")
@@ -126,9 +127,9 @@ class BackgroundRemoverEditorViewModel internal constructor(
     }
 
     private fun aiErrorMessage(error: BackgroundRemoverException): String = when (error) {
-        is BackgroundRemoverException.NotConfigured -> "AI background remover is not set up"
-        is BackgroundRemoverException.Server -> "Could not remove the background. Please try again"
-        is BackgroundRemoverException.Network -> "No internet connection. Please try again"
+        is BackgroundRemoverException.NotConfigured -> tr("AI background remover is not set up")
+        is BackgroundRemoverException.Server -> tr("Could not remove the background. Please try again")
+        is BackgroundRemoverException.Network -> tr("No internet connection. Please try again")
     }
 
     fun applyResult(bitmap: ImageBitmap) {

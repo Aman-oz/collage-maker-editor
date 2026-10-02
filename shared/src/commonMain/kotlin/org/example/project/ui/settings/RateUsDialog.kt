@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.DialogShape
 import org.example.project.ui.preview.ThemePreviews
 
@@ -63,7 +64,7 @@ internal fun RateUsDialog(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "How’s your experience so far?",
+            text = tr("How’s your experience so far?"),
             color = colors.onSurface,
             fontSize = 22.sp,
             lineHeight = 28.sp,
@@ -72,7 +73,7 @@ internal fun RateUsDialog(
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "We would love to know!",
+            text = tr("We would love to know!"),
             color = colors.onSurface.copy(alpha = 0.75f),
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
@@ -98,11 +99,11 @@ internal fun RateUsDialog(
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(containerColor = SettingsAccent, contentColor = Color.White),
         ) {
-            Text(text = "Rate Us", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Rate Us"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onDismiss) {
-            Text(text = "Maybe later", color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Maybe later"), color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -129,7 +130,7 @@ private fun RatingFace(emoji: String, rating: Int, selected: Boolean, onClick: (
             .background(background)
             .border(1.5.dp, border, CircleShape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { contentDescription = "$rating of ${RatingEmojis.size}" },
+            .semantics { contentDescription = tr("{0} of {1}", rating, RatingEmojis.size) },
         contentAlignment = Alignment.Center,
     ) {
         Text(text = emoji, fontSize = 26.sp)

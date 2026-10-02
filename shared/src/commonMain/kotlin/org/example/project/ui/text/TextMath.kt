@@ -35,3 +35,12 @@ internal fun snapTextRotation(degrees: Float): Float {
     val nearestQuarter = (degrees / 90f).roundToInt() * 90f
     return if (abs(degrees - nearestQuarter) <= TextRotationSnapDegrees) nearestQuarter else degrees
 }
+
+/**
+ * A label's background plate, sized from the label's measured text height so it keeps its
+ * proportions however the label is scaled: how far it reaches past the text sideways and
+ * vertically, and its corner radius. See [drawTextPlate].
+ */
+internal const val TextBackgroundPadXFraction = 0.22f
+internal const val TextBackgroundPadYFraction = 0.04f
+internal const val TextBackgroundCornerFraction = 0.2f

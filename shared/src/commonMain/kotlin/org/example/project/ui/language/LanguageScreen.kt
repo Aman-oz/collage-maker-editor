@@ -2,6 +2,7 @@ package org.example.project.ui.language
 
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import org.example.project.i18n.tr
 import org.example.project.ui.common.bubbleClick
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.theme.Brand
@@ -145,14 +146,14 @@ private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> 
         if (showBack) {
             GlassTopBarButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
+                contentDescription = tr("Back"),
                 onClick = onBack,
                 contentColor = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.CenterStart),
             )
         }
         Text(
-            text = "Select Language",
+            text = tr("Select Language"),
             modifier = Modifier.padding(horizontal = 88.dp),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
@@ -174,7 +175,7 @@ private fun LanguageHeader(showBack: Boolean, onBack: () -> Unit, onDone: () -> 
                 contentColor = Color.White,
             ),
         ) {
-            Text(text = "Done", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Done"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }

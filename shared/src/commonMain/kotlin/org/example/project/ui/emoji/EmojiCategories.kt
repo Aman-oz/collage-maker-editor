@@ -1,8 +1,9 @@
 package org.example.project.ui.emoji
 
 import androidx.compose.ui.geometry.Offset
+import org.example.project.i18n.tr
 
-internal enum class EmojiCategory(val label: String) {
+internal enum class EmojiCategory(private val englishLabel: String) {
     Smileys("Smileys"),
     Animals("Animals"),
     Food("Food"),
@@ -11,6 +12,10 @@ internal enum class EmojiCategory(val label: String) {
     Objects("Objects"),
     Symbols("Symbols"),
     Flags("Flags"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 internal val EmojisByCategory: Map<EmojiCategory, List<String>> = mapOf(
@@ -72,6 +77,12 @@ internal data class PlacedEmoji(
     val offsetFraction: Offset = Offset(0.5f, 0.5f),
     val scale: Float = 1f,
 )
+
+/**
+ * How many emojis anyone can place. With more than this on the photo, the first Done shows a
+ * non-subscriber the paywall (see `EmojiContent`).
+ */
+internal const val FreeEmojiLimit = 2
 
 internal const val EmojiBaseSizeSp = 40f
 internal val EmojiScaleRange = 0.3f..4f

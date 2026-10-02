@@ -40,3 +40,21 @@ internal val TextColorOptions: List<Color> = listOf(
 
 internal val TextSizeRange = 12f..120f
 internal const val TextSizeDefault = 48f
+
+/** The font, colour and size band that make a text edit a premium one (see [isPremiumTextEdit]). */
+internal const val PremiumTextFontLabel = "Stylish"
+internal val PremiumTextColor = Color(0xFFEF4A5E)
+internal val PremiumTextSizeRange = 30f..50f
+
+/**
+ * Whether a text edit uses something premium: the Stylish font, the red colour, a size the user set
+ * inside [PremiumTextSizeRange], or text that was written and then gone back into ([reEdited]).
+ *
+ * [TextSizeDefault] itself sits inside the premium band, so the untouched default does not count:
+ * the size only matters once the user has moved it.
+ */
+internal fun isPremiumTextEdit(font: TextFontStyleOption, color: Color, sizeSp: Float, reEdited: Boolean): Boolean =
+    font.label == PremiumTextFontLabel ||
+        color == PremiumTextColor ||
+        (sizeSp in PremiumTextSizeRange && sizeSp != TextSizeDefault) ||
+        reEdited

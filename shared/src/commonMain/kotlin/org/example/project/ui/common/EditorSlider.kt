@@ -3,7 +3,12 @@ package org.example.project.ui.common
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -11,6 +16,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,13 +43,17 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.fletchmckee.liquid.LiquidState
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.liquid
@@ -63,6 +74,11 @@ import kotlin.math.roundToInt
  * a Liquid Glass drop that refracts the track (fill included) underneath it. The track canvas is the
  * `liquefiable` source, so it must stay a sibling of the thumb — a liquid node can't sample a
  * layer it is drawn inside.
+ *
+ * With [valueLabel], a small [thumbColor] bubble showing the current value floats just above the
+ * thumb for as long as a finger is down (it takes no room: it is drawn over whatever is above the
+ * track), and, unless [showRangeLabels] is off, the ends of [range] (see [SliderRangeLabels]) are
+ * printed in a row above the track, which makes the slider that row taller than its bare 40dp.
  */
 @Composable
 internal fun CenterFillSlider(
@@ -80,9 +96,21 @@ internal fun CenterFillSlider(
     horizontalPadding: Dp = 20.dp,
     glassThumb: Boolean = false,
     glassTint: Color = Color.White.copy(alpha = 0.3f),
-) {
+    valueLabel: ((Float) -> String)? = null,
+    showRangeLabels: Boolean = valueLabel != null,
+    labelColor: Color = fillColor,
+) = Column(modifier = modifier.fillMaxWidth()) {
+    if (valueLabel != null && showRangeLabels) {
+        SliderRangeLabels(
+            range = range,
+            label = valueLabel,
+            color = labelColor,
+            // The track stops half a thumb short of the slider's edges; the end labels follow it.
+            horizontalPadding = horizontalPadding + thumbWidth / 2,
+        )
+    }
     BoxWithConstraints(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
             .padding(horizontal = horizontalPadding),
@@ -114,7 +142,7 @@ internal fun CenterFillSlider(
                     onTap = { x -> onValueChange(xToValue(x)) },
                     onDraggingChange = onDraggingChange,
                 )
-                .then(if (glassThumb) Modifier.pointerInputPressed { pressed = it } else Modifier),
+                .then(if (glassThumb || valueLabel != null) Modifier.pointerInputPressed { pressed = it } else Modifier),
         ) {
             val trackY = size.height / 2f
             val trackStroke = 4.dp.toPx()
@@ -154,6 +182,79 @@ internal fun CenterFillSlider(
                 modifier = Modifier.align(Alignment.CenterStart),
             )
         }
+
+        if (valueLabel != null) {
+            // The thumb's top edge while pressed (the glass thumb grows under the finger).
+            val pressedHalfHeightPx = thumbHalfHeightPx * if (glassThumb) LiquidThumbPressedScale else 1f
+            val gapPx = with(density) { 6.dp.toPx() }
+            val thumbTopPx = with(density) { maxHeight.toPx() } / 2f - pressedHalfHeightPx
+            // Fully qualified: both the enclosing Column and this Box offer a scoped overload.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = pressed,
+                enter = fadeIn() + scaleIn(initialScale = 0.6f, transformOrigin = TransformOrigin(0.5f, 1f)),
+                exit = fadeOut() + scaleOut(targetScale = 0.6f, transformOrigin = TransformOrigin(0.5f, 1f)),
+                // Takes no room of its own; centered over the thumb, sitting just above it.
+                modifier = Modifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                    layout(0, 0) {
+                        placeable.place(
+                            x = (thumbX - placeable.width / 2f).roundToInt(),
+                            y = (thumbTopPx - gapPx - placeable.height).roundToInt(),
+                        )
+                    }
+                },
+            ) {
+                Text(
+                    text = valueLabel(value),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(thumbColor)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A slider value as a whole number: the usual [CenterFillSlider] `valueLabel`. */
+internal fun wholeNumberLabel(value: Float): String = value.roundToInt().toString()
+
+/**
+ * The start and end of [range], printed in a row whose ends are [horizontalPadding] in. A range that
+ * runs below zero (a bipolar adjustment such as -100..100) also gets its middle value, the point the
+ * slider rests at; a plain min..max slider only names its two ends.
+ */
+@Composable
+private fun SliderRangeLabels(
+    range: ClosedFloatingPointRange<Float>,
+    label: (Float) -> String,
+    color: Color,
+    horizontalPadding: Dp,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding),
+    ) {
+        @Composable
+        fun RangeLabel(value: Float, alignment: Alignment) {
+            Text(
+                text = label(value),
+                color = color,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.align(alignment),
+            )
+        }
+        RangeLabel(range.start, Alignment.CenterStart)
+        if (range.start < 0f) RangeLabel((range.start + range.endInclusive) / 2f, Alignment.Center)
+        RangeLabel(range.endInclusive, Alignment.CenterEnd)
     }
 }
 

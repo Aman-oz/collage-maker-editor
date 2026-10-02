@@ -1,5 +1,6 @@
 package org.example.project.ui.templates
 
+import org.example.project.i18n.tr
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.LoadingOverlay
 import androidx.compose.animation.AnimatedVisibility
@@ -84,13 +85,15 @@ fun TemplatesEditorScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     // The Frames flow reuses this editor under its own name.
-    title: String = "Templates",
+    title: String = tr("Templates"),
     viewModel: TemplatesEditorViewModel = koinViewModel { parametersOf(frame) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var pendingSlotIndex by remember { mutableStateOf<Int?>(null) }
-    // The slot the user tapped last: outlined on the canvas, and the target of "Change Image".
-    var selectedSlotIndex by remember { mutableStateOf<Int?>(null) }
+    // The slot outlined on the canvas and the target of "Add Image" / "Change Image": the first
+    // one to begin with, then wherever the ViewModel moves it as slots fill or the user taps; null
+    // after the user taps it off.
+    val selectedSlotIndex = (uiState as? TemplatesEditorUiState.Ready)?.selectedSlotIndex
     var toastMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { viewModel.messages.collect { toastMessage = it } }
 
@@ -117,7 +120,15 @@ fun TemplatesEditorScreen(
                 onDone = { if (viewModel.applyTemplate()) onDone() },
             )
 
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    // A tap that no slot took (the frame's artwork, or the space around the template)
+                    // clears the selection; slots consume their own taps.
+                    .pointerInput(Unit) { detectTapGestures { viewModel.selectSlot(null) } },
+                contentAlignment = Alignment.Center,
+            ) {
                 when (val state = uiState) {
                     TemplatesEditorUiState.Loading -> FramePlaceholder(frame)
 
@@ -127,16 +138,17 @@ fun TemplatesEditorScreen(
                         selectedSlotIndex = selectedSlotIndex,
                         onSlotTap = { index ->
                             if (index !in state.images) {
-                                // An empty slot has nothing to select for; go straight to filling it.
-                                selectedSlotIndex = index
+                                // An empty slot's "+" goes straight to filling it.
+                                viewModel.selectSlot(index)
                                 pickInto(index)
                             } else {
-                                // Tapping the selected photo again deselects it.
-                                selectedSlotIndex = if (selectedSlotIndex == index) null else index
+                                // A filled one toggles: selected for "Change Image" (or a double tap
+                                // to replace), and a second tap takes the selection off again.
+                                viewModel.selectSlot(if (state.selectedSlotIndex == index) null else index)
                             }
                         },
                         onSlotDoubleTap = { index ->
-                            selectedSlotIndex = index
+                            viewModel.selectSlot(index)
                             pickInto(index)
                         },
                         onSlotTransform = viewModel::transformSlot,
@@ -153,7 +165,7 @@ fun TemplatesEditorScreen(
             }
 
             Text(
-                text = "Tap a photo to select it, double tap to replace it, pinch to zoom",
+                text = tr("Tap a photo to select it, double tap to replace it, pinch to zoom"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -164,10 +176,18 @@ fun TemplatesEditorScreen(
             } == true
             BottomActions(
                 enabled = uiState is TemplatesEditorUiState.Ready,
-                imageLabel = if (selectedHasImage) "Change Image" else "Add Image",
+                imageLabel = if (selectedHasImage) tr("Change Image") else tr("Add Image"),
+                // Fills the selected slot, or replaces its photo once it has one. With nothing
+                // selected it carries on with the first empty slot (selecting it, so the selection
+                // then moves on from there); with none left, it says how to pick a photo to replace.
                 onImageAction = {
-                    val idx = selectedSlotIndex ?: viewModel.firstEmptySlotIndex()
-                    if (idx == null) toastMessage = "All slots are filled" else pickInto(idx)
+                    val target = selectedSlotIndex ?: viewModel.firstEmptySlotIndex()
+                    if (target == null) {
+                        toastMessage = tr("Tap a photo to select it, double tap to replace it, pinch to zoom")
+                    } else {
+                        viewModel.selectSlot(target)
+                        pickInto(target)
+                    }
                 },
                 onChangeFrame = onBack,
                 modifier = Modifier.padding(16.dp),
@@ -271,7 +291,7 @@ private fun SlotPhoto(
         if (image != null) {
             Image(
                 bitmap = image,
-                contentDescription = "Template photo",
+                contentDescription = tr("Template photo"),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
@@ -287,7 +307,7 @@ private fun SlotPhoto(
                 modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add photo", tint = Color.White, modifier = Modifier.size(26.dp))
+                Icon(Icons.Filled.Add, contentDescription = tr("Add photo"), tint = Color.White, modifier = Modifier.size(26.dp))
             }
         }
     }
@@ -311,7 +331,7 @@ private fun FramePlaceholder(frame: TemplateFrame) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        LoadingOverlay(message = "Loading… Please wait!")
+        LoadingOverlay(message = tr("Loading… Please wait!"))
     }
 }
 
@@ -321,7 +341,7 @@ private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) 
     Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.align(Alignment.CenterStart),
@@ -339,7 +359,7 @@ private fun EditorTopBar(title: String, onBack: () -> Unit, onDone: () -> Unit) 
         // The primary glass ✓ every other editor uses for Done.
         GlassTopBarButton(
             icon = Icons.Filled.Check,
-            contentDescription = "Done",
+            contentDescription = tr("Done"),
             onClick = onDone,
             style = GlassButtonStyle.Primary,
             modifier = Modifier.align(Alignment.CenterEnd),
@@ -390,7 +410,7 @@ private fun BottomActions(
             Icon(Icons.Filled.GridView, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(8.dp))
             Text(
-                "Change Frame",
+                tr("Change Frame"),
                 modifier = Modifier.padding(vertical = 6.dp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

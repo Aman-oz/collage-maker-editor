@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplateFrame
@@ -38,8 +39,8 @@ fun FramesScreen(
         },
         onGoPro = onOpenPremium,
         onRetry = viewModel::retry,
-        title = "Frames",
-        emptyMessage = "No frames in this category",
+        title = tr("Frames"),
+        emptyMessage = tr("No frames in this category"),
         modifier = modifier,
     )
 }
@@ -63,8 +64,8 @@ private fun FramesScreenPreview() {
             onFrameClick = {},
             onGoPro = {},
             onRetry = {},
-            title = "Frames",
-            emptyMessage = "No frames in this category",
+            title = tr("Frames"),
+            emptyMessage = tr("No frames in this category"),
         )
     }
 }

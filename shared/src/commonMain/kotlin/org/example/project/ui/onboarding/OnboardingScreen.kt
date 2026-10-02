@@ -1,5 +1,6 @@
 package org.example.project.ui.onboarding
 
+import org.example.project.i18n.tr
 import org.example.project.ui.common.rememberLoopingLottiePainter
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
@@ -204,7 +205,7 @@ private fun OnboardingContent(
                 IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(OnboardingPages.lastIndex) } }) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Skip",
+                        contentDescription = tr("Skip"),
                         tint = colors.onBackground,
                     )
                 }
@@ -250,7 +251,7 @@ private fun OnboardingContent(
             ) {
                 Image(
                     painter = painter,
-                    contentDescription = page.title,
+                    contentDescription = tr(page.title),
                     modifier = imageModifier,
                     contentScale = page.contentScale,
                     colorFilter = if (page.invertInDark && isDark) InvertColorFilter else null,
@@ -266,7 +267,7 @@ private fun OnboardingContent(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = OnboardingPages[pagerState.currentPage].title,
+            text = tr(OnboardingPages[pagerState.currentPage].title),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
@@ -295,7 +296,7 @@ private fun OnboardingContent(
         ) {
             val isLastPage = pagerState.currentPage == OnboardingPages.lastIndex
             Text(
-                text = if (isLastPage) "Get Started" else "Continue",
+                text = if (isLastPage) tr("Get Started") else tr("Continue"),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
             )

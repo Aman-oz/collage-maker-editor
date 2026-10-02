@@ -1,7 +1,6 @@
 package org.example.project.ui.freestyle
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,7 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.i18n.tr
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.editor.MaxEditHistory
 import org.example.project.ui.text.TextFontStyleOption
@@ -29,10 +30,10 @@ sealed interface FreestyleEditorUiState {
 }
 
 /**
- * Decodes every initially-picked image in parallel, scatters them as freely draggable/rotatable
- * layers on one open canvas, and exposes every edit the freestyle screen offers — adding more
+ * Decodes every initially-picked image in parallel, scatters them ([scatterPlacements]) as freely
+ * draggable/rotatable layers on one open canvas, and exposes every edit the freestyle screen offers — adding more
  * images, stickers or text, replacing a photo, transforming/reordering/deleting layers, the canvas
- * background color, and each photo's white frame and corner rounding.
+ * background fill, and each photo's white frame and corner rounding.
  *
  * Every edit goes through an [EditHistory] of whole [FreestyleState]s for undo/redo. Continuous
  * edits (a drag, a slider, retyping a label) pass a coalesce key and are folded into one step until
@@ -44,7 +45,22 @@ sealed interface FreestyleEditorUiState {
 class FreestyleEditorViewModel(
     private val imagePaths: List<String>,
     private val session: ImageEditSession,
+    private val settings: AppSettings,
 ) : ViewModel() {
+
+    private var premiumOfferShown = false
+
+    /**
+     * Whether Done should open the paywall once before creating the freestyle: `true` a single
+     * time, for a non-subscriber whose canvas [isPremiumFreestyle]. It is an offer, not a gate, so
+     * asking marks it as made and the next Done goes through either way.
+     */
+    fun consumePremiumOffer(): Boolean {
+        val freestyle = (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle ?: return false
+        if (settings.isPremium.value || premiumOfferShown || !freestyle.layers.isPremiumFreestyle()) return false
+        premiumOfferShown = true
+        return true
+    }
 
     private val _uiState = MutableStateFlow<FreestyleEditorUiState>(FreestyleEditorUiState.Loading)
     val uiState: StateFlow<FreestyleEditorUiState> = _uiState.asStateFlow()
@@ -66,25 +82,21 @@ class FreestyleEditorViewModel(
                 imagePaths.map { path -> async { PlatformFile(path).toImageBitmap() } }.awaitAll()
             }
                 .onSuccess { images ->
-                    val layers = images.mapIndexed { index, image ->
-                        scatteredLayer(index, images.size, FreestyleContent.ImageContent(image))
+                    val placements = scatterPlacements(images.map { it.height.toFloat() / it.width.toFloat() })
+                    val layers = images.zip(placements) { image, placement ->
+                        FreestyleLayer(
+                            id = nextId(),
+                            content = FreestyleContent.ImageContent(image),
+                            offsetFraction = placement.offsetFraction,
+                            scale = placement.scale,
+                            rotationDegrees = placement.rotationDegrees,
+                        )
                     }
                     history = EditHistory(FreestyleState(layers = layers), maxSize = MaxFreestyleHistory)
                     publish()
                 }
-                .onFailure { _uiState.value = FreestyleEditorUiState.Error(it.message ?: "Could not open these images") }
+                .onFailure { _uiState.value = FreestyleEditorUiState.Error(it.message ?: tr("Could not open these images")) }
         }
-    }
-
-    /** Spreads initial layers into a loose, gently-rotated cascade rather than stacking them exactly. */
-    private fun scatteredLayer(index: Int, total: Int, content: FreestyleContent): FreestyleLayer {
-        val step = index - (total - 1) / 2f
-        val offsetFraction = Offset(
-            (0.5f + step * 0.05f).coerceIn(0.2f, 0.8f),
-            (0.5f + step * 0.04f).coerceIn(0.2f, 0.8f),
-        )
-        val rotationDegrees = ScatterRotations[index % ScatterRotations.size]
-        return FreestyleLayer(id = nextId(), content = content, offsetFraction = offsetFraction, rotationDegrees = rotationDegrees)
     }
 
     fun addImage(path: String) {
@@ -96,14 +108,14 @@ class FreestyleEditorViewModel(
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
 
-    fun addText(text: String, color: Color, font: TextFontStyleOption) {
+    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
         if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, color, font))
+        addLayer(FreestyleContent.TextContent(text, fill, font, background))
     }
 
     /** Rewrites text layer [id] in place, keeping its placement. */
-    fun updateText(id: Long, text: String, color: Color, font: TextFontStyleOption) {
-        updateReady { state -> state.copy(layers = state.layers.withText(id, text, color, font)) }
+    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
+        updateReady { state -> state.copy(layers = state.layers.withText(id, text, fill, font, background)) }
     }
 
     /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
@@ -137,7 +149,7 @@ class FreestyleEditorViewModel(
         updateReady { state -> state.copy(layers = state.layers.filterNot { it.id == id }) }
     }
 
-    fun updateBackgroundColor(color: Color) = updateReady { it.copy(backgroundColor = color) }
+    fun updateBackground(background: FreestyleFill) = updateReady { it.copy(background = background) }
 
     /** Sets the frame width of image layer [id], or of every image layer when [id] is null. */
     fun updateImageBorderWidth(id: Long?, width: Float) =
@@ -228,8 +240,6 @@ class FreestyleEditorViewModel(
     }
 
     private companion object {
-        val ScatterRotations = listOf(-8f, 7f, -5f, 9f, -10f, 4f)
-
         /**
          * Higher than the photo editor's [MaxEditHistory]: a step here is a small [FreestyleState]
          * whose layers share their decoded bitmaps, not a full-resolution bitmap of its own.

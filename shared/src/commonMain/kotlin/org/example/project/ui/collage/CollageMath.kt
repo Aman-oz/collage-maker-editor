@@ -70,3 +70,17 @@ internal fun SlotTransform.applyCollageGesture(
     offsetX = offsetX + panX / slotW.coerceAtLeast(1f),
     offsetY = offsetY + panY / slotH.coerceAtLeast(1f),
 ).clampedToSlot(imageW, imageH, slotW, slotH)
+
+/** The border widths that make a collage on a free layout a premium one (see [isPremiumCollageEdit]). */
+internal val PremiumCollageSpaceRange = 2f..5f
+
+/** The canvas ratio that does the same. */
+internal val PremiumCollageRatio = CollageRatio.Portrait
+
+/**
+ * Whether a collage on a *free* layout uses something premium: a border width ([space]) inside
+ * [PremiumCollageSpaceRange], or the 4:5 canvas. The default border width lies outside that range,
+ * so an untouched collage is free.
+ */
+internal fun isPremiumCollageEdit(space: Float, ratio: CollageRatio): Boolean =
+    space in PremiumCollageSpaceRange || ratio == PremiumCollageRatio

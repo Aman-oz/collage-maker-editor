@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,36 +39,36 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.rememberColorPickerLauncher
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.SelectableSwatch
 import org.example.project.ui.common.SwatchInnerCorner
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun FrameScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun FrameTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: FrameViewModel = koinViewModel(),
 ) {
     FrameContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
+        sourceImage = sourceImage,
+        onBack = onClose,
         onApply = { color, width, cornerRadius, canvasWidthPx ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyFrame(
-                    bakeFrame(
-                        source = image,
-                        color = color,
-                        width = width,
-                        cornerRadius = cornerRadius,
-                        previewCanvasWidthPx = canvasWidthPx,
-                    ),
-                )
-            }
-            onApplied()
+            onApply(
+                bakeFrame(
+                    source = sourceImage,
+                    color = color,
+                    width = width,
+                    cornerRadius = cornerRadius,
+                    previewCanvasWidthPx = canvasWidthPx,
+                ),
+            )
         },
         modifier = modifier,
     )
@@ -88,23 +87,10 @@ private fun FrameContent(
     var cornerRadius by remember { mutableFloatStateOf(FrameCornerRadiusDefault) }
     var displayedImageWidthPx by remember { mutableFloatStateOf(0f) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Frame",
-            onClose = onBack,
-            onDone = { onApply(selectedColor.color, width, cornerRadius, displayedImageWidthPx) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -120,7 +106,7 @@ private fun FrameContent(
                 ) {
                     Image(
                         bitmap = sourceImage,
-                        contentDescription = "Photo preview",
+                        contentDescription = tr("Photo preview"),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
@@ -136,28 +122,35 @@ private fun FrameContent(
                 }
             } else {
                 Text(
-                    text = "No image to frame",
+                    text = tr("No image to frame"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        FrameSlider(
-            label = "Width",
-            value = width,
-            onValueChange = { width = it },
-            range = FrameWidthRange,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        FrameSlider(
-            label = "Corner Radius",
-            value = cornerRadius,
-            onValueChange = { cornerRadius = it },
-            range = FrameCornerRadiusRange,
-        )
+        ToolPanel(
+            title = tr("Frame"),
+            onClose = onBack,
+            onDone = { onApply(selectedColor.color, width, cornerRadius, displayedImageWidthPx) },
+            doneEnabled = sourceImage != null,
+        ) {
+            FrameSlider(
+                label = tr("Width"),
+                value = width,
+                onValueChange = { width = it },
+                range = FrameWidthRange,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            FrameSlider(
+                label = tr("Corner Radius"),
+                value = cornerRadius,
+                onValueChange = { cornerRadius = it },
+                range = FrameCornerRadiusRange,
+            )
 
-        FrameColorRow(selected = selectedColor, onSelected = { selectedColor = it })
+            FrameColorRow(selected = selectedColor, onSelected = { selectedColor = it })
+        }
     }
 }
 
@@ -205,16 +198,28 @@ private fun FrameSlider(
             horizontalPadding = 12.dp,
             glassThumb = true,
             glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            valueLabel = ::wholeNumberLabel,
         )
     }
 }
 
+/** Leads with the custom colour swatch, ringed while the frame is a colour outside [FrameColors]. */
 @Composable
 private fun FrameColorRow(selected: FrameColorOption, onSelected: (FrameColorOption) -> Unit) {
+    val pickCustomColor = rememberColorPickerLauncher(
+        // "None" is transparent, which is no colour to open a picker on.
+        initial = if (selected.color == FrameColorNone) Color.White else selected.color,
+        onPicked = { onSelected(FrameColorOption("Custom", it)) },
+    )
     LazyRow(
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item {
+            SelectableSwatch(selected = selected !in FrameColors, size = 52.dp, onClick = pickCustomColor) {
+                ColorPickerFill(Modifier.fillMaxSize())
+            }
+        }
         items(FrameColors) { option ->
             SelectableSwatch(selected = option == selected, size = 52.dp, onClick = { onSelected(option) }) {
                 FrameColorSwatch(option)

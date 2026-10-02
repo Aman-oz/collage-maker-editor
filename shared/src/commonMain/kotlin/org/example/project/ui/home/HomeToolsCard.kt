@@ -64,7 +64,7 @@ import org.jetbrains.compose.resources.painterResource
 internal class HomeTool(val label: String, val icon: DrawableResource, val onClick: () -> Unit)
 
 private val CardShape = RoundedCornerShape(14.dp)
-private val ToolCircleSize = 56.dp
+private val ToolCircleSize = 62.dp
 
 /** How much a tool's drop swells while pressed. It overflows its cell, like a drop lifting off. */
 private const val ToolDropPressedScale = 1.22f
@@ -323,7 +323,7 @@ private fun RowScope.ToolItem(
             Image(
                 painter = painterResource(tool.icon),
                 contentDescription = null,
-                modifier = Modifier.size(28.dp).graphicsLayer {
+                modifier = Modifier.size(32.dp).graphicsLayer {
                     scaleX = iconZoom
                     scaleY = iconZoom
                 },
@@ -332,7 +332,7 @@ private fun RowScope.ToolItem(
         Text(
             text = tool.label,
             color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             modifier = Modifier.padding(top = 8.dp),

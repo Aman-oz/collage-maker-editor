@@ -8,13 +8,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -29,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,66 +47,106 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
+import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_before_after
+import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_undo
 
 private val AdjustRange = -100f..100f
 
 @Composable
-fun AdjustScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun AdjustTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AdjustViewModel = koinViewModel(),
 ) {
     AdjustContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onApply = { matrix ->
-            viewModel.sourceImage?.let { image -> viewModel.applyAdjustments(bakeAdjustments(image, matrix)) }
-            onApplied()
-        },
+        sourceImage = sourceImage,
+        isPremium = isPremium,
+        onBack = onClose,
+        onApply = { matrix -> onApply(bakeAdjustments(sourceImage, matrix)) },
+        onOpenPremium = onOpenPremium,
         modifier = modifier,
     )
 }
 
+private val AdjustValuesSaver = listSaver<AdjustValues, Float>(
+    save = { it.toFloatList() },
+    restore = { adjustValuesOf(it) },
+)
+
+/** An undo/redo stack, saved as its values' floats end to end. */
+private val AdjustStackSaver = listSaver<List<AdjustValues>, Float>(
+    save = { stack -> stack.flatMap { it.toFloatList() } },
+    restore = { floats -> floats.chunked(AdjustmentType.entries.size).map(::adjustValuesOf) },
+)
+
 @Composable
 private fun AdjustContent(
     sourceImage: ImageBitmap?,
+    isPremium: Boolean,
     onBack: () -> Unit,
     onApply: (FloatArray) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var values by remember { mutableStateOf(AdjustValues()) }
-    var selected by remember { mutableStateOf(AdjustmentType.Brightness) }
+    // The edit is saveable, unlike most tools': the paywall covers the editor, which drops plain
+    // `remember` state, and the adjustments made before it have to still be there after.
+    var values by rememberSaveable(stateSaver = AdjustValuesSaver) { mutableStateOf(AdjustValues()) }
+    var undoStack by rememberSaveable(stateSaver = AdjustStackSaver) { mutableStateOf(emptyList()) }
+    var redoStack by rememberSaveable(stateSaver = AdjustStackSaver) { mutableStateOf(emptyList()) }
+    // The paywall is an offer, not a gate: it is shown once per edit, on the first Done with
+    // [PremiumAdjustmentCount] or more adjustments, and the next Done applies either way.
+    var paywallShown by rememberSaveable { mutableStateOf(false) }
+    // The values as they were when the drag in progress began. One whole drag is one undo step,
+    // however many values it passes through on the way.
+    var dragStart by remember { mutableStateOf<AdjustValues?>(null) }
+    var selected by rememberSaveable { mutableStateOf(AdjustmentType.Brightness) }
     var comparing by remember { mutableStateOf(false) }
+
+    fun commit(previous: AdjustValues) {
+        if (previous == values) return
+        undoStack = undoStack + previous
+        redoStack = emptyList()
+    }
+
+    /** Swaps [values] for [restored] and shows the adjustment that just changed, so the step is visible. */
+    fun restore(restored: AdjustValues) {
+        changedAdjustment(values, restored)?.let { selected = it }
+        values = restored
+    }
+
+    fun undo() {
+        val previous = undoStack.lastOrNull() ?: return
+        redoStack = redoStack + values
+        undoStack = undoStack.dropLast(1)
+        restore(previous)
+    }
+
+    fun redo() {
+        val next = redoStack.lastOrNull() ?: return
+        undoStack = undoStack + values
+        redoStack = redoStack.dropLast(1)
+        restore(next)
+    }
 
     val combinedMatrix = remember(values) { values.toColorMatrix() }
     val colorFilter = remember(combinedMatrix) { ColorFilter.colorMatrix(ColorMatrix(combinedMatrix)) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Adjust",
-            onClose = onBack,
-            onDone = { onApply(combinedMatrix) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -115,7 +156,7 @@ private fun AdjustContent(
                 // photo's edges instead of the letterboxed stage.
                 Image(
                     bitmap = sourceImage,
-                    contentDescription = "Photo preview",
+                    contentDescription = tr("Photo preview"),
                     modifier = Modifier
                         .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
                         .clip(RoundedCornerShape(16.dp)),
@@ -124,39 +165,83 @@ private fun AdjustContent(
                 )
             } else {
                 Text(
-                    text = "No image to adjust",
+                    text = tr("No image to adjust"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        CompareIconButton(
-            onComparingChange = { comparing = it },
-            modifier = Modifier
-                .align(Alignment.End)
-                .padding(top = 8.dp, end = 12.dp),
-        )
+        ToolPanel(
+            title = tr("Adjust"),
+            onClose = onBack,
+            onDone = {
+                if (!isPremium && !paywallShown && values.changedCount() >= PremiumAdjustmentCount) {
+                    paywallShown = true
+                    onOpenPremium()
+                } else {
+                    onApply(combinedMatrix)
+                }
+            },
+            doneEnabled = sourceImage != null,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                UndoRedoButton(
+                    icon = vectorResource(Res.drawable.ic_undo),
+                    contentDescription = tr("Undo"),
+                    enabled = undoStack.isNotEmpty(),
+                    onClick = ::undo,
+                )
+                UndoRedoButton(
+                    icon = vectorResource(Res.drawable.ic_redo),
+                    contentDescription = tr("Redo"),
+                    enabled = redoStack.isNotEmpty(),
+                    onClick = ::redo,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                CompareIconButton(onComparingChange = { comparing = it })
+            }
 
-        CenterFillSlider(
-            value = values[selected],
-            onValueChange = { values = values.with(selected, it) },
-            range = AdjustRange,
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
+            CenterFillSlider(
+                value = values[selected],
+                onValueChange = { value ->
+                    val previous = values
+                    values = values.with(selected, value)
+                    // A tap on the track changes the value with no drag around it: its own step.
+                    if (dragStart == null) commit(previous)
+                },
+                onDraggingChange = { dragging ->
+                    if (dragging) {
+                        dragStart = values
+                    } else {
+                        dragStart?.let(::commit)
+                        dragStart = null
+                    }
+                },
+                valueLabel = ::signedAdjustLabel,
+                range = AdjustRange,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                modifier = Modifier.padding(top = 8.dp),
+            )
 
-        AdjustmentTypeRow(
-            selected = selected,
-            values = values,
-            onSelected = { selected = it },
-        )
+            AdjustmentTypeRow(
+                selected = selected,
+                values = values,
+                onSelected = { selected = it },
+            )
+        }
     }
 }
 
@@ -180,7 +265,7 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
     ) {
         Icon(
             imageVector = vectorResource(Res.drawable.ic_before_after),
-            contentDescription = "Press and hold to compare with the original",
+            contentDescription = tr("Press and hold to compare with the original"),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(20.dp),
         )
@@ -254,6 +339,6 @@ private fun AdjustmentTypeItem(type: AdjustmentType, selected: Boolean, active: 
 @Composable
 private fun AdjustScreenPreview() {
     ThemePreviews {
-        AdjustContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onApply = {})
+        AdjustContent(sourceImage = ImageBitmap(360, 480), isPremium = false, onBack = {}, onApply = {}, onOpenPremium = {})
     }
 }

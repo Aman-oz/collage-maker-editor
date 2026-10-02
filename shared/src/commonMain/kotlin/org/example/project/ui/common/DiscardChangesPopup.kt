@@ -50,6 +50,7 @@ import io.github.fletchmckee.liquid.liquefiable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.graphicsLayer
+import org.example.project.i18n.tr
 
 /** "Discard Changes" text colour, as in the design. */
 private val DiscardRed = Color(0xFFFF3B45)
@@ -153,7 +154,7 @@ private fun DiscardChangesContent(onDiscard: () -> Unit) {
     val rim = Color.White.copy(alpha = if (isLight) 0.9f else 0.35f)
     Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 24.dp, bottom = 20.dp)) {
         Text(
-            text = "Are you sure you want to discard your changes?",
+            text = tr("Are you sure you want to discard your changes?"),
             color = onSurface,
             fontSize = 19.sp,
             lineHeight = 26.sp,
@@ -230,7 +231,7 @@ private fun DiscardGlassButton(onClick: () -> Unit, isLight: Boolean, rim: Color
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "Discard Changes",
+                text = tr("Discard Changes"),
                 modifier = Modifier.graphicsLayer {
                     scaleX = bubble.pressScale
                     scaleY = bubble.pressScale

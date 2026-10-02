@@ -96,6 +96,7 @@ import io.github.fletchmckee.liquid.liquid
 import io.github.fletchmckee.liquid.rememberLiquidState
 import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberCameraPickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import kotlin.math.abs
@@ -105,8 +106,10 @@ import org.example.project.gallery.GalleryAccessStatus
 import org.example.project.gallery.GalleryAlbum
 import org.example.project.gallery.GalleryAlbumSection
 import org.example.project.gallery.GalleryPhoto
+import org.example.project.gallery.loadCapturedPhotoThumbnail
 import org.example.project.gallery.loadGalleryThumbnail
 import org.example.project.gallery.rememberGalleryAccessState
+import org.example.project.i18n.tr
 import org.example.project.ui.common.SolidDoneButton
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.TopBarHeight
@@ -114,10 +117,20 @@ import org.example.project.ui.common.bubbleBurstRing
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_camera
 
 /** The two sources offered by the segmented control at the top of the gallery. */
-internal enum class GalleryTab(val label: String) { Photos("Photos"), Collections("Collections") }
+internal enum class GalleryTab(private val englishLabel: String) {
+    Photos("Photos"),
+    Collections("Collections"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
+}
 
 private val BottomPillReserve = 96.dp
 private val CircleButtonSize = TopBarButtonSize
@@ -146,6 +159,9 @@ private val TabSettleSpring = spring<Float>(dampingRatio = 0.55f, stiffness = 32
 
 private val PillHeight = 48.dp
 
+/** Lazy-grid key of the camera cell; photo keys are library ids or file paths, never this. */
+private const val CameraItemKey = "gallery-camera-cell"
+
 /** How much the selection pill swells while pressed; it overflows its slot like a lifted drop. */
 private val PillHeldGrowthWidth = 20.dp
 private val PillHeldGrowthHeight = 14.dp
@@ -165,6 +181,7 @@ fun GalleryScreen(
     val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     val albumsState by viewModel.albumsState.collectAsStateWithLifecycle()
     val albumPhotosState by viewModel.albumPhotosState.collectAsStateWithLifecycle()
+    val capturedPhotos by viewModel.capturedPhotos.collectAsStateWithLifecycle()
     val accessState = rememberGalleryAccessState()
     val scope = rememberCoroutineScope()
     var selectedIds by remember { mutableStateOf(emptyList<String>()) }
@@ -185,6 +202,19 @@ fun GalleryScreen(
     ) { files ->
         isSystemPickerOpen = false
         if (!files.isNullOrEmpty()) onImagesSelected(files.map { it.path })
+    }
+
+    // The grid's camera cell. A single-photo pick goes straight on with the shot, like tapping a
+    // photo; a multi-photo pick adds it to the grid already selected, so the user can keep shooting
+    // (or mix in library photos) and confirm the lot with Done.
+    val cameraLauncher = rememberCameraPickerLauncher { file ->
+        val path = file?.path ?: return@rememberCameraPickerLauncher
+        if (maxSelection <= 1) {
+            onImagesSelected(listOf(path))
+        } else {
+            viewModel.addCapturedPhoto(path)
+            if (selectedIds.size < maxSelection) selectedIds = selectedIds + path
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -215,10 +245,12 @@ fun GalleryScreen(
         loadState = loadState,
         albumsState = albumsState,
         albumPhotosState = albumPhotosState,
+        capturedPhotos = capturedPhotos,
         selectedIds = selectedIds,
         isResolving = isResolving,
         onBack = onBack,
         onRequestAccess = { accessState.requestAccess() },
+        onCameraClick = { cameraLauncher.launch() },
         onOpenAlbum = { album -> viewModel.openAlbum(album.id) },
         onPhotoTapped = { photoId ->
             if (maxSelection <= 1) {
@@ -262,22 +294,26 @@ private fun PhotoAccessDeniedDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Photo Access Denied", fontWeight = FontWeight.Bold) },
+        title = { Text(text = tr("Photo Access Denied"), fontWeight = FontWeight.Bold) },
         text = {
             Text(
-                text = "You can still pick ${if (maxSelection <= 1) "a photo" else "photos"} without " +
-                    "giving access to your whole library.\n\nTo browse your gallery here, open Settings " +
-                    "and allow Photos access for this app, then come back.",
+                // Two whole sentences rather than one with a swapped-in noun: other languages
+                // don't split "a photo" / "photos" the way English does.
+                text = if (maxSelection <= 1) {
+                    tr("You can still pick a photo without giving access to your whole library.\n\nTo browse your gallery here, open Settings and allow Photos access for this app, then come back.")
+                } else {
+                    tr("You can still pick photos without giving access to your whole library.\n\nTo browse your gallery here, open Settings and allow Photos access for this app, then come back.")
+                },
             )
         },
         confirmButton = {
             TextButton(onClick = onPickPhotos) {
-                Text(text = if (maxSelection <= 1) "Pick Photo" else "Pick Photos", color = MaterialTheme.colorScheme.primary)
+                Text(text = if (maxSelection <= 1) tr("Pick Photo") else tr("Pick Photos"), color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {
             TextButton(onClick = onOpenSettings) {
-                Text(text = "Grant Permission", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = tr("Grant Permission"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
     )
@@ -296,10 +332,12 @@ private fun GalleryContent(
     loadState: GalleryLoadState,
     albumsState: GalleryAlbumsState,
     albumPhotosState: GalleryLoadState,
+    capturedPhotos: List<GalleryPhoto>,
     selectedIds: List<String>,
     isResolving: Boolean,
     onBack: () -> Unit,
     onRequestAccess: () -> Unit,
+    onCameraClick: () -> Unit,
     onOpenAlbum: (GalleryAlbum) -> Unit,
     onPhotoTapped: (String) -> Unit,
     onConfirm: () -> Unit,
@@ -312,7 +350,8 @@ private fun GalleryContent(
     val isMultiSelect = maxSelection > 1
     val isInCollectionsChild = selectedTab == GalleryTab.Collections && collectionsRoute != CollectionsRoute.Overview
     val isShowingPhotoGrid = when (selectedTab) {
-        GalleryTab.Photos -> loadState is GalleryLoadState.Ready
+        // An empty library still shows the grid, for its camera cell.
+        GalleryTab.Photos -> loadState !is GalleryLoadState.Loading
         GalleryTab.Collections -> collectionsRoute is CollectionsRoute.Album && albumPhotosState is GalleryLoadState.Ready
     }
     // Stays up while browsing albums once something is picked, so the count is never out of sight.
@@ -378,21 +417,22 @@ private fun GalleryContent(
 
                         GalleryLoadState.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 
-                        GalleryLoadState.Empty -> CenteredMessage("This album has no photos.")
+                        GalleryLoadState.Empty -> CenteredMessage(tr("This album has no photos."))
                     }
                 }
 
                 loadState is GalleryLoadState.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 
-                loadState is GalleryLoadState.Empty -> CenteredMessage("No photos found on this device.")
-
-                loadState is GalleryLoadState.Ready -> PhotoGrid(
-                    photos = loadState.photos,
+                else -> PhotoGrid(
+                    photos = (loadState as? GalleryLoadState.Ready)?.photos.orEmpty(),
                     selectedIds = selectedIds,
                     canSelectMore = selectedIds.size < maxSelection,
                     showSelectionBadge = isMultiSelect,
                     contentPadding = gridPadding,
                     onPhotoTapped = onPhotoTapped,
+                    capturedPhotos = capturedPhotos,
+                    onCameraClick = onCameraClick,
+                    emptyMessage = tr("No photos found on this device."),
                 )
             }
         }
@@ -482,7 +522,7 @@ private fun GalleryTopBar(
             onClick = onBack,
             tint = glassTint(),
         ) {
-            Icon(Icons.Filled.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
+            Icon(Icons.Filled.Close, contentDescription = tr("Close"), tint = MaterialTheme.colorScheme.onSurface)
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -491,7 +531,7 @@ private fun GalleryTopBar(
 
         // Clear glass until something is picked, then the solid primary Done every screen uses.
         if (canConfirm) {
-            SolidDoneButton(icon = Icons.Filled.Check, contentDescription = "Done", onClick = onConfirm)
+            SolidDoneButton(icon = Icons.Filled.Check, contentDescription = tr("Done"), onClick = onConfirm)
         } else {
             GlassCircleButton(
                 liquidState = liquidState,
@@ -501,7 +541,7 @@ private fun GalleryTopBar(
             ) {
                 Icon(
                     Icons.Filled.Check,
-                    contentDescription = "Done",
+                    contentDescription = tr("Done"),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
@@ -830,7 +870,7 @@ private fun SelectionPill(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (selectedCount == 0) "Select Photos" else "$selectedCount Select Photos",
+            text = if (selectedCount == 0) tr("Select Photos") else tr("{0} Select Photos", selectedCount),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -867,6 +907,9 @@ private fun PhotoGrid(
     contentPadding: PaddingValues,
     onPhotoTapped: (String) -> Unit,
     header: (@Composable () -> Unit)? = null,
+    capturedPhotos: List<GalleryPhoto> = emptyList(),
+    onCameraClick: (() -> Unit)? = null,
+    emptyMessage: String? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -878,6 +921,22 @@ private fun PhotoGrid(
         if (header != null) {
             item(span = { GridItemSpan(maxLineSpan) }) { header() }
         }
+        if (onCameraClick != null) {
+            // Greyed out like the photos once a multi-photo pick is full: a shot couldn't be added.
+            item(key = CameraItemKey) { CameraGridItem(enabled = canSelectMore, onClick = onCameraClick) }
+        }
+        // Shots from the camera cell sit right after it, ahead of the library.
+        items(capturedPhotos, key = { it.id }) { photo ->
+            val isSelected = selectedIds.contains(photo.id)
+            PhotoGridItem(
+                photo = photo,
+                isSelected = isSelected,
+                showSelectionBadge = showSelectionBadge,
+                canSelect = canSelectMore || isSelected,
+                onClick = { onPhotoTapped(photo.id) },
+                isCaptured = true,
+            )
+        }
         items(photos, key = { it.id }) { photo ->
             val isSelected = selectedIds.contains(photo.id)
             PhotoGridItem(
@@ -888,9 +947,40 @@ private fun PhotoGrid(
                 onClick = { onPhotoTapped(photo.id) },
             )
         }
+        if (emptyMessage != null && photos.isEmpty() && capturedPhotos.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CenteredMessage(emptyMessage) }
+            }
+        }
     }
 }
 
+/** The first cell of the Photos grid: opens the camera instead of picking from the library. */
+@Composable
+private fun CameraGridItem(enabled: Boolean, onClick: () -> Unit) {
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_camera),
+            contentDescription = tr("Camera"),
+            // The icon's own violet in light mode; it sinks into the dark tile, so lighten it there.
+            tint = if (isLight) Color.Unspecified else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(40.dp),
+        )
+        if (!enabled) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
+        }
+    }
+}
+
+/** [isCaptured]: a shot from the camera cell, whose [GalleryPhoto.id] is a file path, not a library id. */
 @Composable
 private fun PhotoGridItem(
     photo: GalleryPhoto,
@@ -898,9 +988,12 @@ private fun PhotoGridItem(
     showSelectionBadge: Boolean,
     canSelect: Boolean,
     onClick: () -> Unit,
+    isCaptured: Boolean = false,
 ) {
     var thumbnail by remember(photo.id) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(photo.id) { thumbnail = loadGalleryThumbnail(photo.id) }
+    LaunchedEffect(photo.id) {
+        thumbnail = if (isCaptured) loadCapturedPhotoThumbnail(photo.id) else loadGalleryThumbnail(photo.id)
+    }
 
     Box(
         modifier = Modifier
@@ -919,7 +1012,7 @@ private fun PhotoGridItem(
         thumbnail?.let { bitmap ->
             Image(
                 bitmap = bitmap,
-                contentDescription = "Photo",
+                contentDescription = tr("Photo"),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -937,7 +1030,7 @@ private fun PhotoGridItem(
             ) {
                 Icon(
                     Icons.Filled.Check,
-                    contentDescription = "Selected",
+                    contentDescription = tr("Selected"),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(14.dp),
                 )
@@ -956,7 +1049,7 @@ private fun PermissionRequestContent(onRequestAccess: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Photo Access Needed",
+            text = tr("Photo Access Needed"),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -964,7 +1057,7 @@ private fun PermissionRequestContent(onRequestAccess: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Allow access to your photo library to pick images.",
+            text = tr("Allow access to your photo library to pick images."),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -977,7 +1070,7 @@ private fun PermissionRequestContent(onRequestAccess: () -> Unit) {
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
         ) {
-            Text(text = "Grant Access", fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Grant Access"), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -1004,10 +1097,12 @@ private fun GalleryContentForPreview(initialTab: GalleryTab, selectedIds: List<S
         loadState = GalleryLoadState.Ready(PreviewPhotos),
         albumsState = GalleryAlbumsState.Ready(PreviewAlbums),
         albumPhotosState = GalleryLoadState.Loading,
+        capturedPhotos = emptyList(),
         selectedIds = selectedIds,
         isResolving = false,
         onBack = {},
         onRequestAccess = {},
+        onCameraClick = {},
         onOpenAlbum = {},
         onPhotoTapped = {},
         onConfirm = {},

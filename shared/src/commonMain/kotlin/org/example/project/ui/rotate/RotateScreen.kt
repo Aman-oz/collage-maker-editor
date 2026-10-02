@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +41,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -51,13 +51,14 @@ import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.min
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
 import org.example.project.ui.common.LiquidSliderThumb
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.pointerInputPressed
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_flip_horizontally
 import photocollagemaker.shared.generated.resources.ic_flip_vertically
@@ -81,28 +82,25 @@ private data class RotateEdit(
 }
 
 @Composable
-fun RotateScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun RotateTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RotateViewModel = koinViewModel(),
 ) {
     RotateContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
+        sourceImage = sourceImage,
+        onBack = onClose,
         onDone = { edit ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyRotation(
-                    bakeRotate(
-                        source = image,
-                        quarterTurns = edit.totalQuarterTurns,
-                        flipHorizontal = edit.flipHorizontal,
-                        flipVertical = edit.flipVertical,
-                        rotationDegrees = edit.fineDegrees,
-                    ),
-                )
-            }
-            onApplied()
+            onApply(
+                bakeRotate(
+                    source = sourceImage,
+                    quarterTurns = edit.totalQuarterTurns,
+                    flipHorizontal = edit.flipHorizontal,
+                    flipVertical = edit.flipVertical,
+                    rotationDegrees = edit.fineDegrees,
+                ),
+            )
         },
         modifier = modifier,
     )
@@ -141,23 +139,10 @@ private fun RotateContent(
 
     val scheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Rotate",
-            onClose = onBack,
-            onDone = { onDone(edit) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier, photoInset = 24.dp) {
         BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(24.dp),
             contentAlignment = Alignment.Center,
@@ -189,7 +174,7 @@ private fun RotateContent(
                     ) {
                         Image(
                             bitmap = sourceImage,
-                            contentDescription = "Photo preview",
+                            contentDescription = tr("Photo preview"),
                             modifier = Modifier
                                 .requiredSize(imageWidthPx.toDp(), imageHeightPx.toDp())
                                 .graphicsLayer(
@@ -201,36 +186,43 @@ private fun RotateContent(
                     }
                 }
             } else {
-                Text(text = "No image to rotate", color = scheme.onSurface)
+                Text(text = tr("No image to rotate"), color = scheme.onSurface)
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        ToolPanel(
+            title = tr("Rotate"),
+            onClose = onBack,
+            onDone = { onDone(edit) },
+            doneEnabled = sourceImage != null,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        RotationLabelRow(value = edit.rotationDegrees)
-        RotationPointsSlider(
-            value = edit.rotationDegrees,
-            onValueChange = { snapped ->
-                // Every drag event reports a stop; only crossing into a new one is an undo step.
-                if (snapped != edit.rotationDegrees) commit(edit.copy(rotationDegrees = snapped))
-            },
-        )
+            RotationLabelRow(value = edit.rotationDegrees)
+            RotationPointsSlider(
+                value = edit.rotationDegrees,
+                onValueChange = { snapped ->
+                    // Every drag event reports a stop; only crossing into a new one is an undo step.
+                    if (snapped != edit.rotationDegrees) commit(edit.copy(rotationDegrees = snapped))
+                },
+            )
 
-        RotateActionRow(
-            onRotateLeft = { commit(edit.copy(quarterTurns = normalizeQuarterTurns(edit.quarterTurns - 1))) },
-            onRotateRight = { commit(edit.copy(quarterTurns = normalizeQuarterTurns(edit.quarterTurns + 1))) },
-            onFlipHorizontal = { commit(edit.copy(flipHorizontal = !edit.flipHorizontal)) },
-            onFlipVertical = { commit(edit.copy(flipVertical = !edit.flipVertical)) },
-        )
+            RotateActionRow(
+                onRotateLeft = { commit(edit.copy(quarterTurns = normalizeQuarterTurns(edit.quarterTurns - 1))) },
+                onRotateRight = { commit(edit.copy(quarterTurns = normalizeQuarterTurns(edit.quarterTurns + 1))) },
+                onFlipHorizontal = { commit(edit.copy(flipHorizontal = !edit.flipHorizontal)) },
+                onFlipVertical = { commit(edit.copy(flipVertical = !edit.flipVertical)) },
+            )
 
-        UndoRedoRow(
-            undoEnabled = undoStack.isNotEmpty(),
-            redoEnabled = redoStack.isNotEmpty(),
-            onUndo = ::undo,
-            onRedo = ::redo,
-        )
+            UndoRedoRow(
+                undoEnabled = undoStack.isNotEmpty(),
+                redoEnabled = redoStack.isNotEmpty(),
+                onUndo = ::undo,
+                onRedo = ::redo,
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+        }
     }
 }
 
@@ -244,7 +236,7 @@ private fun RotationLabelRow(value: Float) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Rotation",
+            text = tr("Rotation"),
             color = scheme.onSurface,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
@@ -262,7 +254,8 @@ private fun RotationLabelRow(value: Float) {
 /**
  * A slider that only ever rests at one of [RotationStops] — dragging or tapping snaps the thumb
  * to whichever stop is nearest, with a small dot marking each stop along the track. The dots are
- * evenly spaced even though the angles between them are not (45° steps near 0, 90° further out).
+ * evenly spaced even though the angles between them are not (45° steps near 0, 90° further out),
+ * and each has its angle printed above it, in the style of the other sliders' range labels.
  */
 @Composable
 private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier) {
@@ -270,75 +263,105 @@ private fun RotationPointsSlider(value: Float, onValueChange: (Float) -> Unit, m
     val lastIndex = RotationStops.lastIndex.coerceAtLeast(1).toFloat()
     // The gesture detectors are keyed on Unit, so read the latest callback through State.
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .padding(horizontal = 16.dp),
-    ) {
-        val density = LocalDensity.current
-        val widthPx = with(density) { maxWidth.toPx() }
-        val thumbHalfWidthPx = with(density) { RotationThumbWidth.toPx() } / 2f
-        val usableWidth = (widthPx - thumbHalfWidthPx * 2).coerceAtLeast(1f)
-
-        fun valueToX(v: Float): Float {
-            val index = RotationStops.indexOf(nearestRotationStop(v))
-            return thumbHalfWidthPx + (index / lastIndex) * usableWidth
-        }
-
-        fun xToValue(x: Float): Float =
-            rotationStopAtPosition(((x - thumbHalfWidthPx) / usableWidth) * lastIndex)
-
-        val thumbX = valueToX(value)
-        val liquidState = rememberLiquidState()
-        var pressed by remember { mutableStateOf(false) }
-
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .liquefiable(liquidState)
-                .pointerInputPressed { pressed = it }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { position -> currentOnValueChange(xToValue(position.x)) },
-                        onDrag = { change, _ ->
-                            change.consume()
-                            currentOnValueChange(xToValue(change.position.x))
-                        },
+    val selectedStop = nearestRotationStop(value)
+    Column(modifier = modifier.fillMaxWidth()) {
+        // One label per stop, each centred over its dot: the row is measured as wide as the track
+        // box below, and a label's centre is the dot's x in that box (see valueToX there).
+        Layout(
+            content = {
+                for (stop in RotationStops) {
+                    Text(
+                        text = wholeNumberLabel(stop),
+                        color = if (stop == selectedStop) scheme.primary else scheme.onSurface.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = if (stop == selectedStop) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
                     )
                 }
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { position -> currentOnValueChange(xToValue(position.x)) })
-                },
-        ) {
-            val trackY = size.height / 2f
-            drawLine(
-                color = scheme.onSurface.copy(alpha = 0.12f),
-                start = Offset(thumbHalfWidthPx, trackY),
-                end = Offset(widthPx - thumbHalfWidthPx, trackY),
-                strokeWidth = 4.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            for (stop in RotationStops) {
-                drawCircle(
-                    color = scheme.onSurface.copy(alpha = 0.22f),
-                    radius = 4.dp.toPx(),
-                    center = Offset(valueToX(stop), trackY),
-                )
+            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) { measurables, constraints ->
+            val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+            val thumbHalfWidth = RotationThumbWidth.toPx() / 2f
+            val usableWidth = (constraints.maxWidth - thumbHalfWidth * 2).coerceAtLeast(1f)
+            layout(constraints.maxWidth, placeables.maxOf { it.height }) {
+                placeables.forEachIndexed { index, placeable ->
+                    val centerX = thumbHalfWidth + index / lastIndex * usableWidth
+                    placeable.place((centerX - placeable.width / 2f).roundToInt(), 0)
+                }
             }
         }
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .padding(horizontal = 16.dp),
+        ) {
+            val density = LocalDensity.current
+            val widthPx = with(density) { maxWidth.toPx() }
+            val thumbHalfWidthPx = with(density) { RotationThumbWidth.toPx() } / 2f
+            val usableWidth = (widthPx - thumbHalfWidthPx * 2).coerceAtLeast(1f)
 
-        // A sibling of the liquefiable track, so the drop can refract the track and its stop dots.
-        LiquidSliderThumb(
-            liquidState = liquidState,
-            pressed = pressed,
-            centerX = thumbX,
-            width = RotationThumbWidth,
-            height = RotationThumbHeight,
-            accentColor = scheme.primary,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
+            fun valueToX(v: Float): Float {
+                val index = RotationStops.indexOf(nearestRotationStop(v))
+                return thumbHalfWidthPx + (index / lastIndex) * usableWidth
+            }
+
+            fun xToValue(x: Float): Float =
+                rotationStopAtPosition(((x - thumbHalfWidthPx) / usableWidth) * lastIndex)
+
+            val thumbX = valueToX(value)
+            val liquidState = rememberLiquidState()
+            var pressed by remember { mutableStateOf(false) }
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .liquefiable(liquidState)
+                    .pointerInputPressed { pressed = it }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { position -> currentOnValueChange(xToValue(position.x)) },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                currentOnValueChange(xToValue(change.position.x))
+                            },
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { position -> currentOnValueChange(xToValue(position.x)) })
+                    },
+            ) {
+                val trackY = size.height / 2f
+                drawLine(
+                    color = scheme.onSurface.copy(alpha = 0.12f),
+                    start = Offset(thumbHalfWidthPx, trackY),
+                    end = Offset(widthPx - thumbHalfWidthPx, trackY),
+                    strokeWidth = 4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                for (stop in RotationStops) {
+                    drawCircle(
+                        color = scheme.onSurface.copy(alpha = 0.22f),
+                        radius = 4.dp.toPx(),
+                        center = Offset(valueToX(stop), trackY),
+                    )
+                }
+            }
+
+            // A sibling of the liquefiable track, so the drop can refract the track and its stop dots.
+            LiquidSliderThumb(
+                liquidState = liquidState,
+                pressed = pressed,
+                centerX = thumbX,
+                width = RotationThumbWidth,
+                height = RotationThumbHeight,
+                accentColor = scheme.primary,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
+        }
     }
 }
 
@@ -358,10 +381,10 @@ private fun RotateActionRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_left), label = "Rotate left", onClick = onRotateLeft)
-        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_right), label = "Rotate right", onClick = onRotateRight)
-        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_horizontally), label = "Flip horizontally", onClick = onFlipHorizontal)
-        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_vertically), label = "Flip vertically", onClick = onFlipVertical)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_left), label = tr("Rotate left"), onClick = onRotateLeft)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_rotate_right), label = tr("Rotate right"), onClick = onRotateRight)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_horizontally), label = tr("Flip horizontally"), onClick = onFlipHorizontal)
+        RotateActionButton(icon = vectorResource(Res.drawable.ic_flip_vertically), label = tr("Flip vertically"), onClick = onFlipVertical)
     }
 }
 
@@ -397,9 +420,9 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
     ) {
-        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = tr("Undo"), enabled = undoEnabled, onClick = onUndo)
         Spacer(modifier = Modifier.width(4.dp))
-        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = tr("Redo"), enabled = redoEnabled, onClick = onRedo)
     }
 }
 

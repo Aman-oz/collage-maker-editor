@@ -86,6 +86,7 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import org.example.project.i18n.tr
 import org.example.project.ui.theme.AppTheme
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -336,7 +337,7 @@ internal fun HomeBottomBar(
 
                 Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                     BottomBarItem(
-                        label = "Home",
+                        label = tr("Home"),
                         icon = if (selectedTab == HomeTab.Home) Res.drawable.ic_home_filled else Res.drawable.ic_home_outline,
                         selected = selectedTab == HomeTab.Home,
                         hovered = held && hoveredSlot == HomeTab.Home.slot(),
@@ -346,7 +347,7 @@ internal fun HomeBottomBar(
                     )
                     Spacer(Modifier.weight(1f))
                     BottomBarItem(
-                        label = "Projects",
+                        label = tr("Projects"),
                         icon = if (selectedTab == HomeTab.Projects) {
                             Res.drawable.ic_project_filled
                         } else {
@@ -706,7 +707,7 @@ private fun CreateButton(
                     interactionSource = interaction,
                     indication = null,
                     role = Role.Button,
-                    onClickLabel = "Create collage",
+                    onClickLabel = tr("Create collage"),
                     onClick = {
                         turns += 1f
                         fireBurst()
@@ -717,7 +718,7 @@ private fun CreateButton(
         ) {
             Image(
                 painter = painterResource(Res.drawable.ic_plus_icon),
-                contentDescription = "Create collage",
+                contentDescription = tr("Create collage"),
                 modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = rotation },
             )
         }

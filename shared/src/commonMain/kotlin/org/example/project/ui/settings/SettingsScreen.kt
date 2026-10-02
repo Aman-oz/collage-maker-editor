@@ -62,6 +62,7 @@ import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlinx.coroutines.launch
 import org.example.project.data.ThemeMode
+import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassDialogHost
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.topBar
@@ -113,7 +114,7 @@ fun SettingsScreen(
     }
     // Links are filled in later; until then a blank one explains itself instead of doing nothing.
     val openLink: (url: String, name: String) -> Unit = { url, name ->
-        if (url.isBlank()) showMessage("$name is coming soon") else uriHandler.openUri(url)
+        if (url.isBlank()) showMessage(tr("{0} is coming soon", name)) else uriHandler.openUri(url)
     }
 
     SettingsContent(
@@ -124,15 +125,15 @@ fun SettingsScreen(
         onOpenLanguage = onOpenLanguage,
         onApplyTheme = viewModel::setThemeMode,
         onRate = { rating ->
-            if (rating >= StoreRatingThreshold) openStoreRating() else showMessage("Thanks for your feedback!")
+            if (rating >= StoreRatingThreshold) openStoreRating() else showMessage(tr("Thanks for your feedback!"))
         },
         onShareApp = {
             val storeUrl = appStoreUrl()
-            if (storeUrl == null) showMessage("Sharing is coming soon") else shareText(shareAppMessage(storeUrl))
+            if (storeUrl == null) showMessage(tr("Sharing is coming soon")) else shareText(shareAppMessage(storeUrl))
         },
-        onAboutUs = { openLink(SettingsLinks.AboutUsUrl, "About Us") },
-        onPrivacyPolicy = { openLink(SettingsLinks.PrivacyPolicyUrl, "Privacy Policy") },
-        onTermsOfUse = { openLink(SettingsLinks.TermsOfUseUrl, "Terms of Use") },
+        onAboutUs = { openLink(SettingsLinks.AboutUsUrl, tr("About Us")) },
+        onPrivacyPolicy = { openLink(SettingsLinks.PrivacyPolicyUrl, tr("Privacy Policy")) },
+        onTermsOfUse = { openLink(SettingsLinks.TermsOfUseUrl, tr("Terms of Use")) },
         modifier = modifier,
     )
 }
@@ -185,18 +186,18 @@ private fun SettingsContent(
                 Spacer(Modifier.height(4.dp))
                 PremiumCard(onClick = onPremium)
 
-                SectionHeader("General")
-                SettingsRow(Res.drawable.ic_language, "Languages", onOpenLanguage)
-                SettingsRow(Res.drawable.ic_theme, "Theme") { dialogName = SettingsDialog.Theme.name }
+                SectionHeader(tr("General"))
+                SettingsRow(Res.drawable.ic_language, tr("Languages"), onOpenLanguage)
+                SettingsRow(Res.drawable.ic_theme, tr("Theme")) { dialogName = SettingsDialog.Theme.name }
 
-                SectionHeader("About")
-                SettingsRow(Res.drawable.ic_rate_us, "Rate Us") { dialogName = SettingsDialog.RateUs.name }
-                SettingsRow(Res.drawable.ic_share_app, "Share App", onShareApp)
-                SettingsRow(Res.drawable.ic_about_us, "About Us", onAboutUs)
+                SectionHeader(tr("About"))
+                SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
+                SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
+                SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
 
-                SectionHeader("Legal")
-                SettingsRow(Res.drawable.ic_privacy_policy, "Privacy Policy", onPrivacyPolicy)
-                SettingsRow(Res.drawable.ic_terms_and_conditions, "Terms of Use", onTermsOfUse)
+                SectionHeader(tr("Legal"))
+                SettingsRow(Res.drawable.ic_privacy_policy, tr("Privacy Policy"), onPrivacyPolicy)
+                SettingsRow(Res.drawable.ic_terms_and_conditions, tr("Terms of Use"), onTermsOfUse)
 
                 Spacer(Modifier.height(24.dp))
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
@@ -241,13 +242,13 @@ private fun SettingsTopBar(onBack: () -> Unit) {
     Box(modifier = Modifier.topBar()) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onBack,
             contentColor = colors.onBackground,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Settings",
+            text = tr("Settings"),
             modifier = Modifier.align(Alignment.Center),
             color = colors.onBackground,
             fontSize = 17.sp,
@@ -285,7 +286,7 @@ private fun PremiumCard(onClick: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "TRY NOW",
+                text = tr("TRY NOW"),
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(Brush.verticalGradient(TryNowGradient))

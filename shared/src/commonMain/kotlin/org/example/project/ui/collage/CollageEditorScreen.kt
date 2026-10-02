@@ -1,5 +1,6 @@
 package org.example.project.ui.collage
 
+import org.example.project.i18n.tr
 import org.example.project.ui.common.TopBarButtonSize
 import androidx.compose.ui.text.style.TextOverflow
 import io.github.fletchmckee.liquid.liquefiable
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -79,6 +81,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,6 +92,9 @@ import kotlin.math.abs
 import kotlinx.coroutines.delay
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.rememberColorPickerLauncher
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
@@ -124,11 +130,15 @@ private val CollageBackgroundColors = listOf(
     Color(0xFFEC4899), Color(0xFFFFB300),
 )
 
-private enum class CollageTool(val label: String) {
+private enum class CollageTool(private val englishLabel: String) {
     Layouts("Layouts"),
     Border("Border"),
     Background("Background"),
     Ratio("Ratio"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 /**
@@ -176,7 +186,6 @@ fun CollageEditorScreen(
     viewModel: CollageEditorViewModel = koinViewModel { parametersOf(imagePaths) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()
     val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
     val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
@@ -200,13 +209,19 @@ fun CollageEditorScreen(
             onClose = discard::requestBack,
             onPremium = onPremium,
             onDone = { canvasWidthPx, spacePx, cornerPx ->
-                viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)
-                onOpenEditor()
+                // A premium layout can be laid out by anyone, but creating the collage from it
+                // takes a subscription. The collage lives in the ViewModel, so it is still here
+                // when they come back from the paywall.
+                // A free layout with a premium border width or ratio shows the paywall once, as
+                // an offer: the next Done goes through whether or not they subscribed.
+                if (viewModel.needsPremium || viewModel.consumePremiumOffer()) {
+                    onPremium()
+                } else {
+                    viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)
+                    onOpenEditor()
+                }
             },
-            // A premium layout opens the paywall unless the user already subscribes.
-            onTemplateSelected = { template ->
-                if (template.isPremium && !isPremium) onPremium() else viewModel.applyTemplate(template)
-            },
+            onTemplateSelected = viewModel::applyTemplate,
             onSwapImages = viewModel::swapImages,
             onSlotTransform = viewModel::transformSlot,
             onRequestSlotImage = { slotIndex ->
@@ -430,7 +445,7 @@ private fun CollagePreview(
                     val cy = g.touchPolygon.sumOf { it.y.toDouble() }.toFloat() / g.touchPolygon.size
                     Icon(
                         imageVector = Icons.Filled.Add,
-                        contentDescription = "Add photo",
+                        contentDescription = tr("Add photo"),
                         tint = chrome.muted,
                         modifier = Modifier
                             .offset(
@@ -497,13 +512,13 @@ private fun CollageTopBar(
     Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onClose,
             contentColor = chrome.content,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Collages",
+            text = tr("Collages"),
             color = chrome.content,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
@@ -522,14 +537,14 @@ private fun CollageTopBar(
             ) {
                 Image(
                     painter = painterResource(Res.drawable.ic_premium_icon),
-                    contentDescription = "Premium",
+                    contentDescription = tr("Premium"),
                     modifier = Modifier.size(28.dp),
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
             GlassTopBarButton(
                 icon = Icons.Filled.Check,
-                contentDescription = "Done",
+                contentDescription = tr("Done"),
                 onClick = onDone,
                 enabled = doneEnabled,
                 style = GlassButtonStyle.Primary,
@@ -641,7 +656,7 @@ private fun LayoutThumbnail(chrome: CollageChrome, template: TemplateItem, selec
         if (template.isPremium) {
             Image(
                 painter = painterResource(Res.drawable.ic_premium_icon),
-                contentDescription = "Premium",
+                contentDescription = tr("Premium"),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = 4.dp, y = (-4).dp)
@@ -659,13 +674,14 @@ private fun BorderTab(
     onCornerChange: (Float) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+        // Two labelled sliders only just fit the panel's fixed height, hence the tight padding.
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         BorderSliderRow(
             chrome = chrome,
             icon = Icons.Outlined.SpaceDashboard,
-            contentDescription = "Border width",
+            contentDescription = tr("Border width"),
             value = state.space,
             range = SpaceRange,
             onValueChange = onSpaceChange,
@@ -673,7 +689,7 @@ private fun BorderTab(
         BorderSliderRow(
             chrome = chrome,
             icon = Icons.Outlined.RoundedCorner,
-            contentDescription = "Corner radius",
+            contentDescription = tr("Corner radius"),
             value = state.corner,
             range = CornerRange,
             onValueChange = onCornerChange,
@@ -690,8 +706,15 @@ private fun BorderSliderRow(
     range: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = contentDescription, tint = chrome.content, modifier = Modifier.size(22.dp))
+    // Bottom-aligned, with the icon lifted to the middle of the slider's 40dp track: the slider
+    // is taller than its track by the row of range labels above it.
+    Row(verticalAlignment = Alignment.Bottom) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = chrome.content,
+            modifier = Modifier.padding(bottom = 9.dp).size(22.dp),
+        )
         CenterFillSlider(
             value = value,
             onValueChange = onValueChange,
@@ -705,35 +728,59 @@ private fun BorderSliderRow(
             horizontalPadding = 24.dp,
             glassThumb = true,
             glassTint = if (chrome.isLight) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            valueLabel = ::wholeNumberLabel,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
+private val BackgroundSwatchSize = 50.dp
+private val BackgroundSwatchSpacing = 10.dp
+
 @Composable
 private fun BackgroundTab(chrome: CollageChrome, selected: Color, onColorChange: (Color) -> Unit) {
+    val pickCustomColor = rememberColorPickerLauncher(initial = selected, onPicked = onColorChange)
     LazyHorizontalGrid(
         rows = GridCells.Fixed(2),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+        verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
         modifier = Modifier.fillMaxSize(),
     ) {
+        // The custom colour swatch spans both rows, so the colour pairs after it stay aligned. It
+        // is the one ringed while the background is a colour of the user's own.
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            BackgroundColorSwatch(
+                chrome = chrome,
+                selected = selected !in CollageBackgroundColors,
+                onClick = pickCustomColor,
+                height = BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
+            ) { ColorPickerFill(it) }
+        }
         items(CollageBackgroundColors) { color ->
-            BackgroundColorSwatch(chrome = chrome, color = color, selected = color == selected, onClick = { onColorChange(color) })
+            BackgroundColorSwatch(chrome = chrome, selected = color == selected, onClick = { onColorChange(color) }) {
+                Box(modifier = it.background(color))
+            }
         }
     }
 }
 
+/** [fill] paints the swatch inside its selection ring; it is handed the modifier that sizes it. */
 @Composable
-private fun BackgroundColorSwatch(chrome: CollageChrome, color: Color, selected: Boolean, onClick: () -> Unit) {
+private fun BackgroundColorSwatch(
+    chrome: CollageChrome,
+    selected: Boolean,
+    onClick: () -> Unit,
+    height: Dp = BackgroundSwatchSize,
+    fill: @Composable (Modifier) -> Unit,
+) {
     val outer = RoundedCornerShape(12.dp)
     val inner = RoundedCornerShape(9.dp)
     val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
             .springBounce(bounce)
-            .size(50.dp)
+            .size(width = BackgroundSwatchSize, height = height)
             .clip(outer)
             .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
             .clickable(
@@ -743,9 +790,10 @@ private fun BackgroundColorSwatch(chrome: CollageChrome, color: Color, selected:
             )
             .padding(4.dp)
             .clip(inner)
-            .background(color)
             .border(1.dp, chrome.content.copy(alpha = 0.08f), inner),
-    )
+    ) {
+        fill(Modifier.matchParentSize())
+    }
 }
 
 @Composable

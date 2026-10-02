@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import org.example.project.gallery.GalleryAlbum
 import org.example.project.gallery.GalleryAlbumSection
 import org.example.project.gallery.loadGalleryThumbnail
+import org.example.project.i18n.tr
 import org.example.project.ui.common.bubbleClick
 import org.example.project.ui.common.rememberBubbleClick
 
@@ -70,8 +71,8 @@ internal fun CollectionsRoute.parent(): CollectionsRoute = when (this) {
 
 internal val GalleryAlbumSection.title: String
     get() = when (this) {
-        GalleryAlbumSection.Pinned -> "Pinned"
-        GalleryAlbumSection.Albums -> "Albums"
+        GalleryAlbumSection.Pinned -> tr("Pinned")
+        GalleryAlbumSection.Albums -> tr("Albums")
     }
 
 private val AlbumCardSize = 108.dp
@@ -89,7 +90,7 @@ internal fun CollectionsOverview(
     when (albumsState) {
         GalleryAlbumsState.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 
-        GalleryAlbumsState.Empty -> CenteredMessage("No albums found on this device.")
+        GalleryAlbumsState.Empty -> CenteredMessage(tr("No albums found on this device."))
 
         is GalleryAlbumsState.Ready -> {
             val sections = albumsState.albums.groupBy { it.section }
@@ -140,7 +141,7 @@ private fun AlbumSectionRow(
             )
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "See all $title",
+                contentDescription = tr("See all {0}", title),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp),
             )
@@ -207,7 +208,7 @@ internal fun CollectionsBackHeader(title: String, onBack: () -> Unit) {
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back to collections",
+                contentDescription = tr("Back to collections"),
                 tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(26.dp),
             )

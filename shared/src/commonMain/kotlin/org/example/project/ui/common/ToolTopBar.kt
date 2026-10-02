@@ -15,9 +15,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 
 /**
- * Top bar of the theme-aware tool screens (Auto, Crop, …): a glass ✕ on the left, a centered
+ * The ✕ / title / ✓ row of the theme-aware tools — the head of a [ToolScaffold] panel, and the top
+ * bar of the full-screen crop: a glass ✕ on the left, a centered
  * title, and a primary glass ✓ on the right (both [GlassTopBarButton]). Unlike the dark
  * [EditorCircleIconButton] bars, it follows [MaterialTheme], so it works in light and dark mode.
  */
@@ -39,7 +41,7 @@ internal fun ToolTopBar(
     ) {
         GlassTopBarButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = tr("Close"),
             onClick = onClose,
             modifier = Modifier.align(Alignment.CenterStart),
         )
@@ -55,7 +57,7 @@ internal fun ToolTopBar(
         )
         GlassTopBarButton(
             icon = Icons.Filled.Check,
-            contentDescription = "Done",
+            contentDescription = tr("Done"),
             onClick = onDone,
             enabled = doneEnabled,
             style = GlassButtonStyle.Primary,

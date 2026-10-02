@@ -1,7 +1,6 @@
 package org.example.project.ui.setbackground
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
@@ -13,10 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.freestyle.FreestyleContent
+import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
 import org.example.project.ui.freestyle.retyped
@@ -40,7 +41,23 @@ data class SetBackgroundUiState(
  * editor, continuous edits (a drag, retyping a label) pass a coalesce key and fold into one undo
  * step until the screen reports the gesture over via [endGesture].
  */
-class SetBackgroundViewModel(private val session: ImageEditSession) : ViewModel() {
+class SetBackgroundViewModel(
+    private val session: ImageEditSession,
+    private val settings: AppSettings,
+) : ViewModel() {
+
+    private var premiumOfferShown = false
+
+    /**
+     * Whether Done should open the paywall once before flattening the photo: `true` a single time,
+     * for a non-subscriber whose edit [isPremium]. It is an offer, not a gate, so asking marks it as
+     * made and the next Done goes through either way.
+     */
+    fun consumePremiumOffer(): Boolean {
+        if (settings.isPremium.value || premiumOfferShown || !history.current.isPremium()) return false
+        premiumOfferShown = true
+        return true
+    }
 
     /**
      * Captured once rather than read live: Done replaces the session image with the flattened
@@ -79,13 +96,13 @@ class SetBackgroundViewModel(private val session: ImageEditSession) : ViewModel(
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
 
-    fun addText(text: String, color: Color, font: TextFontStyleOption) {
+    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
         if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, color, font))
+        addLayer(FreestyleContent.TextContent(text, fill, font, background))
     }
 
-    fun updateText(id: Long, text: String, color: Color, font: TextFontStyleOption) =
-        updateLayers { it.withText(id, text, color, font) }
+    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) =
+        updateLayers { it.withText(id, text, fill, font, background) }
 
     /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
     fun retypeText(id: Long, text: String) = updateLayers(coalesceKey = "text:$id") { it.retyped(id, text) }

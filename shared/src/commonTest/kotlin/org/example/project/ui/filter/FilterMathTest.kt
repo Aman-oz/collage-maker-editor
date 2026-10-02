@@ -2,6 +2,7 @@ package org.example.project.ui.filter
 
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 
 class FilterMathTest {
 
@@ -71,6 +72,14 @@ class FilterMathTest {
         assertContentEquals(
             floatArrayOf(2f, 0f, 0f, 0f, 10f),
             concatColorMatrices(doubleRed, addRed).copyOfRange(0, 5),
+        )
+    }
+
+    @Test
+    fun photoFilters_onlyTheFivePremiumOnesAreMarkedPremium() {
+        assertEquals(
+            listOf("Cinema", "Lush", "Cool", "Lomo", "Sepia"),
+            PhotoFilters.filter { it.isPremium }.map { it.label },
         )
     }
 }

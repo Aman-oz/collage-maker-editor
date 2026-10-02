@@ -20,13 +20,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.common.drawImageScaled
+import org.example.project.ui.text.drawTextPlate
 import kotlin.math.roundToInt
 
 /**
  * Renders [state] into an [outputWidth]-wide bitmap with the on-screen canvas's aspect ratio
- * ([previewWidthPx] x [previewHeightPx]): the background color fills it and every layer draws in
+ * ([previewWidthPx] x [previewHeightPx]): the background fills it and every layer draws in
  * order (later layers on top). An image layer's [FreestyleLayer.borderWidth]/
  * [FreestyleLayer.cornerRadius] are dp chosen against that preview, so [previewDensity] converts
  * them to preview pixels before they're scaled up to the output the same way
@@ -51,7 +53,7 @@ internal fun bakeFreestyle(
     val textDensity = Density(dpToOutputPx)
 
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, size) {
-        drawRect(color = state.backgroundColor)
+        drawRect(brush = state.background.brush)
         for (layer in state.layers) {
             drawFreestyleLayer(layer, textMeasurer, textDensity, size, dpToOutputPx)
         }
@@ -113,14 +115,13 @@ internal fun DrawScope.drawFreestyleLayer(
                     fontFamily = content.font.fontFamily,
                     fontWeight = content.font.fontWeight,
                     fontStyle = content.font.fontStyle,
-                    color = content.color,
+                    brush = content.fill.brush,
                     fontSize = (FreestyleTextBaseSizeSp * layer.scale).sp,
                 )
                 val layout = textMeasurer.measure(content.text, style, density = textDensity)
-                drawText(
-                    layout,
-                    topLeft = Offset(centerPx.x - layout.size.width / 2f, centerPx.y - layout.size.height / 2f),
-                )
+                val topLeft = Offset(centerPx.x - layout.size.width / 2f, centerPx.y - layout.size.height / 2f)
+                content.background?.let { drawTextPlate(it.brush, topLeft, layout.size.toSize()) }
+                drawText(layout, topLeft = topLeft)
             }
         }
     }

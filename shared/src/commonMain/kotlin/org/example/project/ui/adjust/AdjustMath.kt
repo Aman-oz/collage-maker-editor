@@ -17,15 +17,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
+import org.example.project.i18n.tr
 
-internal enum class AdjustmentType(val label: String, val icon: ImageVector) {
+internal enum class AdjustmentType(private val englishLabel: String, val icon: ImageVector) {
     Brightness("Brightness", Icons.Outlined.LightMode),
     Contrast("Contrast", Icons.Outlined.Contrast),
     Saturation("Saturation", Icons.Outlined.WaterDrop),
     Hue("Hue", Icons.Outlined.Thermostat),
     Sharpen("Sharpen", Icons.Outlined.ChangeHistory),
     Exposure("Exposure", Icons.Outlined.Exposure),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 /** Each slider is -100..100; 0 is "no change" for every one of them. */
@@ -55,6 +61,32 @@ internal data class AdjustValues(
         AdjustmentType.Exposure -> copy(exposure = value)
     }
 }
+
+/** An adjustment value as the slider prints it: a whole number with an explicit sign, e.g. `+35`, `-100`, `0`. */
+internal fun signedAdjustLabel(value: Float): String {
+    val rounded = value.roundToInt()
+    return if (rounded > 0) "+$rounded" else rounded.toString()
+}
+
+/**
+ * From this many adjustments moved off zero, applying the edit is a premium feature: the first Done
+ * shows a non-subscriber the paywall (see `AdjustContent`).
+ */
+internal const val PremiumAdjustmentCount = 3
+
+/** How many of the six adjustments are set to something other than zero. */
+internal fun AdjustValues.changedCount(): Int = AdjustmentType.entries.count { this[it] != 0f }
+
+/** The six values in [AdjustmentType] order, the form they are saved in across a covered screen. */
+internal fun AdjustValues.toFloatList(): List<Float> = AdjustmentType.entries.map { this[it] }
+
+/** Inverse of [toFloatList]. */
+internal fun adjustValuesOf(values: List<Float>): AdjustValues =
+    AdjustmentType.entries.foldIndexed(AdjustValues()) { index, acc, type -> acc.with(type, values[index]) }
+
+/** The adjustment that differs between [from] and [to], or `null` when they are the same. */
+internal fun changedAdjustment(from: AdjustValues, to: AdjustValues): AdjustmentType? =
+    AdjustmentType.entries.firstOrNull { from[it] != to[it] }
 
 internal val IdentityColorMatrix: FloatArray = floatArrayOf(
     1f, 0f, 0f, 0f, 0f,

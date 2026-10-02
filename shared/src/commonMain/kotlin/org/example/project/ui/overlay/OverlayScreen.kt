@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -37,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,13 +52,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_before_after
+import photocollagemaker.shared.generated.resources.ic_premium_icon
 
 private val OverlayIntensityRange = 0f..100f
 private val ChipShape = RoundedCornerShape(6.dp)
@@ -67,21 +70,27 @@ private val ChipShape = RoundedCornerShape(6.dp)
 private val ThumbnailGround = Color(0xFF16161C)
 
 @Composable
-fun OverlayScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun OverlayTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OverlayViewModel = koinViewModel(),
 ) {
     OverlayContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
+        sourceImage = sourceImage,
+        onBack = onClose,
         onApply = { preset, intensity ->
-            val image = viewModel.sourceImage
-            if (image != null && preset != null && intensity > 0f) {
-                viewModel.applyOverlay(bakeOverlay(image, preset, intensity / 100f))
+            when {
+                // "None", or an overlay faded all the way out, leaves the photo as it was.
+                preset == null || intensity <= 0f -> onClose()
+                // A premium overlay previews for everyone, but Done sends a non-subscriber to the
+                // paywall. The tool stays open underneath, so Done applies it once they come back
+                // subscribed.
+                preset.isPremium && !isPremium -> onOpenPremium()
+                else -> onApply(bakeOverlay(sourceImage, preset, intensity / 100f))
             }
-            onApplied()
         },
         modifier = modifier,
     )
@@ -95,29 +104,19 @@ private fun OverlayContent(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var selectedCategory by remember { mutableStateOf(OverlayCategory.Effect) }
+    // Saveable, unlike most tools' edits: the paywall covers the editor, which drops plain
+    // `remember` state, and the overlay picked before subscribing has to still be there after.
+    var selectedCategory by rememberSaveable { mutableStateOf(OverlayCategory.Effect) }
     // null is the "None" chip: the photo is shown untouched.
-    var selectedPreset by remember { mutableStateOf<OverlayPreset?>(null) }
-    var intensity by remember { mutableFloatStateOf(OverlayIntensityRange.endInclusive) }
+    var selectedPresetKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedPreset = selectedPresetKey?.let { key -> OverlayPresets.firstOrNull { it.key == key } }
+    var intensity by rememberSaveable { mutableFloatStateOf(OverlayIntensityRange.endInclusive) }
     var comparing by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Overlay",
-            onClose = onBack,
-            onDone = { onApply(selectedPreset, intensity) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -132,7 +131,7 @@ private fun OverlayContent(
                 ) {
                     Image(
                         bitmap = sourceImage,
-                        contentDescription = "Photo preview",
+                        contentDescription = tr("Photo preview"),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
@@ -145,46 +144,54 @@ private fun OverlayContent(
                 }
             } else {
                 Text(
-                    text = "No image to overlay",
+                    text = tr("No image to overlay"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        // The tabs scroll; the compare button stays pinned at the row's end.
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        ToolPanel(
+            title = tr("Overlay"),
+            onClose = onBack,
+            onDone = { onApply(selectedPreset, intensity) },
+            doneEnabled = sourceImage != null,
         ) {
-            OverlayCategoryTabs(
-                selected = selectedCategory,
-                onSelected = { selectedCategory = it },
-                modifier = Modifier.weight(1f),
+            // The tabs scroll; the compare button stays pinned at the row's end.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OverlayCategoryTabs(
+                    selected = selectedCategory,
+                    onSelected = { selectedCategory = it },
+                    modifier = Modifier.weight(1f),
+                )
+                CompareIconButton(onComparingChange = { comparing = it })
+            }
+
+            CenterFillSlider(
+                value = intensity,
+                onValueChange = { intensity = it },
+                range = OverlayIntensityRange,
+                referenceValue = OverlayIntensityRange.start,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
             )
-            CompareIconButton(onComparingChange = { comparing = it })
+
+            OverlayPresetStrip(
+                category = selectedCategory,
+                selected = selectedPreset,
+                onSelected = { selectedPresetKey = it?.key },
+            )
         }
-
-        CenterFillSlider(
-            value = intensity,
-            onValueChange = { intensity = it },
-            range = OverlayIntensityRange,
-            referenceValue = OverlayIntensityRange.start,
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
-
-        OverlayPresetStrip(
-            category = selectedCategory,
-            selected = selectedPreset,
-            onSelected = { selectedPreset = it },
-        )
     }
 }
 
@@ -252,7 +259,7 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
     ) {
         Icon(
             imageVector = vectorResource(Res.drawable.ic_before_after),
-            contentDescription = "Press and hold to compare with the original",
+            contentDescription = tr("Press and hold to compare with the original"),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp),
         )
@@ -273,7 +280,7 @@ private fun OverlayPresetStrip(
         item(key = "none") {
             NoneChip(selected = selected == null, onClick = { onSelected(null) })
         }
-        items(presets, key = { "${it.category}/${it.label}" }) { preset ->
+        items(presets, key = { it.key }) { preset ->
             OverlayPresetChip(preset = preset, selected = preset == selected, onClick = { onSelected(preset) })
         }
     }
@@ -306,7 +313,7 @@ private fun NoneChip(selected: Boolean, onClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "None",
+            text = tr("None"),
             color = scheme.onSurface,
             fontSize = 11.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
@@ -332,6 +339,17 @@ private fun OverlayPresetChip(preset: OverlayPreset, selected: Boolean, onClick:
                 .background(ThumbnailGround),
         ) {
             preset.draw(this, 1f, BlendMode.SrcOver)
+        }
+        if (preset.isPremium) {
+            // Inside the swatch rather than hanging off its corner: the chip clips its content.
+            Image(
+                painter = painterResource(Res.drawable.ic_premium_icon),
+                contentDescription = tr("Premium"),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(3.dp)
+                    .size(14.dp),
+            )
         }
     }
 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.DialogShape
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
@@ -63,12 +64,12 @@ internal fun AiMagicCloseButton(onClick: () -> Unit) {
             .clickable(
                 interactionSource = bounce.interactionSource,
                 indication = LocalIndication.current,
-                onClickLabel = "Close",
+                onClickLabel = tr("Close"),
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Rounded.Close, contentDescription = "Close", tint = Color(0xFF1F1D24))
+        Icon(Icons.Rounded.Close, contentDescription = tr("Close"), tint = Color(0xFF1F1D24))
     }
 }
 
@@ -93,7 +94,7 @@ internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit)
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Ai Magic Remover",
+                text = tr("Ai Magic Remover"),
                 color = colors.onSurface,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -101,7 +102,7 @@ internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit)
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Unlock BG Remover by watching an ad,\nor upgrade to premium.",
+                text = tr("Unlock BG Remover by watching an ad,\nor upgrade to premium."),
                 color = colors.onSurface.copy(alpha = 0.7f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
@@ -115,7 +116,7 @@ internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit)
                     border = BorderStroke(1.dp, colors.onSurface.copy(alpha = 0.6f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
                 ) {
-                    Text(text = "Unlock free", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = tr("Unlock free"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Button(
                     onClick = onGetPro,
@@ -126,7 +127,7 @@ internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit)
                         contentColor = colors.onPrimary,
                     ),
                 ) {
-                    Text(text = "Get PRO", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = tr("Get PRO"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

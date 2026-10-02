@@ -3,6 +3,7 @@ package org.example.project.data.billing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.koin.core.module.Module
+import org.example.project.i18n.tr
 
 /**
  * The platform store behind [AppBillingWrapper]: Google Play Billing on Android, StoreKit 2 (through
@@ -39,10 +40,10 @@ internal class UnavailableBillingClientAdapter : BillingClientAdapter {
     override suspend fun queryProducts(plans: List<SubscriptionPlan>): List<SubscriptionProduct> = throw unavailable()
     override suspend fun queryActivePlans(): Set<SubscriptionPlan> = throw unavailable()
     override suspend fun purchase(plan: SubscriptionPlan, currentPlan: SubscriptionPlan?): PurchaseResult =
-        PurchaseResult.Failed("In-app purchases aren't available on this device")
+        PurchaseResult.Failed(tr("In-app purchases aren't available on this device"))
     override suspend fun restore(): Set<SubscriptionPlan> = throw unavailable()
 
-    private fun unavailable() = BillingException("In-app purchases aren't available on this device")
+    private fun unavailable() = BillingException(tr("In-app purchases aren't available on this device"))
 }
 
 /** Koin module binding the platform's [BillingClientAdapter]. */

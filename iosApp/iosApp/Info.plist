@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow access to your camera to take photos for editing and collages.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to your photo library to pick images for editing and collages.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

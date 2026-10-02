@@ -49,4 +49,16 @@ class EditHistoryTest {
         assertEquals(2, history.undo().undo().undo().current)
         assertFalse(history.undo().undo().undo().canUndo)
     }
+
+    @Test
+    fun appliedEdits_countsEditsInEffect() {
+        var history = EditHistory("base")
+        assertEquals(0, history.appliedEdits)
+        for (edit in listOf("auto", "crop", "filter", "adjust")) history = history.push(edit)
+        assertEquals(4, history.appliedEdits)
+        assertTrue(history.appliedEdits > FreeEditCount)
+        // Undoing one brings it back to the free amount; redoing it counts again.
+        assertEquals(FreeEditCount, history.undo().appliedEdits)
+        assertEquals(4, history.undo().redo().appliedEdits)
+    }
 }

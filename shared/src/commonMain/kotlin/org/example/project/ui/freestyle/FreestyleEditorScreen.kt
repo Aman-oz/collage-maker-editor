@@ -1,6 +1,6 @@
 package org.example.project.ui.freestyle
 
-import org.example.project.ui.common.UndoRedoDoneWidth
+import org.example.project.i18n.tr
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -30,13 +30,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.BorderClear
 import androidx.compose.material.icons.outlined.EmojiEmotions
@@ -66,6 +69,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +78,9 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.ColorPickerDialog
+import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.StickerFlightOverlay
@@ -95,11 +102,15 @@ import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_undo
 
 /** [icon] is composable so a tool can use a drawable resource, which only loads in composition. */
-private enum class FreestyleTool(val label: String, val icon: @Composable () -> ImageVector) {
+private enum class FreestyleTool(private val englishLabel: String, val icon: @Composable () -> ImageVector) {
     Background("Background", { vectorResource(Res.drawable.ic_background) }),
     Stickers("Stickers", { Icons.Outlined.EmojiEmotions }),
     Border("Border", { Icons.Outlined.BorderClear }),
     Text("Text", { Icons.Outlined.TextFields }),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 /**
@@ -114,6 +125,7 @@ fun FreestyleEditorScreen(
     imagePaths: List<String>,
     onBack: () -> Unit,
     onOpenEditor: () -> Unit,
+    onPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FreestyleEditorViewModel = koinViewModel { parametersOf(imagePaths) },
 ) {
@@ -143,8 +155,15 @@ fun FreestyleEditorScreen(
             uiState = uiState,
             onClose = discard::requestBack,
             onDone = { canvasSizePx ->
-                viewModel.applyFreestyle(textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density)
-                onOpenEditor()
+                // A canvas that uses something premium shows a non-subscriber the paywall once, as
+                // an offer. The canvas lives in the ViewModel, so it is still here when they come
+                // back, and the next Done goes through whether or not they subscribed.
+                if (viewModel.consumePremiumOffer()) {
+                    onPremium()
+                } else {
+                    viewModel.applyFreestyle(textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density)
+                    onOpenEditor()
+                }
             },
             onTransformLayer = viewModel::transformLayer,
             onScaleRotateLayer = viewModel::setLayerScaleRotation,
@@ -161,7 +180,7 @@ fun FreestyleEditorScreen(
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onGestureEnd = viewModel::endGesture,
-            onBackgroundColorChange = viewModel::updateBackgroundColor,
+            onBackgroundChange = viewModel::updateBackground,
             onBorderWidthChange = viewModel::updateImageBorderWidth,
             onCornerRadiusChange = viewModel::updateImageCornerRadius,
             modifier = Modifier.liquefiable(liquidState),
@@ -181,13 +200,13 @@ private fun FreestyleEditorContent(
     onDeleteLayer: (id: Long) -> Unit,
     onImageAction: (replaceLayerId: Long?) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, Color, TextFontStyleOption) -> Unit,
-    onUpdateText: (id: Long, text: String, color: Color, font: TextFontStyleOption) -> Unit,
+    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
+    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
     onRetypeText: (id: Long, text: String) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onGestureEnd: () -> Unit,
-    onBackgroundColorChange: (Color) -> Unit,
+    onBackgroundChange: (FreestyleFill) -> Unit,
     onBorderWidthChange: (layerId: Long?, width: Float) -> Unit,
     onCornerRadiusChange: (layerId: Long?, radius: Float) -> Unit,
     modifier: Modifier = Modifier,
@@ -199,9 +218,11 @@ private fun FreestyleEditorContent(
     var canvasSizePx by remember { mutableStateOf(IntSize.Zero) }
     // Style for the next new text layer; a selected text layer shows and edits its own instead.
     var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextColor by remember { mutableStateOf(TextColorOptions.first()) }
+    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
+    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
     // Non-null while the keyboard-docked text bar is open.
     var textEntry by remember { mutableStateOf<TextEntry?>(null) }
+    var showGuide by remember { mutableStateOf(false) }
 
     val freestyle = (uiState as? FreestyleEditorUiState.Ready)?.freestyle
     // Border edits and "Replace" target this photo; with none selected they act on every photo / add one.
@@ -219,7 +240,7 @@ private fun FreestyleEditorContent(
         onGestureEnd()
         val layerId = entry.layerId
         if (layerId == null) {
-            onAddText(entry.text.trim(), newTextColor, newTextFont)
+            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
         } else if (entry.text.isBlank()) {
             // Clearing a label's text removes it, rather than leaving an invisible layer behind.
             onDeleteLayer(layerId)
@@ -249,6 +270,7 @@ private fun FreestyleEditorContent(
                 canRedo = (uiState as? FreestyleEditorUiState.Ready)?.canRedo == true,
                 doneEnabled = freestyle != null,
                 onClose = onClose,
+                onHelp = { showGuide = true },
                 onUndo = onUndo,
                 onRedo = onRedo,
                 onDone = { onDone(canvasSizePx) },
@@ -258,7 +280,7 @@ private fun FreestyleEditorContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .background(freestyle?.backgroundColor ?: FreestyleState().backgroundColor)
+                    .background((freestyle ?: FreestyleState()).background.brush)
                     // Taps that reach the canvas (off every layer) deselect; layers consume their own taps.
                     .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) },
                 contentAlignment = Alignment.Center,
@@ -308,8 +330,8 @@ private fun FreestyleEditorContent(
                     when (selectedTool) {
                         FreestyleTool.Background -> BackgroundPanel(
                             chrome = chrome,
-                            selected = freestyle.backgroundColor,
-                            onColorChange = onBackgroundColorChange,
+                            selected = freestyle.background,
+                            onSelected = onBackgroundChange,
                         )
                         FreestyleTool.Stickers -> StickersPanel(
                             chrome = chrome,
@@ -326,20 +348,28 @@ private fun FreestyleEditorContent(
                             chrome = chrome,
                             selectedText = selectedText,
                             font = selectedText?.font ?: newTextFont,
-                            color = selectedText?.color ?: newTextColor,
+                            fill = selectedText?.fill ?: newTextFill,
+                            background = if (selectedText != null) selectedText.background else newTextBackground,
                             onFieldClick = { openTextEntry(selectedTextLayer) },
                             onFontChange = { font ->
                                 if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.color, font)
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
                                 } else {
                                     newTextFont = font
                                 }
                             },
-                            onColorChange = { color ->
+                            onFillChange = { fill ->
                                 if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, color, selectedText.font)
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
                                 } else {
-                                    newTextColor = color
+                                    newTextFill = fill
+                                }
+                            },
+                            onBackgroundChange = { background ->
+                                if (selectedTextLayer != null && selectedText != null) {
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
+                                } else {
+                                    newTextBackground = background
                                 }
                             },
                         )
@@ -372,13 +402,16 @@ private fun FreestyleEditorContent(
         }
 
         StickerFlightOverlay(stickerFlights)
+
+        // Last, so it covers the whole editor, top bar included.
+        if (showGuide) FreestyleGuideOverlay(onDismiss = { showGuide = false })
     }
 }
 
 
 /**
- * ✕, the title, then undo/redo and the accent ✓ — the photo editor's bar layout in the theme-aware
- * [ToolTopBar] styling. The title takes the leftover width so the bar never overflows.
+ * ✕, the title, then the guide's "?", undo/redo and the accent ✓, in the theme-aware [ToolTopBar]
+ * styling. The title takes the leftover width so the bar never overflows.
  */
 @Composable
 private fun FreestyleTopBar(
@@ -387,57 +420,84 @@ private fun FreestyleTopBar(
     canRedo: Boolean,
     doneEnabled: Boolean,
     onClose: () -> Unit,
+    onHelp: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onDone: () -> Unit,
 ) {
-    // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
-    // for the widest button group so a long title ellipsizes instead of running under it.
-    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
+    // A Row, not ToolTopBar's screen-centred Box: with the guide button there are four controls on
+    // the right, too many to mirror with padding on the left without squeezing the title out on a
+    // narrow phone. The title is centred in the space between ✕ and the guide button instead.
+    Row(modifier = Modifier.topBar(), verticalAlignment = Alignment.CenterVertically) {
         GlassTopBarButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = tr("Close"),
             onClick = onClose,
             contentColor = chrome.content,
-            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Freestyle",
+            text = tr("Freestyle"),
             color = chrome.content,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = UndoRedoDoneWidth),
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
         )
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            UndoRedoButton(
-                icon = vectorResource(Res.drawable.ic_undo),
-                contentDescription = "Undo",
-                enabled = canUndo,
-                onClick = onUndo,
-                tint = chrome.content,
-            )
-            UndoRedoButton(
-                icon = vectorResource(Res.drawable.ic_redo),
-                contentDescription = "Redo",
-                enabled = canRedo,
-                onClick = onRedo,
-                tint = chrome.content,
-            )
-            GlassTopBarButton(
-                icon = Icons.Filled.Check,
-                contentDescription = "Done",
-                onClick = onDone,
-                enabled = doneEnabled,
-                style = GlassButtonStyle.Primary,
-            )
-        }
+        GuideButton(tint = chrome.content, onClick = onHelp)
+        Spacer(modifier = Modifier.width(4.dp))
+        UndoRedoButton(
+            icon = vectorResource(Res.drawable.ic_undo),
+            contentDescription = tr("Undo"),
+            enabled = canUndo,
+            onClick = onUndo,
+            tint = chrome.content,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        UndoRedoButton(
+            icon = vectorResource(Res.drawable.ic_redo),
+            contentDescription = tr("Redo"),
+            enabled = canRedo,
+            onClick = onRedo,
+            tint = chrome.content,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        GlassTopBarButton(
+            icon = Icons.Filled.Check,
+            contentDescription = tr("Done"),
+            onClick = onDone,
+            enabled = doneEnabled,
+            style = GlassButtonStyle.Primary,
+        )
+    }
+}
+
+/**
+ * The "?" that opens the usage guide: a bare glyph like undo/redo beside it, but a size down, so
+ * it reads as a quiet extra rather than a fourth editing control.
+ */
+@Composable
+private fun GuideButton(tint: Color, onClick: () -> Unit) {
+    val bounce = rememberSpringBounce()
+    Box(
+        modifier = Modifier
+            .springBounce(bounce)
+            .size(32.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = bounce.interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+            contentDescription = tr("Help"),
+            tint = tint,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -469,7 +529,7 @@ private fun FreestyleToolRow(
         ToolItem(
             chrome = chrome,
             icon = if (replacing) Icons.Outlined.SwapHoriz else Icons.Outlined.AddPhotoAlternate,
-            label = if (replacing) "Replace" else "Add Image",
+            label = if (replacing) tr("Replace") else tr("Add Image"),
             selected = false,
             enabled = enabled,
             onClick = onImageAction,
@@ -519,33 +579,135 @@ private fun ToolItem(
 }
 
 
+/** The two swatch sets of the Background panel; Colour is the one led by the custom colour picker. */
+private enum class BackgroundTab(private val englishLabel: String) {
+    Colour("Colour"),
+    Gradient("Gradient"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
+}
+
+private val BackgroundSwatchSize = 52.dp
+private val BackgroundSwatchSpacing = 10.dp
+
 @Composable
-private fun BackgroundPanel(chrome: FreestyleChrome, selected: Color, onColorChange: (Color) -> Unit) {
+private fun BackgroundPanel(chrome: FreestyleChrome, selected: FreestyleFill, onSelected: (FreestyleFill) -> Unit) {
+    // Opens on the tab holding the fill in use. The panel is recreated each time the tool is picked.
+    var tab by remember {
+        mutableStateOf(if (selected is FreestyleFill.Gradient) BackgroundTab.Gradient else BackgroundTab.Colour)
+    }
+    var pickingColor by remember { mutableStateOf(false) }
+    val selectedColor = (selected as? FreestyleFill.Solid)?.color
+
     Column {
-        PanelHeader(chrome = chrome, title = "Background")
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = tr("Background"),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = chrome.content,
+                modifier = Modifier.weight(1f),
+            )
+            BackgroundTabSwitch(chrome = chrome, selected = tab, onSelected = { tab = it })
+        }
         LazyHorizontalGrid(
             rows = GridCells.Fixed(2),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth().height(118.dp),
+            horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+            verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+            modifier = Modifier.fillMaxWidth().height(BackgroundSwatchSize * 2 + BackgroundSwatchSpacing + 8.dp),
         ) {
-            items(FreestyleBackgroundColors) { color ->
-                BackgroundSwatch(chrome = chrome, color = color, selected = color == selected, onClick = { onColorChange(color) })
+            when (tab) {
+                BackgroundTab.Colour -> {
+                    // Spans both rows, so the colour pairs after it stay aligned (shade over shade).
+                    // Ringed while the background is a colour of the user's own.
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        BackgroundSwatch(
+                            chrome = chrome,
+                            selected = selectedColor != null && selectedColor !in FreestyleBackgroundColors,
+                            onClick = { pickingColor = true },
+                            height = BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
+                        ) { ColorPickerFill(it) }
+                    }
+                    items(FreestyleBackgroundColors) { color ->
+                        BackgroundSwatch(
+                            chrome = chrome,
+                            selected = color == selectedColor,
+                            onClick = { onSelected(FreestyleFill.Solid(color)) },
+                        ) { Box(modifier = it.background(color)) }
+                    }
+                }
+
+                BackgroundTab.Gradient -> items(FreestyleBackgroundGradients) { colors ->
+                    val gradient = FreestyleFill.Gradient(colors)
+                    BackgroundSwatch(chrome = chrome, selected = gradient == selected, onClick = { onSelected(gradient) }) {
+                        Box(modifier = it.background(gradient.brush))
+                    }
+                }
             }
+        }
+    }
+
+    if (pickingColor) {
+        ColorPickerDialog(
+            initial = selectedColor ?: Color.White,
+            onDismiss = { pickingColor = false },
+            onPicked = {
+                onSelected(FreestyleFill.Solid(it))
+                pickingColor = false
+            },
+        )
+    }
+}
+
+/** The Colour / Gradient pill switch in the panel's header; the selected half is a soft accent tint. */
+@Composable
+private fun BackgroundTabSwitch(chrome: FreestyleChrome, selected: BackgroundTab, onSelected: (BackgroundTab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(chrome.content.copy(alpha = 0.06f))
+            .padding(3.dp),
+    ) {
+        for (tab in BackgroundTab.entries) {
+            val isSelected = tab == selected
+            Text(
+                text = tab.label,
+                color = if (isSelected) chrome.content else chrome.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (isSelected) chrome.accent.copy(alpha = 0.18f) else Color.Transparent)
+                    .clickable { onSelected(tab) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
         }
     }
 }
 
+/** [fill] paints the swatch inside its selection ring; it is handed the modifier that sizes it. */
 @Composable
-private fun BackgroundSwatch(chrome: FreestyleChrome, color: Color, selected: Boolean, onClick: () -> Unit) {
+private fun BackgroundSwatch(
+    chrome: FreestyleChrome,
+    selected: Boolean,
+    onClick: () -> Unit,
+    height: Dp = BackgroundSwatchSize,
+    fill: @Composable (Modifier) -> Unit,
+) {
     val outer = RoundedCornerShape(12.dp)
     val inner = RoundedCornerShape(9.dp)
     val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
             .springBounce(bounce)
-            .size(52.dp)
+            .size(width = BackgroundSwatchSize, height = height)
             .clip(outer)
             .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
             .clickable(
@@ -555,9 +717,10 @@ private fun BackgroundSwatch(chrome: FreestyleChrome, color: Color, selected: Bo
             )
             .padding(4.dp)
             .clip(inner)
-            .background(color)
             .border(1.dp, chrome.content.copy(alpha = 0.08f), inner),
-    )
+    ) {
+        fill(Modifier.matchParentSize())
+    }
 }
 
 
@@ -575,8 +738,8 @@ private fun BorderPanel(
     Column {
         PanelHeader(
             chrome = chrome,
-            title = "Border",
-            trailing = if (selectedImageLayer != null) "Selected photo" else "All photos",
+            title = tr("Border"),
+            trailing = if (selectedImageLayer != null) tr("Selected photo") else tr("All photos"),
         )
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -585,7 +748,7 @@ private fun BorderPanel(
             BorderSliderRow(
                 chrome = chrome,
                 icon = Icons.Outlined.SpaceDashboard,
-                contentDescription = "Border width",
+                contentDescription = tr("Border width"),
                 value = shown?.borderWidth ?: FreestyleDefaultBorderWidth,
                 range = FreestyleBorderWidthRange,
                 onValueChange = onWidthChange,
@@ -593,7 +756,7 @@ private fun BorderPanel(
             BorderSliderRow(
                 chrome = chrome,
                 icon = Icons.Outlined.RoundedCorner,
-                contentDescription = "Corner radius",
+                contentDescription = tr("Corner radius"),
                 value = shown?.cornerRadius ?: FreestyleDefaultCornerRadius,
                 range = FreestyleCornerRadiusRange,
                 onValueChange = onRadiusChange,
@@ -611,8 +774,15 @@ private fun BorderSliderRow(
     range: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = contentDescription, tint = chrome.content, modifier = Modifier.size(22.dp))
+    // Bottom-aligned, with the icon lifted to the middle of the slider's 40dp track: the slider
+    // is taller than its track by the row of range labels above it.
+    Row(verticalAlignment = Alignment.Bottom) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = chrome.content,
+            modifier = Modifier.padding(bottom = 9.dp).size(22.dp),
+        )
         CenterFillSlider(
             value = value,
             onValueChange = onValueChange,
@@ -626,6 +796,7 @@ private fun BorderSliderRow(
             horizontalPadding = 24.dp,
             glassThumb = true,
             glassTint = if (chrome.isLight) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            valueLabel = ::wholeNumberLabel,
             modifier = Modifier.weight(1f),
         )
     }
@@ -646,13 +817,13 @@ private fun FreestyleEditorScreenPreview() {
             onDeleteLayer = {},
             onImageAction = {},
             onAddSticker = {},
-            onAddText = { _, _, _ -> },
-            onUpdateText = { _, _, _, _ -> },
+            onAddText = { _, _, _, _ -> },
+            onUpdateText = { _, _, _, _, _ -> },
             onRetypeText = { _, _ -> },
             onUndo = {},
             onRedo = {},
             onGestureEnd = {},
-            onBackgroundColorChange = {},
+            onBackgroundChange = {},
             onBorderWidthChange = { _, _ -> },
             onCornerRadiusChange = { _, _ -> },
         )

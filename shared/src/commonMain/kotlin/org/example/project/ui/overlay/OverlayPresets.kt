@@ -7,14 +7,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import kotlin.math.sqrt
+import org.example.project.i18n.tr
 
-internal enum class OverlayCategory(val label: String) {
+internal enum class OverlayCategory(private val englishLabel: String) {
     Effect("Effect"),
     Colorful("Color"),
     Hardmix("Hardmix"),
     Dodge("Dodge"),
     Burn("Burn"),
     Divide("Divide"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 /**
@@ -22,13 +27,40 @@ internal enum class OverlayCategory(val label: String) {
  * [draw] renders the effect's shapes/gradients using the [blendMode] supplied at the call site —
  * the real [naturalBlendMode] for the live preview and the baked result, or [BlendMode.SrcOver]
  * for a flat, readable thumbnail swatch.
+ *
+ * An [isPremium] overlay can be tried on the photo by anyone, but only a subscriber can apply it:
+ * for everyone else Done opens the paywall instead. It is set from [PremiumOverlayPositions].
  */
 internal data class OverlayPreset(
     val category: OverlayCategory,
     val label: String,
     val naturalBlendMode: BlendMode,
+    val isPremium: Boolean = false,
     val draw: DrawScope.(intensity: Float, blendMode: BlendMode) -> Unit,
+) {
+    /** Unique across categories (labels alone are not), and what the tool saves its selection as. */
+    val key: String get() = "${category.name}/$label"
+}
+
+/**
+ * Which overlays of each tab are premium, by their place among that tab's overlays (the "None" chip
+ * is not counted): 1 is the first, and a negative number counts from the end, so -2 is the second
+ * last.
+ */
+private val PremiumOverlayPositions: Map<OverlayCategory, List<Int>> = mapOf(
+    OverlayCategory.Effect to listOf(2, -2),
+    OverlayCategory.Colorful to listOf(5, 6, -3, -2),
+    OverlayCategory.Hardmix to listOf(2),
 )
+
+/** Flags the presets [PremiumOverlayPositions] points at; the list's order is each tab's order. */
+private fun List<OverlayPreset>.withPremiumFlags(): List<OverlayPreset> {
+    val premiumKeys = PremiumOverlayPositions.flatMap { (category, positions) ->
+        val inTab = filter { it.category == category }
+        positions.mapNotNull { position -> inTab.getOrNull(if (position > 0) position - 1 else inTab.size + position)?.key }
+    }.toSet()
+    return map { it.copy(isPremium = it.key in premiumKeys) }
+}
 
 private fun DrawScope.radialSpot(color: Color, center: Offset, radius: Float, blendMode: BlendMode, intensity: Float) {
     drawCircle(
@@ -282,4 +314,4 @@ internal val OverlayPresets: List<OverlayPreset> = listOf(
             blendMode = bm,
         )
     },
-)
+).withPremiumFlags()

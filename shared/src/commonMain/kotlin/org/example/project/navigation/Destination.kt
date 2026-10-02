@@ -59,7 +59,8 @@ sealed interface Destination : NavKey {
     data object Settings : Destination
 
     /**
-     * Premium paywall: feature list and plan picker. Opened from [Home], [Settings] and [SaveImage].
+     * Premium paywall: feature list and plan picker. Opened from [Home], [Settings], [SaveImage]
+     * and the [Editor] (its own Done, and Done in its Filter, Overlay, Adjust, Text and Sticker tools).
      *
      * @param fromSplash `true` in the launch flow (after [Onboarding] on the first run, straight from
      * [Splash] on later ones), where nothing is under it on the back stack: close (or back) replaces
@@ -156,62 +157,6 @@ sealed interface Destination : NavKey {
     @Serializable
     data class FramesEditor(val frame: org.example.project.ui.templates.TemplateFrame) : Destination
 
-    /** Auto-enhance tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Auto : Destination
-
-    /** Crop tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Crop : Destination
-
-    /** Filter tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Filter : Destination
-
-    /** Adjust tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Adjust : Destination
-
-    /** Overlay tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Overlay : Destination
-
-    /** Ratio tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Ratio : Destination
-
-    /** Text tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Text : Destination
-
-    /** Emoji/sticker tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Emoji : Destination
-
-    /** Blur tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Blur : Destination
-
-    /** Color Splash (brush). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object ColorSplash : Destination
-
-    /** s-Blur (shape reveal). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object SelectiveBlur : Destination
-
-    /** s-Splash (shape reveal). Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object SelectiveSplash : Destination
-
-    /** Frame tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Frame : Destination
-
-    /** Draw tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Draw : Destination
-
     /** Save screen: previews the finished image and exports it to the gallery, optionally watermarked. */
     @Serializable
     data object SaveImage : Destination
@@ -254,7 +199,4 @@ sealed interface Destination : NavKey {
     @Serializable
     data object SetBackground : Destination
 
-    /** Rotate tool. Reads/writes the working image via [org.example.project.data.ImageEditSession]. */
-    @Serializable
-    data object Rotate : Destination
 }

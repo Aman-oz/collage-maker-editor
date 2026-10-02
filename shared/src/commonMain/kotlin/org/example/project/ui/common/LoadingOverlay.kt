@@ -24,6 +24,7 @@ import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import photocollagemaker.shared.generated.resources.Res
+import org.example.project.i18n.tr
 
 /** The app's loading animation, first used by the background remover's Ai Magic. */
 private const val LoadingAnimationPath = "files/loading_animation.json"
@@ -37,8 +38,8 @@ private val LoadingAnimationSize = 140.dp
 @Composable
 internal fun LoadingOverlay(
     modifier: Modifier = Modifier,
-    message: String = "Processing… Please wait!",
-    contentDescription: String = "Loading",
+    message: String = tr("Processing… Please wait!"),
+    contentDescription: String = tr("Loading"),
     animationSize: Dp = LoadingAnimationSize,
 ) {
     // Also shown while the Lottie JSON parses (a frame or two), when the painter draws nothing yet.

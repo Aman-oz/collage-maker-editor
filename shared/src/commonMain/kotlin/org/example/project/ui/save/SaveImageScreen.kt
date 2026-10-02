@@ -57,7 +57,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.SavedImageKey
+import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
@@ -173,7 +176,7 @@ private fun SaveImageContent(
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
                 ) {
-                    Text(text = "Save Image", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = tr("Save Image"), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             } else {
                 Row(
@@ -190,7 +193,7 @@ private fun SaveImageContent(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
-                        ButtonLabel(text = "Save with\nwatermark", color = MaterialTheme.colorScheme.onSurface)
+                        ButtonLabel(text = tr("Save with\nwatermark"), color = MaterialTheme.colorScheme.onSurface)
                     }
                     val removeBounce = rememberSpringBounce()
                     Button(
@@ -208,7 +211,7 @@ private fun SaveImageContent(
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(Modifier.width(10.dp))
-                        ButtonLabel(text = "Remove\nwatermark", color = Color.White)
+                        ButtonLabel(text = tr("Remove\nwatermark"), color = Color.White)
                     }
                 }
             }
@@ -226,12 +229,12 @@ private fun SaveImageTopBar(onBack: () -> Unit) {
     Box(modifier = Modifier.topBar()) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onBack,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Save Image",
+            text = tr("Save Image"),
             modifier = Modifier.align(Alignment.Center),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
@@ -249,11 +252,13 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
     BoxWithConstraints(
         modifier = Modifier
             .aspectRatio(image.width.toFloat() / image.height)
+            // On Save, this preview grows into the share screen's image.
+            .navSharedElement(SavedImageKey)
             .clip(PreviewShape),
     ) {
         Image(
             bitmap = image,
-            contentDescription = "Image to save",
+            contentDescription = tr("Image to save"),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
         )
@@ -266,7 +271,7 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                 val corner = (rect.width * WatermarkCornerFraction).dp
                 Image(
                     bitmap = watermark,
-                    contentDescription = "Watermark",
+                    contentDescription = tr("Watermark"),
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(corner))
@@ -294,7 +299,7 @@ private fun WatermarkedPreview(image: ImageBitmap, watermark: ImageBitmap?, onRe
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Remove watermark",
+                        contentDescription = tr("Remove watermark"),
                         tint = Color.Black,
                         modifier = Modifier.size(10.dp),
                     )
@@ -329,7 +334,7 @@ private fun RemoveWatermarkHint(notchEndPadding: Dp, onClick: () -> Unit, modifi
         horizontalAlignment = Alignment.End,
     ) {
         Text(
-            text = "Remove watermark",
+            text = tr("Remove watermark"),
             modifier = Modifier
                 .background(HintGreen, RoundedCornerShape(4.dp))
                 .padding(horizontal = 10.dp, vertical = 5.dp),

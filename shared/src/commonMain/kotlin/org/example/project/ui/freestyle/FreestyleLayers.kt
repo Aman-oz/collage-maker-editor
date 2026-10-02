@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -73,13 +75,17 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
+import org.example.project.ui.common.ColorPickerDialog
 import org.example.project.ui.common.StickerFlights
 import org.example.project.ui.common.bubbleClick
 import org.example.project.ui.common.rememberBubbleClick
@@ -93,7 +99,11 @@ import org.example.project.ui.emoji.EmojisByCategory
 import org.example.project.ui.emoji.MaxRecentEmojis
 import org.example.project.ui.text.ColorRow
 import org.example.project.ui.text.FontRow
+import org.example.project.ui.text.TextBackgroundPadXFraction
+import org.example.project.ui.text.TextColorTarget
+import org.example.project.ui.text.TextColorTargetSwitch
 import org.example.project.ui.text.TextFontStyleOption
+import org.example.project.ui.text.drawTextPlate
 import org.example.project.ui.text.rotateVector
 import org.example.project.ui.text.snapTextRotation
 import org.example.project.ui.text.vectorAngleDegrees
@@ -196,7 +206,7 @@ internal fun TextEntryBar(chrome: FreestyleChrome, entry: TextEntry, onTextChang
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 if (entry.text.isEmpty()) {
-                    Text(text = "Your Text", color = chrome.muted, style = MaterialTheme.typography.bodyLarge)
+                    Text(text = tr("Your Text"), color = chrome.muted, style = MaterialTheme.typography.bodyLarge)
                 }
                 BasicTextField(
                     value = entry.text,
@@ -220,7 +230,7 @@ internal fun TextEntryBar(chrome: FreestyleChrome, entry: TextEntry, onTextChang
                 // The brand violet, not the dark scheme's pastel primary, like every Done button.
                 colors = ButtonDefaults.buttonColors(containerColor = Brand, contentColor = Color.White),
             ) {
-                Text(if (entry.layerId == null) "Add" else "Done", fontWeight = FontWeight.SemiBold)
+                Text(if (entry.layerId == null) tr("Add") else tr("Done"), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -387,7 +397,7 @@ private fun BoxScope.FreestyleLayerView(
                             }
                         }
                 } else {
-                    Modifier.padding(12.dp)
+                    Modifier.padding(horizontal = textPlateGutter(layer), vertical = 12.dp)
                 },
             ),
         contentAlignment = Alignment.Center,
@@ -395,7 +405,7 @@ private fun BoxScope.FreestyleLayerView(
         when (content) {
             is FreestyleContent.ImageContent -> Image(
                 bitmap = content.image,
-                contentDescription = "Layer photo",
+                contentDescription = tr("Layer photo"),
                 contentScale = ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -407,17 +417,41 @@ private fun BoxScope.FreestyleLayerView(
                 softWrap = false,
             )
 
-            is FreestyleContent.TextContent -> Text(
+            // BasicText, not Text: Material's Text resolves a colour of its own and merges it over
+            // the style, which would flatten a gradient brush. It also keeps the theme's body line
+            // height out of the style, so the box is the words' real height, as the bake measures
+            // it, and the background plate sits around them the same way in both.
+            is FreestyleContent.TextContent -> BasicText(
                 text = content.text,
-                color = content.color,
-                fontFamily = content.font.fontFamily,
-                fontWeight = content.font.fontWeight,
-                fontStyle = content.font.fontStyle,
-                fontSize = (FreestyleTextBaseSizeSp * layer.scale).sp,
+                style = TextStyle(
+                    brush = content.fill.brush,
+                    fontFamily = content.font.fontFamily,
+                    fontWeight = content.font.fontWeight,
+                    fontStyle = content.font.fontStyle,
+                    fontSize = (FreestyleTextBaseSizeSp * layer.scale).sp,
+                ),
                 softWrap = false,
+                modifier = Modifier.drawBehind {
+                    content.background?.let { drawTextPlate(it.brush, Offset.Zero, size) }
+                },
             )
         }
     }
+}
+
+/**
+ * The side padding of a text or sticker layer's box. A label with a background plate needs enough
+ * of it to hold the plate, which grows with the label ([TextBackgroundPadXFraction] of the text's
+ * height, roughly 1.2 × its font size), so the selection outline stays outside the plate.
+ */
+@Composable
+private fun textPlateGutter(layer: FreestyleLayer): Dp {
+    val content = layer.content
+    if (content !is FreestyleContent.TextContent || content.background == null) return 12.dp
+    val plateReach = with(LocalDensity.current) {
+        (FreestyleTextBaseSizeSp * layer.scale * 1.2f * TextBackgroundPadXFraction).sp.toDp()
+    }
+    return maxOf(12.dp, plateReach + 4.dp)
 }
 
 /**
@@ -449,9 +483,12 @@ private fun BoxScope.SelectionOverlay(
         modifier = Modifier
             .align(Alignment.TopStart)
             .then(layerBoxModifier(layer, canvasSize))
-            .size(with(density) { sizePx.width.toDp() }, with(density) { sizePx.height.toDp() })
-            .border(1.5.dp, chrome.accent, outlineShape),
+            .size(with(density) { sizePx.width.toDp() }, with(density) { sizePx.height.toDp() }),
     ) {
+        // The outline is a child drawn first, not a `border` on this box: a border modifier paints
+        // over its box's content, which put the line across the handles sitting on it.
+        Box(modifier = Modifier.matchParentSize().border(1.5.dp, chrome.accent, outlineShape))
+
         val bounce = rememberSpringBounce()
         Box(
             modifier = Modifier
@@ -468,7 +505,7 @@ private fun BoxScope.SelectionOverlay(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete layer", tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Delete, contentDescription = tr("Delete layer"), tint = Color.White, modifier = Modifier.size(16.dp))
         }
 
         Box(
@@ -515,7 +552,7 @@ private fun BoxScope.SelectionOverlay(
         ) {
             Icon(
                 Icons.Filled.OpenInFull,
-                contentDescription = "Drag to resize and rotate",
+                contentDescription = tr("Drag to resize and rotate"),
                 tint = chrome.accent,
                 modifier = Modifier.size(12.dp),
             )
@@ -551,7 +588,7 @@ internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (emoji: Str
     var recent by remember { mutableStateOf(emptyList<String>()) }
 
     Column {
-        PanelHeader(chrome = chrome, title = "Stickers")
+        PanelHeader(chrome = chrome, title = tr("Stickers"))
         EmojiCategoryTabs(selected = category, onSelected = { category = it })
         EmojiGrid(
             emojis = category?.let { EmojisByCategory[it].orEmpty() } ?: recent,
@@ -567,19 +604,32 @@ internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (emoji: Str
 /**
  * A tap-to-type field (opening [TextEntryBar] above the keyboard) plus the Text tool's font and
  * color rows. With a text layer selected ([selectedText]) the field shows its text and the rows
- * restyle it; otherwise they set the style of the next label added.
+ * restyle it; otherwise they set the style of the next label added. The colour row runs the custom
+ * colour picker, the flat colours, then the [FreestyleTextGradients]; the switch at its left picks
+ * whether it colours the words ([fill]) or the plate behind them ([background], where it also
+ * leads with a "none" swatch).
  */
 @Composable
 internal fun TextPanel(
     chrome: FreestyleChrome,
     selectedText: FreestyleContent.TextContent?,
     font: TextFontStyleOption,
-    color: Color,
+    fill: FreestyleFill,
+    background: FreestyleFill?,
     onFieldClick: () -> Unit,
     onFontChange: (TextFontStyleOption) -> Unit,
-    onColorChange: (Color) -> Unit,
+    onFillChange: (FreestyleFill) -> Unit,
+    onBackgroundChange: (FreestyleFill?) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(top = 10.dp)) {
+    var pickingColor by remember { mutableStateOf(false) }
+    var target by remember { mutableStateOf(TextColorTarget.Text) }
+    // What the colour row shows and edits: the words' fill, or the plate behind them.
+    val shown = if (target == TextColorTarget.Text) fill else background
+    val onShownChange: (FreestyleFill) -> Unit = if (target == TextColorTarget.Text) onFillChange else onBackgroundChange
+    // The hosts give this panel a fixed height, and a Column squeezes whatever doesn't fit out of
+    // its last child: with looser spacing the colour row lost height, which cut the top and bottom
+    // off the selected swatch's ring. The spacing below leaves the three rows room to spare.
+    Column(modifier = Modifier.padding(top = 6.dp)) {
         val bounce = rememberSpringBounce()
         Box(
             modifier = Modifier
@@ -593,18 +643,51 @@ internal fun TextPanel(
                     indication = LocalIndication.current,
                     onClick = onFieldClick,
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = selectedText?.text ?: "Tap to add text",
+                text = selectedText?.text ?: tr("Tap to add text"),
                 color = if (selectedText != null) chrome.content else chrome.muted,
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         FontRow(selected = font, onSelected = onFontChange)
-        Spacer(modifier = Modifier.height(10.dp))
-        ColorRow(selected = color, onSelected = onColorChange)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextColorTargetSwitch(
+                selected = target,
+                onSelected = { target = it },
+                modifier = Modifier.padding(start = 16.dp),
+            )
+            ColorRow(
+                selected = (shown as? FreestyleFill.Solid)?.color,
+                onSelected = { onShownChange(FreestyleFill.Solid(it)) },
+                onPickCustom = { pickingColor = true },
+                gradients = FreestyleTextGradients,
+                selectedGradient = (shown as? FreestyleFill.Gradient)?.colors,
+                onGradientSelected = { onShownChange(FreestyleFill.Gradient(it)) },
+                onClear = if (target == TextColorTarget.Background) ({ onBackgroundChange(null) }) else null,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+
+    if (pickingColor) {
+        ColorPickerDialog(
+            // A gradient has no one colour to open on, so the picker starts from its first; with no
+            // background yet it starts from white.
+            initial = when (shown) {
+                is FreestyleFill.Solid -> shown.color
+                is FreestyleFill.Gradient -> shown.colors.first()
+                null -> Color.White
+            },
+            onDismiss = { pickingColor = false },
+            onPicked = {
+                onShownChange(FreestyleFill.Solid(it))
+                pickingColor = false
+            },
+        )
     }
 }

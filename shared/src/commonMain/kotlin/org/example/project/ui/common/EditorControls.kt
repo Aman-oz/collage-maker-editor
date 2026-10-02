@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.vectorResource
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_before_after
+import org.example.project.i18n.tr
 
 /** Small circular icon button used throughout the editor's top bars (close, undo, redo, back). */
 @Composable
@@ -121,7 +122,7 @@ internal fun CompareButton(onPressedChange: (Boolean) -> Unit, modifier: Modifie
     ) {
         Icon(
             imageVector = vectorResource(Res.drawable.ic_before_after),
-            contentDescription = "Press and hold to compare with the original",
+            contentDescription = tr("Press and hold to compare with the original"),
             tint = EditorIconTint,
             modifier = Modifier.size(18.dp),
         )

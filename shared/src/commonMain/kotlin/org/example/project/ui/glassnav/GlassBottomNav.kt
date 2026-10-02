@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import io.github.fletchmckee.liquid.LiquidState
 import io.github.fletchmckee.liquid.liquid
 import kotlinx.coroutines.launch
+import org.example.project.i18n.tr
 
 /**
  * One destination shown in a [GlassBottomNav] — a label/icon pair, plus an optional badge (a
@@ -248,7 +249,7 @@ private fun GlassNavItemView(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
-            Icon(imageVector = item.icon, contentDescription = item.label, tint = tint, modifier = Modifier.size(24.dp))
+            Icon(imageVector = item.icon, contentDescription = tr(item.label), tint = tint, modifier = Modifier.size(24.dp))
 
             if (item.badgeCount != null && item.badgeCount > 0) {
                 Box(
@@ -279,7 +280,7 @@ private fun GlassNavItemView(
         }
 
         Text(
-            text = item.label,
+            text = tr(item.label),
             color = tint,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,

@@ -20,7 +20,9 @@ import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.ProjectsRepository
+import org.example.project.data.SavedImageHandoff
 import kotlin.time.Clock
+import org.example.project.i18n.tr
 
 sealed interface SaveStatus {
     data object Idle : SaveStatus
@@ -37,6 +39,7 @@ class SaveImageViewModel(
     private val session: ImageEditSession,
     settings: AppSettings,
     private val projects: ProjectsRepository,
+    private val handoff: SavedImageHandoff,
 ) : ViewModel() {
 
     /** Premium users get no watermark, so the screen offers a single clean save. */
@@ -55,20 +58,22 @@ class SaveImageViewModel(
         _status.value = SaveStatus.Saving
         viewModelScope.launch {
             _status.value = runCatching {
-                val bytes = withContext(Dispatchers.Default) {
-                    val output = if (watermark != null) bakeWatermark(source, watermark) else source
-                    output.encodeToByteArray(ImageFormat.JPEG, JpegQuality)
+                val output = withContext(Dispatchers.Default) {
+                    if (watermark != null) bakeWatermark(source, watermark) else source
                 }
+                val bytes = withContext(Dispatchers.Default) { output.encodeToByteArray(ImageFormat.JPEG, JpegQuality) }
                 val filename = "collage_${Clock.System.now().toEpochMilliseconds()}.jpg"
                 FileKit.saveImageToGallery(bytes, filename).getOrThrow()
                 projects.add(bytes, filename)
                 // The gallery copy has no stable path we can share on both platforms, so keep our own.
                 val shareCopy = FileKit.cacheDir / filename
                 shareCopy.write(bytes)
+                // The share screen shows this very bitmap from its first frame (see SavedImageHandoff).
+                handoff.put(shareCopy.path, output)
                 shareCopy.path
             }.fold(
                 onSuccess = { SaveStatus.Saved(it) },
-                onFailure = { SaveStatus.Failed(it.message ?: "Could not save the image") },
+                onFailure = { SaveStatus.Failed(it.message ?: tr("Could not save the image")) },
             )
         }
     }

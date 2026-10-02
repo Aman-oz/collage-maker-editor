@@ -9,6 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.gallery.GalleryAlbum
 import org.example.project.gallery.GalleryPhoto
@@ -41,6 +42,13 @@ class GalleryViewModel : ViewModel() {
     private val _albumPhotosState = MutableStateFlow<GalleryLoadState>(GalleryLoadState.Loading)
     val albumPhotosState: StateFlow<GalleryLoadState> = _albumPhotosState.asStateFlow()
 
+    /**
+     * Photos taken with the gallery's camera cell in a multi-photo pick, newest first. Their
+     * [GalleryPhoto.id] is already the captured file's path, since they are not in the library.
+     */
+    private val _capturedPhotos = MutableStateFlow(emptyList<GalleryPhoto>())
+    val capturedPhotos: StateFlow<List<GalleryPhoto>> = _capturedPhotos.asStateFlow()
+
     private var hasLoaded = false
     private var albumPhotosJob: Job? = null
 
@@ -69,8 +77,18 @@ class GalleryViewModel : ViewModel() {
         }
     }
 
-    /** Resolves every selected photo to a `PlatformFile`-compatible path, in parallel. */
+    fun addCapturedPhoto(path: String) {
+        _capturedPhotos.update { listOf(GalleryPhoto(path)) + it }
+    }
+
+    /**
+     * Resolves every selected photo to a `PlatformFile`-compatible path, in parallel. A captured
+     * photo's id is its path already.
+     */
     suspend fun resolvePaths(photoIds: List<String>): List<String> = coroutineScope {
-        photoIds.map { id -> async { resolveGalleryImagePath(id) } }.awaitAll().filterNotNull()
+        val capturedPaths = _capturedPhotos.value.map { it.id }.toSet()
+        photoIds.map { id -> async { if (id in capturedPaths) id else resolveGalleryImagePath(id) } }
+            .awaitAll()
+            .filterNotNull()
     }
 }

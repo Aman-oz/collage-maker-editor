@@ -19,6 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
+import org.example.project.ui.common.BackgroundRemoverPhotoKey
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.crop.CropContent
 import org.example.project.ui.preview.ThemePreviews
@@ -47,6 +49,8 @@ fun BackgroundRemoverCropScreen(
                 onCropped()
             },
             showTransformTools = true,
+            // The cropped area flies into the eraser's canvas, and back out of it on Back.
+            cropSharedKey = BackgroundRemoverPhotoKey,
             modifier = modifier,
         )
         else -> Column(
@@ -55,7 +59,7 @@ fun BackgroundRemoverCropScreen(
                 .background(MaterialTheme.colorScheme.surface)
                 .safeDrawingPadding(),
         ) {
-            ToolTopBar(title = "Crop", onClose = onBack, onDone = {}, doneEnabled = false)
+            ToolTopBar(title = tr("Crop"), onClose = onBack, onDone = {}, doneEnabled = false)
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 if (state is BackgroundRemoverCropUiState.Error) {
                     Text(

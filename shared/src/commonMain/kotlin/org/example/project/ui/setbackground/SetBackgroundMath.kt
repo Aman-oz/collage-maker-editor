@@ -1,6 +1,7 @@
 package org.example.project.ui.setbackground
 
 import androidx.compose.ui.graphics.Color
+import org.example.project.ui.freestyle.isPremiumFreestyle
 
 /**
  * Colour swatches. The Colour panel is a two-row horizontal grid that fills column by column, so
@@ -32,3 +33,10 @@ internal val BackdropGradients = listOf(
     listOf(Color(0xFF667EEA), Color(0xFF764BA2)),
     listOf(Color(0xFF0F2027), Color(0xFF2C5364)),
 )
+
+/**
+ * Whether a Set Background edit uses something premium: a backdrop from the Gradient tab, or text
+ * and sticker layers that are premium by the freestyle editor's rule ([isPremiumFreestyle]: more
+ * than two stickers, or text in the premium red or Stylish font).
+ */
+internal fun SetBackgroundEdit.isPremium(): Boolean = backdrop is Backdrop.Gradient || layers.isPremiumFreestyle()

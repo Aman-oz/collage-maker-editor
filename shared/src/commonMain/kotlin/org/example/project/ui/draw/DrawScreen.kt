@@ -1,6 +1,7 @@
 package org.example.project.ui.draw
 
 import androidx.compose.foundation.Canvas
+import org.example.project.i18n.tr
 import org.example.project.ui.common.scaledBitmap
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -18,14 +19,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -61,15 +60,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.rememberColorPickerLauncher
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.SelectableSwatch
 import org.example.project.ui.common.SwatchInnerCorner
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_eraser
 import photocollagemaker.shared.generated.resources.ic_redo
@@ -82,21 +83,16 @@ private enum class DrawTab { Paint, Mosaic }
 private const val ToolClusterWidthFraction = 0.64f
 
 @Composable
-fun DrawScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun DrawTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DrawViewModel = koinViewModel(),
 ) {
     DrawContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onDone = { actions ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyDrawing(bakeDrawing(source = image, actions = actions))
-            }
-            onApplied()
-        },
+        sourceImage = sourceImage,
+        onBack = onClose,
+        onDone = { actions -> onApply(bakeDrawing(source = sourceImage, actions = actions)) },
         modifier = modifier,
     )
 }
@@ -204,23 +200,10 @@ private fun DrawContent(
         actions.map { strokePolyline(it.points, size) }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Draw",
-            onClose = onBack,
-            onDone = { onDone(actions) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -305,65 +288,73 @@ private fun DrawContent(
                 }
             } else {
                 Text(
-                    text = "No image to draw on",
+                    text = tr("No image to draw on"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        DrawTabToggle(
-            selected = selectedTab,
-            onSelected = { tab ->
-                selectedTab = tab
-                isEraserActive = false
-            },
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 12.dp),
-        )
-
-        DrawToolRow(
-            undoEnabled = undoStack.isNotEmpty(),
-            redoEnabled = redoStack.isNotEmpty(),
-            deleteEnabled = actions.isNotEmpty(),
-            eraserActive = isEraserActive,
-            onUndo = ::undo,
-            onRedo = ::redo,
-            onDelete = { if (actions.isNotEmpty()) commit(emptyList()) },
-            onToggleEraser = { isEraserActive = !isEraserActive },
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 6.dp),
-        )
-
-        BrushSizeLabelRow(value = brushSize)
-        CenterFillSlider(
-            value = brushSize,
-            onValueChange = { brushSize = it },
-            range = BrushSizeRange,
-            referenceValue = BrushSizeRange.start,
-            onDraggingChange = { isAdjustingBrush = it },
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
-
-        when (selectedTab) {
-            DrawTab.Paint -> DrawColorRow(
-                selected = selectedColor,
-                onSelected = { selectedColor = it; isEraserActive = false },
+        ToolPanel(
+            title = tr("Draw"),
+            onClose = onBack,
+            onDone = { onDone(actions) },
+            doneEnabled = sourceImage != null,
+        ) {
+            DrawTabToggle(
+                selected = selectedTab,
+                onSelected = { tab ->
+                    selectedTab = tab
+                    isEraserActive = false
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 12.dp),
             )
-            DrawTab.Mosaic -> MosaicPatternRow(
-                swatches = mosaicSwatches,
-                selected = selectedPattern,
-                onSelected = { selectedPattern = it; isEraserActive = false },
+
+            DrawToolRow(
+                undoEnabled = undoStack.isNotEmpty(),
+                redoEnabled = redoStack.isNotEmpty(),
+                deleteEnabled = actions.isNotEmpty(),
+                eraserActive = isEraserActive,
+                onUndo = ::undo,
+                onRedo = ::redo,
+                onDelete = { if (actions.isNotEmpty()) commit(emptyList()) },
+                onToggleEraser = { isEraserActive = !isEraserActive },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 6.dp),
             )
+
+            BrushSizeLabelRow(value = brushSize)
+            CenterFillSlider(
+                value = brushSize,
+                onValueChange = { brushSize = it },
+                range = BrushSizeRange,
+                referenceValue = BrushSizeRange.start,
+                onDraggingChange = { isAdjustingBrush = it },
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+            )
+
+            when (selectedTab) {
+                DrawTab.Paint -> DrawColorRow(
+                    selected = selectedColor,
+                    onSelected = { selectedColor = it; isEraserActive = false },
+                )
+                DrawTab.Mosaic -> MosaicPatternRow(
+                    swatches = mosaicSwatches,
+                    selected = selectedPattern,
+                    onSelected = { selectedPattern = it; isEraserActive = false },
+                )
+            }
         }
     }
 }
@@ -391,7 +382,7 @@ private fun DrawTabToggle(selected: DrawTab, onSelected: (DrawTab) -> Unit, modi
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = tab.name,
+                    text = tr(tab.name),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = scheme.onSurface,
@@ -418,10 +409,10 @@ private fun DrawToolRow(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = undoEnabled, onClick = onUndo)
-        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = redoEnabled, onClick = onRedo)
-        DrawToolIcon(icon = vectorResource(Res.drawable.ic_trash), contentDescription = "Clear all", enabled = deleteEnabled, onClick = onDelete)
-        DrawToolIcon(icon = vectorResource(Res.drawable.ic_eraser), contentDescription = "Eraser", selected = eraserActive, onClick = onToggleEraser)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = tr("Undo"), enabled = undoEnabled, onClick = onUndo)
+        UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = tr("Redo"), enabled = redoEnabled, onClick = onRedo)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_trash), contentDescription = tr("Clear all"), enabled = deleteEnabled, onClick = onDelete)
+        DrawToolIcon(icon = vectorResource(Res.drawable.ic_eraser), contentDescription = tr("Eraser"), selected = eraserActive, onClick = onToggleEraser)
     }
 }
 
@@ -462,7 +453,7 @@ private fun BrushSizeLabelRow(value: Float) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Brush Size",
+            text = tr("Brush Size"),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = scheme.onSurface,
@@ -477,12 +468,22 @@ private fun BrushSizeLabelRow(value: Float) {
     }
 }
 
+/** Leads with the custom colour swatch, ringed while the brush is a colour outside [DrawColors]. */
 @Composable
 private fun DrawColorRow(selected: DrawColorOption, onSelected: (DrawColorOption) -> Unit) {
+    val pickCustomColor = rememberColorPickerLauncher(
+        initial = selected.color,
+        onPicked = { onSelected(DrawColorOption("Custom", it)) },
+    )
     LazyRow(
         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item {
+            SelectableSwatch(selected = selected !in DrawColors, size = 48.dp, onClick = pickCustomColor) {
+                ColorPickerFill(Modifier.fillMaxSize())
+            }
+        }
         items(DrawColors) { option ->
             SelectableSwatch(selected = option == selected, size = 48.dp, onClick = { onSelected(option) }) {
                 Box(
@@ -512,7 +513,7 @@ private fun MosaicPatternRow(
                 if (swatch != null) {
                     Image(
                         bitmap = swatch,
-                        contentDescription = pattern.label,
+                        contentDescription = tr(pattern.label),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )

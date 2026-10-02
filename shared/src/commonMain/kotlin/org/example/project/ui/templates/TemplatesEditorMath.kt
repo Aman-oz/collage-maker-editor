@@ -39,3 +39,16 @@ internal fun SlotTransform.applyGesture(
     )
 }
 
+/**
+ * The slot the selection moves to once [filledSlot] has just been given its first photo: the next
+ * slot after it with no photo yet, wrapping round to the start, so "Add Image" keeps filling the
+ * template one slot after another. When every slot in [filledSlots] (which already includes
+ * [filledSlot]) is taken, the selection stays where it is, ready for "Change Image".
+ */
+internal fun nextSlotToFill(filledSlot: Int, slotCount: Int, filledSlots: Set<Int>): Int {
+    for (step in 1 until slotCount) {
+        val candidate = (filledSlot + step) % slotCount
+        if (candidate !in filledSlots) return candidate
+    }
+    return filledSlot
+}

@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.example.project.data.AppSettings
+import org.example.project.i18n.tr
 
 /**
  * The app's single entry point for subscriptions: it loads the plans' store prices, tracks which
@@ -68,7 +69,7 @@ class AppBillingWrapper(
     suspend fun purchase(plan: SubscriptionPlan): PurchaseResult {
         if (!client.connect()) {
             _state.update { it.copy(status = BillingStatus.Unavailable) }
-            return PurchaseResult.Failed("Couldn't reach the store. Check your connection and try again.")
+            return PurchaseResult.Failed(tr("Couldn't reach the store. Check your connection and try again."))
         }
         val result = client.purchase(plan, currentPlan = _state.value.activePlan?.takeIf { it != plan })
         when (result) {
@@ -84,13 +85,13 @@ class AppBillingWrapper(
     }
 
     suspend fun restore(): RestoreResult {
-        if (!client.connect()) return RestoreResult.Failed("Couldn't reach the store. Check your connection and try again.")
+        if (!client.connect()) return RestoreResult.Failed(tr("Couldn't reach the store. Check your connection and try again."))
         return try {
             val plans = client.restore()
             applyActivePlans(plans)
             if (plans.isEmpty()) RestoreResult.NothingToRestore else RestoreResult.Restored(plans)
         } catch (e: BillingException) {
-            RestoreResult.Failed(e.message ?: "Couldn't restore purchases")
+            RestoreResult.Failed(e.message ?: tr("Couldn't restore purchases"))
         }
     }
 

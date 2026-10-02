@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.projectImageKey
 import org.example.project.ui.preview.ThemePreviews
@@ -91,12 +92,12 @@ private fun ProjectGridItem(
             .navSharedElement(sharedKey)
             .clip(ItemShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(role = Role.Image, onClickLabel = "Open project", onClick = onClick),
+            .clickable(role = Role.Image, onClickLabel = tr("Open project"), onClick = onClick),
     ) {
         if (thumbnail != null) {
             Image(
                 bitmap = thumbnail,
-                contentDescription = "Project",
+                contentDescription = tr("Project"),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -115,18 +116,18 @@ private fun ProjectsEmptyState(modifier: Modifier = Modifier) {
     ) {
         Image(
             painter = painterResource(Res.drawable.img_no_projects),
-            contentDescription = "No projects yet",
+            contentDescription = tr("No projects yet"),
             modifier = Modifier.size(84.dp),
         )
         Text(
-            text = "No projects yet",
+            text = tr("No projects yet"),
             color = MaterialTheme.colorScheme.onBackground,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(top = 16.dp),
         )
         Text(
-            text = "Your saved collages and edits will show up here.",
+            text = tr("Your saved collages and edits will show up here."),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,

@@ -61,6 +61,7 @@ import org.example.project.data.billing.BillingPeriod
 import org.example.project.data.billing.PeriodUnit
 import org.example.project.data.billing.SubscriptionPlan
 import org.example.project.data.billing.SubscriptionProduct
+import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassDialogHost
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
@@ -152,7 +153,7 @@ private fun LaunchOfferContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "LIMITED TIME OFFER!",
+            text = tr("LIMITED TIME OFFER!"),
             style = TextStyle(brush = OfferTitleGradient),
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -171,7 +172,7 @@ private fun LaunchOfferContent(
                         Text("$savings%", color = PremiumRed, fontSize = 58.sp, fontWeight = FontWeight.ExtraBold)
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "OFF",
+                            text = tr("OFF"),
                             modifier = Modifier.padding(bottom = 10.dp),
                             color = PremiumRed.copy(alpha = 0.55f),
                             fontSize = 30.sp,
@@ -179,12 +180,12 @@ private fun LaunchOfferContent(
                         )
                     }
                 } else {
-                    Text("BEST VALUE", color = PremiumRed, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(tr("BEST VALUE"), color = PremiumRed, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
                     // No price until the store answers (offline, or products not set up yet).
                     Text(
-                        text = yearly?.formattedPrice ?: "Annual Plan",
+                        text = yearly?.formattedPrice ?: tr("Annual Plan"),
                         color = onSurface,
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
@@ -192,7 +193,7 @@ private fun LaunchOfferContent(
                     if (yearly != null) {
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "per year",
+                            text = tr("per year"),
                             modifier = Modifier.padding(bottom = 4.dp),
                             color = onSurface.copy(alpha = 0.75f),
                             fontSize = 14.sp,
@@ -200,7 +201,7 @@ private fun LaunchOfferContent(
                     }
                 }
                 if (yearly == null) {
-                    Text("Price unavailable", color = onSurface.copy(alpha = 0.55f), fontSize = 14.sp)
+                    Text(tr("Price unavailable"), color = onSurface.copy(alpha = 0.55f), fontSize = 14.sp)
                 }
                 if (regularPrice != null) {
                     Text(
@@ -216,7 +217,7 @@ private fun LaunchOfferContent(
         CountdownRow(countdown(remainingMillis))
         Spacer(Modifier.height(24.dp))
         ContinueButton(
-            label = "Try Now",
+            label = tr("Try Now"),
             enabled = !busy,
             busy = busy,
             onClick = onTryNow,
@@ -243,7 +244,7 @@ private fun OfferFeatures() {
             OfferFeatureColumns.forEach { column ->
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     column.forEach { feature ->
-                        Text("•  $feature", color = onSurface.copy(alpha = 0.85f), fontSize = 12.sp, maxLines = 1)
+                        Text("•  ${tr(feature)}", color = onSurface.copy(alpha = 0.85f), fontSize = 12.sp, maxLines = 1)
                     }
                 }
             }
@@ -358,7 +359,7 @@ private fun OfferCloseButton(onClose: () -> Unit) {
             .clickable(role = Role.Button, onClick = onClose),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.Close, contentDescription = "Close offer", tint = Color.White, modifier = Modifier.size(22.dp))
+        Icon(Icons.Filled.Close, contentDescription = tr("Close offer"), tint = Color.White, modifier = Modifier.size(22.dp))
     }
 }
 

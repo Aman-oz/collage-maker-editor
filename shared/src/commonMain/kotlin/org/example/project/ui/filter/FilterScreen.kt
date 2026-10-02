@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,29 +46,39 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_before_after
+import photocollagemaker.shared.generated.resources.ic_premium_icon
 
 private val ChipShape = RoundedCornerShape(6.dp)
 
 @Composable
-fun FilterScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun FilterTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: FilterViewModel = koinViewModel(),
 ) {
     FilterContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
+        sourceImage = sourceImage,
+        onBack = onClose,
         onApply = { filter, intensity ->
-            viewModel.sourceImage?.let { image -> viewModel.applyFilter(bakeFilter(image, filter, intensity)) }
-            onApplied()
+            // A premium filter previews for everyone, but Done sends a non-subscriber to the paywall.
+            // The tool stays open underneath, so Done applies it once they come back subscribed.
+            if (filter.isPremium && !isPremium) {
+                onOpenPremium()
+            } else {
+                onApply(bakeFilter(sourceImage, filter, intensity))
+            }
         },
         modifier = modifier,
     )
@@ -82,27 +92,17 @@ private fun FilterContent(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var selectedFilter by remember { mutableStateOf(PhotoFilters.first()) }
-    var intensity by remember { mutableFloatStateOf(1f) }
+    // Saveable, unlike the other tools' edits: the paywall covers the editor, which drops plain
+    // `remember` state, and the filter picked before subscribing has to still be there after.
+    var selectedLabel by rememberSaveable { mutableStateOf(PhotoFilters.first().label) }
+    val selectedFilter = PhotoFilters.firstOrNull { it.label == selectedLabel } ?: PhotoFilters.first()
+    var intensity by rememberSaveable { mutableFloatStateOf(1f) }
     var comparing by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Filters",
-            onClose = onBack,
-            onDone = { onApply(selectedFilter, intensity) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -113,7 +113,7 @@ private fun FilterContent(
                 // photo's edges instead of the letterboxed stage.
                 Image(
                     bitmap = sourceImage,
-                    contentDescription = "Photo preview",
+                    contentDescription = tr("Photo preview"),
                     modifier = Modifier
                         .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
                         .clip(RoundedCornerShape(16.dp)),
@@ -122,39 +122,47 @@ private fun FilterContent(
                 )
             } else {
                 Text(
-                    text = "No image to filter",
+                    text = tr("No image to filter"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        CompareIconButton(
-            onComparingChange = { comparing = it },
-            modifier = Modifier
-                .align(Alignment.End)
-                .padding(top = 8.dp, end = 12.dp),
-        )
+        ToolPanel(
+            title = tr("Filters"),
+            onClose = onBack,
+            onDone = { onApply(selectedFilter, intensity) },
+            doneEnabled = sourceImage != null,
+        ) {
+            CompareIconButton(
+                onComparingChange = { comparing = it },
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 8.dp, end = 12.dp),
+            )
 
-        CenterFillSlider(
-            value = intensity,
-            onValueChange = { intensity = it },
-            range = 0f..1f,
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
+            CenterFillSlider(
+                value = intensity,
+                onValueChange = { intensity = it },
+                range = 0f..1f,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = { wholeNumberLabel(it * 100f) },
+            )
 
-        FilterStrip(
-            sourceImage = sourceImage,
-            selected = selectedFilter,
-            onSelected = { selectedFilter = it },
-        )
+            FilterStrip(
+                sourceImage = sourceImage,
+                selected = selectedFilter,
+                onSelected = { selectedLabel = it.label },
+            )
+        }
     }
 }
 
@@ -178,7 +186,7 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
     ) {
         Icon(
             imageVector = vectorResource(Res.drawable.ic_before_after),
-            contentDescription = "Press and hold to compare with the original",
+            contentDescription = tr("Press and hold to compare with the original"),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(20.dp),
         )
@@ -238,7 +246,7 @@ private fun FilterChip(
             if (sourceImage != null && !filter.isNoneOption) {
                 Image(
                     bitmap = sourceImage,
-                    contentDescription = filter.label,
+                    contentDescription = tr(filter.label),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     colorFilter = filter.toColorFilter(),
@@ -246,15 +254,26 @@ private fun FilterChip(
             } else {
                 Icon(
                     imageVector = Icons.Outlined.Block,
-                    contentDescription = filter.label,
+                    contentDescription = tr(filter.label),
                     tint = scheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.size(22.dp),
+                )
+            }
+            if (filter.isPremium) {
+                // Inside the thumbnail rather than hanging off its corner: the chip clips its content.
+                Image(
+                    painter = painterResource(Res.drawable.ic_premium_icon),
+                    contentDescription = tr("Premium"),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(14.dp),
                 )
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = filter.label,
+            text = tr(filter.label),
             color = scheme.onSurface,
             fontSize = 11.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,

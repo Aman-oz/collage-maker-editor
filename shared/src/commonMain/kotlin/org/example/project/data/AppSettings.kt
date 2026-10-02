@@ -3,6 +3,10 @@ package org.example.project.data
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.example.project.i18n.AppLocale
+import org.example.project.ui.language.SupportedLanguages
+import org.example.project.ui.language.deviceLanguageTag
+import org.example.project.ui.language.resolveDefaultLanguageCode
 
 /** Which color scheme the app uses. [System] follows the device's dark mode setting. */
 enum class ThemeMode { System, Light, Dark }
@@ -37,12 +41,25 @@ class AppSettings(private val store: KeyValueStore) {
         _isPremium.value = premium
     }
 
-    /** Language code picked on the language screen, or `null` if the user never picked one. */
+    /**
+     * Language code picked on the language screen, or `null` if the user never picked one. Setting
+     * it switches the whole app to that language at once, through [AppLocale].
+     */
     var languageCode: String?
         get() = store.getString(KeyLanguageCode)
         set(value) {
-            if (value != null) store.putString(KeyLanguageCode, value)
+            if (value != null) {
+                store.putString(KeyLanguageCode, value)
+                AppLocale.code = value
+            }
         }
+
+    init {
+        // Before anything is shown: the saved language, or on a first run the device's own language
+        // when the app has it (English otherwise), so the language screen itself is already in it.
+        AppLocale.code = languageCode?.takeIf { code -> SupportedLanguages.any { it.code == code } }
+            ?: resolveDefaultLanguageCode(deviceLanguageTag())
+    }
 
     /**
      * Whether the first-run flow (language → onboarding) has been finished. Until it is, every

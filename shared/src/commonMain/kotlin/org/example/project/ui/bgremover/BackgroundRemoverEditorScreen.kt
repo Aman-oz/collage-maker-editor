@@ -1,5 +1,10 @@
 package org.example.project.ui.bgremover
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.saveable.rememberSaveable
+import org.example.project.i18n.tr
 import org.example.project.ui.common.DiscardChangesPopup
 import org.example.project.ui.common.rememberDiscardChangesState
 import androidx.compose.animation.core.Spring
@@ -95,7 +100,10 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.AppLog
+import org.example.project.ui.common.BackgroundRemoverPhotoKey
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.navSharedElement
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassDialogHost
 import org.example.project.ui.common.LoadingOverlay
 import org.example.project.ui.common.MaskBrushSizeDefault
@@ -166,6 +174,12 @@ private const val ScreenTag = "BgRemoverScreen"
 /** Which tool the bottom bar has picked, and so what a gesture on the photo does. */
 private enum class EraseMode { Eraser, Zoom, Auto }
 
+/** The editor's panel-settle timing, so the eraser's controls arrive the way a tool panel does. */
+private const val ControlsSlideMillis = 460
+
+/** Taller than the three control rows together, so they start fully below the screen. */
+private val ControlsSlideDistance = 280.dp
+
 /**
  * Background remover step 2 ("Erase"): brush the background away (or paint it back with Recover),
  * tap a colour region away with Auto, let the server's AI cut the subject out (Ai Magic, premium),
@@ -224,6 +238,19 @@ private fun BackgroundRemoverEditorContent(
     val scheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // The controls under the photo slide up into place when the eraser opens from the crop step,
+    // the way the editor's tool panels do. Once only: coming back from Set Background recomposes
+    // this screen from scratch, and the flag keeps the controls where they already were.
+    var controlsShown by rememberSaveable { mutableStateOf(false) }
+    val controlsSlide = remember { Animatable(if (controlsShown) 0f else 1f) }
+    LaunchedEffect(Unit) {
+        controlsShown = true
+        controlsSlide.animateTo(0f, tween(ControlsSlideMillis, easing = LinearOutSlowInEasing))
+    }
+    // One layer offset shared by the three rows, so they travel as a single panel. Read in the
+    // layer block, so the slide redraws the rows without recomposing the screen.
+    val slideUp = Modifier.graphicsLayer { translationY = ControlsSlideDistance.toPx() * controlsSlide.value }
 
     // Must be a bitmap this app created (the ViewModel copies it), since the ops redraw it scaled.
     val original = sourceImage
@@ -288,7 +315,7 @@ private fun BackgroundRemoverEditorContent(
                 .onSuccess { push(EraseOp.MagicRegion(it, restore)) }
                 .onFailure { error ->
                     AppLog.e(ScreenTag, "Auto region detection failed at $point", error)
-                    showMessage("Could not detect that area")
+                    showMessage(tr("Could not detect that area"))
                 }
             magicRunning = false
         }
@@ -318,7 +345,7 @@ private fun BackgroundRemoverEditorContent(
                 .safeDrawingPadding(),
         ) {
             ToolTopBar(
-                title = if (mode == EraseMode.Auto) "Auto" else "Erase",
+                title = if (mode == EraseMode.Auto) tr("Auto") else tr("Erase"),
                 onClose = discard::requestBack,
                 onDone = { original?.let { onDone(it, ops) } },
                 doneEnabled = original != null && !magicRunning && !aiRunning,
@@ -343,7 +370,9 @@ private fun BackgroundRemoverEditorContent(
                     Box(
                         modifier = Modifier
                             .padding(16.dp)
-                            .aspectRatio(original.width.toFloat() / original.height),
+                            .aspectRatio(original.width.toFloat() / original.height)
+                            // Arrives from the crop screen's crop rectangle, which has this shape.
+                            .navSharedElement(BackgroundRemoverPhotoKey),
                     ) {
                         BoxWithConstraints(
                             modifier = Modifier
@@ -435,9 +464,9 @@ private fun BackgroundRemoverEditorContent(
                     }
 
                     if (magicRunning) CircularProgressIndicator()
-                    if (aiRunning) LoadingOverlay(contentDescription = "Removing background")
+                    if (aiRunning) LoadingOverlay(contentDescription = tr("Removing background"))
                 } else {
-                    Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+                    Text(tr("No image to edit"), color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
                 }
 
                 SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -445,6 +474,7 @@ private fun BackgroundRemoverEditorContent(
 
             Row(
                 modifier = Modifier
+                    .then(slideUp)
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -454,13 +484,13 @@ private fun BackgroundRemoverEditorContent(
                     EraseMode.Eraser -> {
                         DuotoneToggle(
                             icon = vectorResource(Res.drawable.ic_eraser_brush),
-                            contentDescription = "Erase",
+                            contentDescription = tr("Erase"),
                             selected = !brushRestore,
                             onClick = { brushRestore = false },
                         )
                         DuotoneToggle(
                             icon = vectorResource(Res.drawable.ic_recover),
-                            contentDescription = "Recover",
+                            contentDescription = tr("Recover"),
                             selected = brushRestore,
                             onClick = { brushRestore = true },
                         )
@@ -468,13 +498,13 @@ private fun BackgroundRemoverEditorContent(
                     EraseMode.Auto -> {
                         TintedToggle(
                             icon = vectorResource(Res.drawable.ic_eraser_magic),
-                            contentDescription = "Magic erase",
+                            contentDescription = tr("Magic erase"),
                             selected = !magicRestore,
                             onClick = { magicRestore = false },
                         )
                         TintedToggle(
                             icon = vectorResource(Res.drawable.ic_recover_magic),
-                            contentDescription = "Magic recover",
+                            contentDescription = tr("Magic recover"),
                             selected = magicRestore,
                             onClick = { magicRestore = true },
                         )
@@ -484,14 +514,14 @@ private fun BackgroundRemoverEditorContent(
                 Spacer(modifier = Modifier.weight(1f))
                 UndoRedoButton(
                     icon = vectorResource(Res.drawable.ic_undo),
-                    contentDescription = "Undo",
+                    contentDescription = tr("Undo"),
                     enabled = ops.isNotEmpty(),
                     onClick = onUndo,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 UndoRedoButton(
                     icon = vectorResource(Res.drawable.ic_redo),
-                    contentDescription = "Redo",
+                    contentDescription = tr("Redo"),
                     enabled = canRedo,
                     onClick = onRedo,
                 )
@@ -499,8 +529,8 @@ private fun BackgroundRemoverEditorContent(
                 HoldToCompareButton(onPressedChange = { comparing = it })
             }
 
-            // Fixed height so switching tools never moves the photo.
-            Box(modifier = Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
+            // Fixed height (a slider plus its row of range labels) so switching tools never moves the photo.
+            Box(modifier = Modifier.then(slideUp).fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
                 when (mode) {
                     EraseMode.Eraser -> CenterFillSlider(
                         value = brushSize,
@@ -516,6 +546,7 @@ private fun BackgroundRemoverEditorContent(
                         horizontalPadding = 12.dp,
                         glassThumb = true,
                         glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                        valueLabel = ::wholeNumberLabel,
                     )
                     EraseMode.Auto -> MagicStrengthSlider(
                         value = magicStrength,
@@ -537,6 +568,8 @@ private fun BackgroundRemoverEditorContent(
                         horizontalPadding = 12.dp,
                         glassThumb = true,
                         glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                        // The slider runs -1..1 around fit; the labels show the zoom it stands for.
+                        valueLabel = { "${(sliderToZoom(it) * 100).roundToInt()}%" },
                     )
                 }
             }
@@ -545,34 +578,35 @@ private fun BackgroundRemoverEditorContent(
 
             Row(
                 modifier = Modifier
+                    .then(slideUp)
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
             ) {
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_eraser_manual),
-                    label = "Eraser",
+                    label = tr("Eraser"),
                     selected = mode == EraseMode.Eraser,
                     onClick = { mode = EraseMode.Eraser },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_zoom),
-                    label = "Zoom",
+                    label = tr("Zoom"),
                     selected = mode == EraseMode.Zoom,
                     onClick = { mode = EraseMode.Zoom },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_eraser_auto),
-                    label = "Auto",
+                    label = tr("Auto"),
                     selected = mode == EraseMode.Auto,
                     enabled = original != null,
                     onClick = { mode = EraseMode.Auto },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_eraser_ai),
-                    label = "Ai Magic",
+                    label = tr("Ai Magic"),
                     selected = aiRunning,
-                    badge = if (aiApplied) null else "New",
+                    badge = if (aiApplied) null else tr("New"),
                     enabled = original != null && !aiRunning,
                     onClick = {
                         AppLog.d(ScreenTag, "Ai Magic tapped (premium: $isPremium, applied: $aiApplied)")
@@ -651,7 +685,7 @@ private fun BackdropChip(next: Color?, onClick: () -> Unit, modifier: Modifier =
             .clickable(
                 interactionSource = bounce.interactionSource,
                 indication = LocalIndication.current,
-                onClickLabel = "Change preview background",
+                onClickLabel = tr("Change preview background"),
                 onClick = onClick,
             ),
     ) {
@@ -887,7 +921,7 @@ private fun HoldToCompareButton(onPressedChange: (Boolean) -> Unit) {
     ) {
         Icon(
             imageVector = vectorResource(Res.drawable.ic_before_after),
-            contentDescription = "Press and hold to compare with the original",
+            contentDescription = tr("Press and hold to compare with the original"),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(UndoRedoIconSize),
         )

@@ -67,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
+import org.example.project.i18n.tr
+import org.example.project.ui.common.ColorPickerFill
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.SelectableSwatch
@@ -74,12 +76,14 @@ import org.example.project.ui.common.StickerFlightOverlay
 import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.UndoRedoButton
+import org.example.project.ui.common.rememberColorPickerLauncher
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.rememberStickerFlights
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleContent
+import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.StickersPanel
@@ -117,7 +121,14 @@ private val ToolPanelHeight = 190.dp
 private enum class SetBackgroundTool { Background, Text, Stickers }
 
 /** The two pages of the Background panel. */
-private enum class BackdropTab(val label: String) { Colour("Colour"), Gradient("Gradient") }
+private enum class BackdropTab(private val englishLabel: String) {
+    Colour("Colour"),
+    Gradient("Gradient"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
+}
 
 /**
  * Background remover step 3: put a colour, gradient or photo behind the transparent cut-out, and
@@ -128,6 +139,7 @@ private enum class BackdropTab(val label: String) { Colour("Colour"), Gradient("
 fun SetBackgroundScreen(
     onBack: () -> Unit,
     onApplied: () -> Unit,
+    onPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SetBackgroundViewModel = koinViewModel(),
 ) {
@@ -145,8 +157,15 @@ fun SetBackgroundScreen(
         photos = photos,
         onBack = onBack,
         onDone = { previewSizePx ->
-            viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
-            onApplied()
+            // A premium backdrop, text or stickers show a non-subscriber the paywall once, as an
+            // offer. The edit lives in the ViewModel, so it is still here when they come back, and
+            // the next Done goes through whether or not they subscribed.
+            if (viewModel.consumePremiumOffer()) {
+                onPremium()
+            } else {
+                viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
+                onApplied()
+            }
         },
         onAddPhoto = { photoPicker.launch() },
         onSelectBackdrop = viewModel::selectBackdrop,
@@ -175,8 +194,8 @@ private fun SetBackgroundContent(
     onAddPhoto: () -> Unit,
     onSelectBackdrop: (Backdrop) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, Color, TextFontStyleOption) -> Unit,
-    onUpdateText: (id: Long, text: String, color: Color, font: TextFontStyleOption) -> Unit,
+    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
+    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
     onRetypeText: (id: Long, text: String) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
@@ -196,7 +215,8 @@ private fun SetBackgroundContent(
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
     // Style for the next new text layer; a selected text layer shows and edits its own instead.
     var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextColor by remember { mutableStateOf(TextColorOptions.first()) }
+    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
+    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
     // Non-null while the keyboard-docked text bar is open.
     var textEntry by remember { mutableStateOf<TextEntry?>(null) }
 
@@ -208,7 +228,7 @@ private fun SetBackgroundContent(
         onGestureEnd()
         val layerId = entry.layerId
         if (layerId == null) {
-            onAddText(entry.text.trim(), newTextColor, newTextFont)
+            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
         } else if (entry.text.isBlank()) {
             // Clearing a label's text removes it, rather than leaving an invisible layer behind.
             onDeleteLayer(layerId)
@@ -282,7 +302,7 @@ private fun SetBackgroundContent(
                         )
                     }
                 } else {
-                    Text("No image to edit", color = chrome.content, style = MaterialTheme.typography.bodyLarge)
+                    Text(tr("No image to edit"), color = chrome.content, style = MaterialTheme.typography.bodyLarge)
                 }
             }
 
@@ -300,20 +320,28 @@ private fun SetBackgroundContent(
                         chrome = chrome,
                         selectedText = selectedText,
                         font = selectedText?.font ?: newTextFont,
-                        color = selectedText?.color ?: newTextColor,
+                        fill = selectedText?.fill ?: newTextFill,
+                        background = if (selectedText != null) selectedText.background else newTextBackground,
                         onFieldClick = { openTextEntry(selectedTextLayer) },
                         onFontChange = { font ->
                             if (selectedTextLayer != null && selectedText != null) {
-                                onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.color, font)
+                                onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
                             } else {
                                 newTextFont = font
                             }
                         },
-                        onColorChange = { color ->
+                        onFillChange = { fill ->
                             if (selectedTextLayer != null && selectedText != null) {
-                                onUpdateText(selectedTextLayer.id, selectedText.text, color, selectedText.font)
+                                onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
                             } else {
-                                newTextColor = color
+                                newTextFill = fill
+                            }
+                        },
+                        onBackgroundChange = { background ->
+                            if (selectedTextLayer != null && selectedText != null) {
+                                onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
+                            } else {
+                                newTextBackground = background
                             }
                         },
                     )
@@ -332,20 +360,20 @@ private fun SetBackgroundContent(
             ) {
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_background),
-                    label = "Background",
+                    label = tr("Background"),
                     selected = tool == SetBackgroundTool.Background,
                     onClick = { tool = SetBackgroundTool.Background },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_text_editor),
-                    label = "Text",
+                    label = tr("Text"),
                     selected = tool == SetBackgroundTool.Text,
                     enabled = sourceImage != null,
                     onClick = { tool = SetBackgroundTool.Text },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_stickers_editor),
-                    label = "Stickers",
+                    label = tr("Stickers"),
                     selected = tool == SetBackgroundTool.Stickers,
                     enabled = sourceImage != null,
                     onClick = { tool = SetBackgroundTool.Stickers },
@@ -382,6 +410,12 @@ private fun BackgroundPanel(
     onSelected: (Backdrop) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val selectedColor = (selected as? Backdrop.Solid)?.color
+    val pickCustomColor = rememberColorPickerLauncher(
+        // A gradient or photo backdrop has no one colour to open on, so the picker starts from white.
+        initial = selectedColor ?: Color.White,
+        onPicked = { onSelected(Backdrop.Solid(it)) },
+    )
     Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
         BackdropTabSwitch(
             selected = tab,
@@ -415,7 +449,7 @@ private fun BackgroundPanel(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Gallery",
+                            text = tr("Gallery"),
                             color = scheme.onSurface,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
@@ -436,10 +470,21 @@ private fun BackgroundPanel(
                 }
             }
             when (tab) {
-                BackdropTab.Colour -> items(BackdropSolidColors) { color ->
-                    val backdrop = Backdrop.Solid(color)
-                    BackdropTile(selected = backdrop == selected, onClick = { onSelected(backdrop) }) {
-                        Box(modifier = Modifier.fillMaxSize().background(color))
+                BackdropTab.Colour -> {
+                    // The custom colour tile spans both rows like the gallery tiles, for the same
+                    // reason. It is the one ringed while the backdrop is a colour of the user's own.
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        BackdropTile(
+                            selected = selectedColor != null && selectedColor !in BackdropSolidColors,
+                            height = TallTileHeight,
+                            onClick = pickCustomColor,
+                        ) { ColorPickerFill(Modifier.fillMaxSize()) }
+                    }
+                    items(BackdropSolidColors) { color ->
+                        val backdrop = Backdrop.Solid(color)
+                        BackdropTile(selected = backdrop == selected, onClick = { onSelected(backdrop) }) {
+                            Box(modifier = Modifier.fillMaxSize().background(color))
+                        }
                     }
                 }
                 BackdropTab.Gradient -> items(BackdropGradients) { colors ->
@@ -469,12 +514,12 @@ private fun SetBackgroundTopBar(
     Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = tr("Close"),
             onClick = onClose,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Background",
+            text = tr("Background"),
             color = scheme.onSurface,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -487,13 +532,13 @@ private fun SetBackgroundTopBar(
             modifier = Modifier.align(Alignment.CenterEnd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = canUndo, onClick = onUndo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = tr("Undo"), enabled = canUndo, onClick = onUndo)
             Spacer(modifier = Modifier.width(4.dp))
-            UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = canRedo, onClick = onRedo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = tr("Redo"), enabled = canRedo, onClick = onRedo)
             Spacer(modifier = Modifier.width(8.dp))
             GlassTopBarButton(
                 icon = Icons.Filled.Check,
-                contentDescription = "Done",
+                contentDescription = tr("Done"),
                 onClick = onDone,
                 enabled = doneEnabled,
                 style = GlassButtonStyle.Primary,
@@ -606,8 +651,8 @@ private fun SetBackgroundPreview() {
             onAddPhoto = {},
             onSelectBackdrop = {},
             onAddSticker = {},
-            onAddText = { _, _, _ -> },
-            onUpdateText = { _, _, _, _ -> },
+            onAddText = { _, _, _, _ -> },
+            onUpdateText = { _, _, _, _, _ -> },
             onRetypeText = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },

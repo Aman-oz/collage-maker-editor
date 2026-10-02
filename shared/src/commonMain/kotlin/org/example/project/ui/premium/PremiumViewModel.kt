@@ -19,6 +19,7 @@ import org.example.project.data.billing.BillingStatus
 import org.example.project.data.billing.PurchaseResult
 import org.example.project.data.billing.RestoreResult
 import org.example.project.data.billing.SubscriptionPlan
+import org.example.project.i18n.tr
 
 data class PremiumUiState(
     val billing: BillingState = BillingState(),
@@ -73,8 +74,8 @@ class PremiumViewModel(
     fun purchase(plan: SubscriptionPlan) = runBusy {
         when (val result = billing.purchase(plan)) {
             is PurchaseResult.Purchased -> _events.send(PremiumEvent.Unlocked)
-            PurchaseResult.Pending -> message("Your payment is pending. Premium unlocks as soon as it's confirmed.")
-            PurchaseResult.AlreadyOwned -> message("You're already subscribed to this plan")
+            PurchaseResult.Pending -> message(tr("Your payment is pending. Premium unlocks as soon as it's confirmed."))
+            PurchaseResult.AlreadyOwned -> message(tr("You're already subscribed to this plan"))
             is PurchaseResult.Failed -> message(result.message)
             // Backing out of the store sheet is a choice, not an error; say nothing.
             PurchaseResult.Cancelled -> Unit
@@ -84,7 +85,7 @@ class PremiumViewModel(
     fun restore() = runBusy {
         when (val result = billing.restore()) {
             is RestoreResult.Restored -> _events.send(PremiumEvent.Unlocked)
-            RestoreResult.NothingToRestore -> message("No active subscription was found for this account")
+            RestoreResult.NothingToRestore -> message(tr("No active subscription was found for this account"))
             is RestoreResult.Failed -> message(result.message)
         }
     }

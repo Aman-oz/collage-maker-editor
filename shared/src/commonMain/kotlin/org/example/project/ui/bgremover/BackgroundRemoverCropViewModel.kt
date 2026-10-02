@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.ImageEditSession
+import org.example.project.i18n.tr
 
 sealed interface BackgroundRemoverCropUiState {
     data object Loading : BackgroundRemoverCropUiState
@@ -34,7 +35,7 @@ class BackgroundRemoverCropViewModel(
         viewModelScope.launch {
             _uiState.value = runCatching { PlatformFile(imagePath).toImageBitmap() }.fold(
                 onSuccess = { BackgroundRemoverCropUiState.Ready(it) },
-                onFailure = { BackgroundRemoverCropUiState.Error(it.message ?: "Could not open this image") },
+                onFailure = { BackgroundRemoverCropUiState.Error(it.message ?: tr("Could not open this image")) },
             )
         }
     }

@@ -1,5 +1,10 @@
 package org.example.project.ui.pip
 
+import io.github.fletchmckee.liquid.liquefiable
+import io.github.fletchmckee.liquid.rememberLiquidState
+import org.example.project.ui.common.DiscardChangesPopup
+import org.example.project.ui.common.rememberDiscardChangesState
+import org.example.project.i18n.tr
 import org.example.project.ui.common.StickerFlightOverlay
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.rememberStickerFlights
@@ -74,6 +79,7 @@ import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.topBar
 import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleContent
+import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.StickersPanel
 import org.example.project.ui.freestyle.TextEntry
@@ -118,6 +124,7 @@ fun PipEditorScreen(
     imagePaths: List<String>,
     onBack: () -> Unit,
     onApplied: () -> Unit,
+    onPremium: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PipEditorViewModel = koinViewModel { parametersOf(templateName, imagePaths) },
 ) {
@@ -131,31 +138,46 @@ fun PipEditorScreen(
         pendingSlotIndex = null
     }
 
-    PipEditorContent(
-        template = viewModel.template,
-        uiState = uiState,
-        onBack = onBack,
-        onDone = { previewSizePx ->
-            if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) onApplied()
-        },
-        onPickSlotPhoto = { index ->
-            pendingSlotIndex = index
-            photoPicker.launch()
-        },
-        onTransformSlot = viewModel::transformSlot,
-        onAddSticker = viewModel::addSticker,
-        onAddText = viewModel::addText,
-        onUpdateText = viewModel::updateText,
-        onRetypeText = viewModel::retypeText,
-        onTransformLayer = viewModel::transformLayer,
-        onScaleRotateLayer = viewModel::setLayerScaleRotation,
-        onSelectLayer = viewModel::bringToFront,
-        onDeleteLayer = viewModel::removeLayer,
-        onUndo = viewModel::undo,
-        onRedo = viewModel::redo,
-        onGestureEnd = viewModel::endGesture,
-        modifier = modifier,
-    )
+    // Leaving with edits made (anything undoable) asks first, for ✕ and system back alike.
+    val discard = rememberDiscardChangesState(hasChanges = uiState.canUndo, onBack = onBack)
+    // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
+    val liquidState = rememberLiquidState()
+
+    Box(modifier = modifier.fillMaxSize()) {
+        PipEditorContent(
+            template = viewModel.template,
+            uiState = uiState,
+            onBack = discard::requestBack,
+            onDone = { previewSizePx ->
+                // Premium text or stickers show a non-subscriber the paywall once, as an offer. The
+                // edit lives in the ViewModel, so it is still here when they come back, and the next
+                // Done goes through whether or not they subscribed.
+                if (viewModel.consumePremiumOffer()) {
+                    onPremium()
+                } else if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) {
+                    onApplied()
+                }
+            },
+            onPickSlotPhoto = { index ->
+                pendingSlotIndex = index
+                photoPicker.launch()
+            },
+            onTransformSlot = viewModel::transformSlot,
+            onAddSticker = viewModel::addSticker,
+            onAddText = viewModel::addText,
+            onUpdateText = viewModel::updateText,
+            onRetypeText = viewModel::retypeText,
+            onTransformLayer = viewModel::transformLayer,
+            onScaleRotateLayer = viewModel::setLayerScaleRotation,
+            onSelectLayer = viewModel::bringToFront,
+            onDeleteLayer = viewModel::removeLayer,
+            onUndo = viewModel::undo,
+            onRedo = viewModel::redo,
+            onGestureEnd = viewModel::endGesture,
+            modifier = Modifier.liquefiable(liquidState),
+        )
+        DiscardChangesPopup(discard, liquidState)
+    }
 }
 
 @Composable
@@ -167,8 +189,8 @@ private fun PipEditorContent(
     onPickSlotPhoto: (slotIndex: Int) -> Unit,
     onTransformSlot: (index: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, Color, TextFontStyleOption) -> Unit,
-    onUpdateText: (id: Long, text: String, color: Color, font: TextFontStyleOption) -> Unit,
+    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
+    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
     onRetypeText: (id: Long, text: String) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
@@ -189,7 +211,8 @@ private fun PipEditorContent(
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
     // Style for the next new text layer; a selected text layer shows and edits its own instead.
     var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextColor by remember { mutableStateOf(TextColorOptions.first()) }
+    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
+    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
     // Non-null while the keyboard-docked text bar is open.
     var textEntry by remember { mutableStateOf<TextEntry?>(null) }
 
@@ -201,7 +224,7 @@ private fun PipEditorContent(
         onGestureEnd()
         val layerId = entry.layerId
         if (layerId == null) {
-            onAddText(entry.text.trim(), newTextColor, newTextFont)
+            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
         } else if (entry.text.isBlank()) {
             // Clearing a label's text removes it, rather than leaving an invisible layer behind.
             onDeleteLayer(layerId)
@@ -310,20 +333,28 @@ private fun PipEditorContent(
                             chrome = chrome,
                             selectedText = selectedText,
                             font = selectedText?.font ?: newTextFont,
-                            color = selectedText?.color ?: newTextColor,
+                            fill = selectedText?.fill ?: newTextFill,
+                            background = if (selectedText != null) selectedText.background else newTextBackground,
                             onFieldClick = { openTextEntry(selectedTextLayer) },
                             onFontChange = { font ->
                                 if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.color, font)
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
                                 } else {
                                     newTextFont = font
                                 }
                             },
-                            onColorChange = { color ->
+                            onFillChange = { fill ->
                                 if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, color, selectedText.font)
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
                                 } else {
-                                    newTextColor = color
+                                    newTextFill = fill
+                                }
+                            },
+                            onBackgroundChange = { background ->
+                                if (selectedTextLayer != null && selectedText != null) {
+                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
+                                } else {
+                                    newTextBackground = background
                                 }
                             },
                         )
@@ -343,14 +374,14 @@ private fun PipEditorContent(
             ) {
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_text_editor),
-                    label = "Text",
+                    label = tr("Text"),
                     selected = tool == PipTool.Text,
                     enabled = ready,
                     onClick = { tool = PipTool.Text },
                 )
                 BottomTab(
                     icon = vectorResource(Res.drawable.ic_stickers_editor),
-                    label = "Stickers",
+                    label = tr("Stickers"),
                     selected = tool == PipTool.Stickers,
                     enabled = ready,
                     onClick = { tool = PipTool.Stickers },
@@ -454,7 +485,7 @@ private fun PipCanvas(
                     .background(Color.Black.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add photo", tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Add, contentDescription = tr("Add photo"), tint = Color.White, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -487,12 +518,12 @@ private fun PipEditorTopBar(
     Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
         GlassTopBarButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = tr("Close"),
             onClick = onClose,
             modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
-            text = "Pip Editor",
+            text = tr("Pip Editor"),
             color = scheme.onSurface,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -505,13 +536,13 @@ private fun PipEditorTopBar(
             modifier = Modifier.align(Alignment.CenterEnd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = "Undo", enabled = canUndo, onClick = onUndo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_undo), contentDescription = tr("Undo"), enabled = canUndo, onClick = onUndo)
             Spacer(modifier = Modifier.width(4.dp))
-            UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = "Redo", enabled = canRedo, onClick = onRedo)
+            UndoRedoButton(icon = vectorResource(Res.drawable.ic_redo), contentDescription = tr("Redo"), enabled = canRedo, onClick = onRedo)
             Spacer(modifier = Modifier.width(8.dp))
             GlassTopBarButton(
                 icon = Icons.Filled.Check,
-                contentDescription = "Done",
+                contentDescription = tr("Done"),
                 onClick = onDone,
                 enabled = doneEnabled,
                 style = GlassButtonStyle.Primary,
@@ -561,8 +592,8 @@ private fun PipEditorPreview() {
             onPickSlotPhoto = {},
             onTransformSlot = { _, _, _, _, _, _ -> },
             onAddSticker = {},
-            onAddText = { _, _, _ -> },
-            onUpdateText = { _, _, _, _ -> },
+            onAddText = { _, _, _, _ -> },
+            onUpdateText = { _, _, _, _, _ -> },
             onRetypeText = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },

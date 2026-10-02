@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +34,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.OpenInFull
@@ -45,9 +45,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +61,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
@@ -65,6 +69,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -84,54 +89,64 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
+import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.rememberColorPickerLauncher
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun TextScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun TextTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TextViewModel = koinViewModel(),
 ) {
     val textMeasurer = rememberTextMeasurer()
     TextContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onDone = { content, font, color, sizeSp, canvasWidthPx, offsetFraction, rotationDegrees ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyText(
-                    bakeText(
-                        source = image,
-                        textMeasurer = textMeasurer,
-                        content = content,
-                        fontStyleOption = font,
-                        color = color,
-                        sizeSp = sizeSp,
-                        previewCanvasWidthPx = canvasWidthPx,
-                        offsetFraction = offsetFraction,
-                        rotationDegrees = rotationDegrees,
-                    ),
-                )
-            }
-            onApplied()
+        sourceImage = sourceImage,
+        isPremium = isPremium,
+        onBack = onClose,
+        onOpenPremium = onOpenPremium,
+        onDone = { content, font, color, background, sizeSp, canvasWidthPx, offsetFraction, rotationDegrees ->
+            onApply(
+                bakeText(
+                    source = sourceImage,
+                    textMeasurer = textMeasurer,
+                    content = content,
+                    fontStyleOption = font,
+                    color = color,
+                    sizeSp = sizeSp,
+                    previewCanvasWidthPx = canvasWidthPx,
+                    offsetFraction = offsetFraction,
+                    rotationDegrees = rotationDegrees,
+                    background = background,
+                ),
+            )
         },
         modifier = modifier,
     )
 }
 
+private val OffsetSaver = listSaver<Offset, Float>(save = { listOf(it.x, it.y) }, restore = { Offset(it[0], it[1]) })
+
 @Composable
 private fun TextContent(
     sourceImage: ImageBitmap?,
+    isPremium: Boolean,
     onBack: () -> Unit,
+    onOpenPremium: () -> Unit,
     onDone: (
         content: String,
         font: TextFontStyleOption,
         color: Color,
+        background: Color?,
         sizeSp: Float,
         canvasWidthPx: Float,
         offsetFraction: Offset,
@@ -140,21 +155,38 @@ private fun TextContent(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var hasAddedText by remember { mutableStateOf(false) }
+    // The edit itself is saveable, unlike most tools': the paywall covers the editor, which drops
+    // plain `remember` state, and the text made before it has to still be there after. The mode is
+    // not: coming back, the text is simply there, unselected.
+    var hasAddedText by rememberSaveable { mutableStateOf(false) }
     var mode by remember { mutableStateOf(TextLayerMode.Idle) }
-    var content by remember { mutableStateOf("") }
-    var selectedFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var selectedColor by remember { mutableStateOf(TextColorOptions.first()) }
-    var sizeSp by remember { mutableFloatStateOf(TextSizeDefault) }
+    var content by rememberSaveable { mutableStateOf("") }
+    var selectedFontLabel by rememberSaveable { mutableStateOf(TextFontStyles[1].label) }
+    val selectedFont = TextFontStyles.firstOrNull { it.label == selectedFontLabel } ?: TextFontStyles[1]
+    // Saved as ARGB ints, so a colour from the custom picker survives the paywall trip as well as
+    // one of TextColorOptions does. No background (null) is the default.
+    var selectedColorArgb by rememberSaveable { mutableIntStateOf(TextColorOptions.first().toArgb()) }
+    val selectedColor = Color(selectedColorArgb)
+    var backgroundArgb by rememberSaveable { mutableStateOf<Int?>(null) }
+    val background = backgroundArgb?.let { Color(it) }
+    // Which of the two the colour row is editing.
+    var colorTarget by remember { mutableStateOf(TextColorTarget.Text) }
+    var sizeSp by rememberSaveable { mutableFloatStateOf(TextSizeDefault) }
     var photoSizePx by remember { mutableStateOf(IntSize.Zero) }
-    var textOffsetFraction by remember { mutableStateOf(Offset(0.5f, 0.5f)) }
+    var textOffsetFraction by rememberSaveable(stateSaver = OffsetSaver) { mutableStateOf(Offset(0.5f, 0.5f)) }
     var textBoxSizePx by remember { mutableStateOf(IntSize.Zero) }
-    var rotationDegrees by remember { mutableFloatStateOf(0f) }
+    var rotationDegrees by rememberSaveable { mutableFloatStateOf(0f) }
+    // Set once text that was already written is gone back into (a tap on the selected text).
+    var reEdited by rememberSaveable { mutableStateOf(false) }
+    // The paywall is an offer, not a gate: it is shown once per edit, on the first Done with a
+    // premium text edit (see isPremiumTextEdit), and the next Done applies either way.
+    var paywallShown by rememberSaveable { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val removeText = {
         hasAddedText = false
         content = ""
+        reEdited = false
         mode = TextLayerMode.Idle
         textOffsetFraction = Offset(0.5f, 0.5f)
         rotationDegrees = 0f
@@ -168,27 +200,15 @@ private fun TextContent(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            // The keyboard is left out of the insets on purpose: it slides up over the controls
-            // while the photo (and the text being typed on it) stays exactly where it was.
-            .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
+    ToolScaffold(
+        modifier = modifier,
+        // The keyboard is left out of the insets on purpose: it slides up over the controls
+        // while the photo (and the text being typed on it) stays exactly where it was.
+        insets = WindowInsets.safeDrawing.exclude(WindowInsets.ime),
     ) {
-        ToolTopBar(
-            title = "Text",
-            onClose = onBack,
-            onDone = {
-                onDone(content, selectedFont, selectedColor, sizeSp, photoSizePx.width.toFloat(), textOffsetFraction, rotationDegrees)
-            },
-            doneEnabled = sourceImage != null,
-        )
-
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 // Tapping anywhere off the text ends editing (the focus loss lands it in Selected
                 // first) and then deselects it.
@@ -230,7 +250,7 @@ private fun TextContent(
                     ) {
                         Image(
                             bitmap = sourceImage,
-                            contentDescription = "Photo preview",
+                            contentDescription = tr("Photo preview"),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
                         )
@@ -244,6 +264,7 @@ private fun TextContent(
                                     if (content.isBlank()) removeText() else mode = TextLayerMode.Selected
                                 },
                                 style = textStyle,
+                                background = background,
                                 modifier = Modifier
                                     .onSizeChanged { textBoxSizePx = it }
                                     .offset { textBoxOffset }
@@ -257,7 +278,12 @@ private fun TextContent(
                             selected = mode == TextLayerMode.Selected,
                             boxSizePx = textBoxSizePx,
                             onTap = {
-                                mode = if (mode == TextLayerMode.Selected) TextLayerMode.Editing else TextLayerMode.Selected
+                                if (mode == TextLayerMode.Selected) {
+                                    reEdited = true
+                                    mode = TextLayerMode.Editing
+                                } else {
+                                    mode = TextLayerMode.Selected
+                                }
                             },
                             onMove = { pan ->
                                 mode = TextLayerMode.Selected
@@ -286,36 +312,77 @@ private fun TextContent(
                 }
             } else {
                 Text(
-                    text = "No image to add text to",
+                    text = tr("No image to add text to"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        SectionLabel(text = "Font")
-        FontRow(selected = selectedFont, onSelected = { selectedFont = it })
+        ToolPanel(
+            title = tr("Text"),
+            onClose = onBack,
+            onDone = {
+                val premiumEdit = hasAddedText && content.isNotBlank() &&
+                    isPremiumTextEdit(selectedFont, selectedColor, sizeSp, reEdited)
+                if (premiumEdit && !isPremium && !paywallShown) {
+                    paywallShown = true
+                    // Ends any typing in progress, so the keyboard isn't left up under the paywall.
+                    focusManager.clearFocus()
+                    onOpenPremium()
+                } else {
+                    onDone(content, selectedFont, selectedColor, background, sizeSp, photoSizePx.width.toFloat(), textOffsetFraction, rotationDegrees)
+                }
+            },
+            doneEnabled = sourceImage != null,
+        ) {
+            SectionLabel(text = tr("Font"))
+            FontRow(selected = selectedFont, onSelected = { selectedFontLabel = it.label })
 
-        SectionLabel(text = "Color")
-        ColorRow(selected = selectedColor, onSelected = { selectedColor = it })
+            SectionLabel(text = tr("Color"))
+            val editingBackground = colorTarget == TextColorTarget.Background
+            val setShownColor = { color: Color ->
+                if (editingBackground) backgroundArgb = color.toArgb() else selectedColorArgb = color.toArgb()
+            }
+            val pickCustomColor = rememberColorPickerLauncher(
+                // With no background yet, the picker starts from white.
+                initial = if (editingBackground) background ?: Color.White else selectedColor,
+                onPicked = setShownColor,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextColorTargetSwitch(
+                    selected = colorTarget,
+                    onSelected = { colorTarget = it },
+                    modifier = Modifier.padding(start = 16.dp),
+                )
+                ColorRow(
+                    selected = if (editingBackground) background else selectedColor,
+                    onSelected = setShownColor,
+                    onPickCustom = pickCustomColor,
+                    onClear = if (editingBackground) ({ backgroundArgb = null }) else null,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
-        TextSizeLabelRow(value = sizeSp)
-        CenterFillSlider(
-            value = sizeSp,
-            onValueChange = { sizeSp = it },
-            range = TextSizeRange,
-            referenceValue = TextSizeRange.start,
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
+            TextSizeLabelRow(value = sizeSp)
+            CenterFillSlider(
+                value = sizeSp,
+                onValueChange = { sizeSp = it },
+                range = TextSizeRange,
+                referenceValue = TextSizeRange.start,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+        }
     }
 }
 
@@ -334,9 +401,12 @@ private fun TextLayer(
     editing: Boolean,
     onEditingEnd: () -> Unit,
     style: TextStyle,
+    background: Color?,
     modifier: Modifier = Modifier,
 ) {
-    val padded = modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+    // Drawn behind the words themselves, inside the padding, the same way bakeText draws it.
+    val plate = Modifier.drawBehind { background?.let { drawTextPlate(SolidColor(it), Offset.Zero, size) } }
+    val padded = modifier.padding(horizontal = 14.dp, vertical = 6.dp).then(plate)
     if (editing) {
         val focusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
@@ -359,6 +429,7 @@ private fun TextLayer(
             modifier = modifier
                 .dashedPill(color = Color.White.copy(alpha = 0.9f))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
+                .then(plate)
                 .focusRequester(focusRequester)
                 .onFocusChanged { state ->
                     if (state.isFocused) {
@@ -370,7 +441,7 @@ private fun TextLayer(
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.Center) {
                     if (content.isEmpty()) {
-                        Text(text = "Your Text", style = style.copy(color = Color.White.copy(alpha = 0.7f)), maxLines = 1)
+                        Text(text = tr("Your Text"), style = style.copy(color = Color.White.copy(alpha = 0.7f)), maxLines = 1)
                     }
                     innerTextField()
                 }
@@ -430,7 +501,7 @@ private fun TextGestureBox(
         if (selected) {
             TextHandle(
                 icon = Icons.Filled.Close,
-                contentDescription = "Delete text",
+                contentDescription = tr("Delete text"),
                 background = Color(0xFFE53935),
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -439,7 +510,7 @@ private fun TextGestureBox(
             )
             TextHandle(
                 icon = Icons.Filled.OpenInFull,
-                contentDescription = "Drag to resize and rotate text",
+                contentDescription = tr("Drag to resize and rotate text"),
                 background = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -515,7 +586,7 @@ private fun AddTextButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text = "Add Text", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = tr("Add Text"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -599,7 +670,7 @@ private fun FontChip(option: TextFontStyleOption, selected: Boolean, onClick: ()
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = option.label,
+            text = tr(option.label),
             fontSize = 11.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (selected) scheme.primary else scheme.onSurface.copy(alpha = 0.7f),
@@ -610,20 +681,63 @@ private fun FontChip(option: TextFontStyleOption, selected: Boolean, onClick: ()
     }
 }
 
+/**
+ * With [onPickCustom] the row leads with a colour-wheel swatch that opens the host's free colour
+ * picker; it is the one ringed while [selected] is a colour outside [TextColorOptions]. [gradients]
+ * follow the flat colours; [selected] is null while one of them ([selectedGradient]) is in use.
+ * With [onClear] a "none" swatch comes first of all, ringed while neither is set.
+ */
 @Composable
-internal fun ColorRow(selected: Color, onSelected: (Color) -> Unit) {
+internal fun ColorRow(
+    selected: Color?,
+    onSelected: (Color) -> Unit,
+    onPickCustom: (() -> Unit)? = null,
+    gradients: List<List<Color>> = emptyList(),
+    selectedGradient: List<Color>? = null,
+    onGradientSelected: (List<Color>) -> Unit = {},
+    onClear: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     LazyRow(
+        modifier = modifier,
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (onClear != null) {
+            item {
+                ColorSwatch(selected = selected == null && selectedGradient == null, onClick = onClear) {
+                    Box(modifier = it, contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Filled.Block,
+                            contentDescription = tr("None"),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+        }
+        if (onPickCustom != null) {
+            item {
+                ColorSwatch(selected = selected != null && selected !in TextColorOptions, onClick = onPickCustom) {
+                    ColorPickerFill(it)
+                }
+            }
+        }
         items(TextColorOptions) { color ->
-            ColorSwatch(color = color, selected = color == selected, onClick = { onSelected(color) })
+            ColorSwatch(selected = color == selected, onClick = { onSelected(color) }) { Box(modifier = it.background(color)) }
+        }
+        items(gradients) { colors ->
+            ColorSwatch(selected = colors == selectedGradient, onClick = { onGradientSelected(colors) }) {
+                Box(modifier = it.background(Brush.linearGradient(colors)))
+            }
         }
     }
 }
 
+/** [fill] paints the swatch's inner square; it is handed the modifier that sizes and clips it. */
 @Composable
-private fun ColorSwatch(color: Color, selected: Boolean, onClick: () -> Unit) {
+private fun ColorSwatch(selected: Boolean, onClick: () -> Unit, fill: @Composable (Modifier) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val outerShape = RoundedCornerShape(12.dp)
     val innerShape = RoundedCornerShape(8.dp)
@@ -646,10 +760,11 @@ private fun ColorSwatch(color: Color, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier
                 .size(36.dp)
                 .clip(innerShape)
-                .background(color)
                 // Keeps light swatches (white) visible against a light surface.
                 .border(width = 1.dp, color = scheme.onSurface.copy(alpha = 0.1f), shape = innerShape),
-        )
+        ) {
+            fill(Modifier.matchParentSize())
+        }
     }
 }
 
@@ -663,7 +778,7 @@ private fun TextSizeLabelRow(value: Float) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Text Size",
+            text = tr("Text Size"),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = scheme.onSurface,
@@ -682,6 +797,12 @@ private fun TextSizeLabelRow(value: Float) {
 @Composable
 private fun TextScreenPreview() {
     ThemePreviews {
-        TextContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onDone = { _, _, _, _, _, _, _ -> })
+        TextContent(
+            sourceImage = ImageBitmap(360, 480),
+            isPremium = false,
+            onBack = {},
+            onOpenPremium = {},
+            onDone = { _, _, _, _, _, _, _, _ -> },
+        )
     }
 }

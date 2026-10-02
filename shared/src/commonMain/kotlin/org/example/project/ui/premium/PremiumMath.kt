@@ -4,6 +4,7 @@ import kotlin.math.roundToInt
 import org.example.project.data.billing.BillingPeriod
 import org.example.project.data.billing.PeriodUnit
 import org.example.project.data.billing.SubscriptionProduct
+import org.example.project.i18n.tr
 
 /**
  * How much cheaper [yearly] is than a year of [weekly], as a whole percentage — the "SAVE 80%" on
@@ -69,3 +70,22 @@ internal fun formatPriceLike(template: String, micros: Long): String? {
 }
 
 private val PriceNumber = Regex("""\d(?:[\d.,\u00A0\u202F ]*\d)?""")
+
+/**
+ * [BillingPeriod.unitLabel] in the app's language: "week" for one unit, "3 months" for several —
+ * what follows "every" in a plan's renewal line.
+ */
+internal fun BillingPeriod.localizedUnitLabel(): String = when (unit) {
+    PeriodUnit.Day -> if (count == 1) tr("day") else tr("{0} days", count)
+    PeriodUnit.Week -> if (count == 1) tr("week") else tr("{0} weeks", count)
+    PeriodUnit.Month -> if (count == 1) tr("month") else tr("{0} months", count)
+    PeriodUnit.Year -> if (count == 1) tr("year") else tr("{0} years", count)
+}
+
+/** [BillingPeriod.trialLabel] in the app's language: "3-Day Free Trial". */
+internal fun BillingPeriod.localizedTrialLabel(): String = when (unit) {
+    PeriodUnit.Day -> tr("{0}-Day Free Trial", count)
+    PeriodUnit.Week -> tr("{0}-Week Free Trial", count)
+    PeriodUnit.Month -> tr("{0}-Month Free Trial", count)
+    PeriodUnit.Year -> tr("{0}-Year Free Trial", count)
+}

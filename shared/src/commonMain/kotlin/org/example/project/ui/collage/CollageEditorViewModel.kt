@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.i18n.tr
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.templates.SlotTransform
@@ -38,9 +39,11 @@ data class CollagePickerState(
 /**
  * Drives the collage editor, mirroring the LAS `CollageActivity`: it decodes the picked photos, loads
  * the `collages.json` layout catalog, keeps only the layouts whose slot count matches how many photos
- * were picked, and seeds the first one. Selecting a free layout re-flows the photos into its slots;
- * premium layouts raise a one-shot [messages] toast and are not applied. The Border tab's width
- * (`space`) and corner radius (`corner`) feed straight into the polygon renderer.
+ * were picked, and seeds the first one. Selecting a layout re-flows the photos into its slots. A
+ * premium layout can be tried like any other, but only a subscriber can finish with one: for
+ * everyone else Done opens the paywall ([needsPremium]); a free layout with a premium border
+ * width or ratio gets the paywall once, as an offer ([consumePremiumOffer]). The Border tab's width (`space`) and corner
+ * radius (`corner`) feed straight into the polygon renderer.
  */
 class CollageEditorViewModel(
     private val imagePaths: List<String>,
@@ -49,8 +52,32 @@ class CollageEditorViewModel(
     private val settings: AppSettings,
 ) : ViewModel() {
 
-    /** Subscribers can apply premium layouts; the screen sends everyone else to the paywall. */
-    val isPremium: StateFlow<Boolean> = settings.isPremium
+    /**
+     * Whether Done has to go to the paywall instead of creating the collage: the layout in use is a
+     * premium one and the user is not subscribed. Read at the moment of Done, so it is already
+     * `false` for someone who has just come back from subscribing.
+     */
+    val needsPremium: Boolean
+        get() {
+            val template = (_uiState.value as? CollageEditorUiState.Ready)?.collage?.template
+            return template?.isPremium == true && !settings.isPremium.value
+        }
+
+    private var premiumOfferShown = false
+
+    /**
+     * Whether Done should open the paywall once before creating a collage on a free layout: `true`
+     * a single time, for a non-subscriber whose collage [isPremiumCollageEdit]. Unlike
+     * [needsPremium] it is an offer, not a gate, so asking marks it as made and the next Done goes
+     * through either way.
+     */
+    fun consumePremiumOffer(): Boolean {
+        val collage = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return false
+        if (settings.isPremium.value || premiumOfferShown) return false
+        if (!isPremiumCollageEdit(collage.space, collage.ratio)) return false
+        premiumOfferShown = true
+        return true
+    }
 
     private val _uiState = MutableStateFlow<CollageEditorUiState>(CollageEditorUiState.Loading)
     val uiState: StateFlow<CollageEditorUiState> = _uiState.asStateFlow()
@@ -82,13 +109,13 @@ class CollageEditorViewModel(
                 imagePaths.map { path -> async { copyBitmap(PlatformFile(path).toImageBitmap()) } }.awaitAll()
             }
             val images = imagesResult.getOrElse {
-                _uiState.value = CollageEditorUiState.Error(it.message ?: "Could not open these images")
+                _uiState.value = CollageEditorUiState.Error(it.message ?: tr("Could not open these images"))
                 return@launch
             }
             photos = images
 
             val all = runCatching { catalog.loadAll() }.getOrElse {
-                _pickerState.value = _pickerState.value.copy(isLoading = false, error = it.message ?: "Couldn't load collage layouts")
+                _pickerState.value = _pickerState.value.copy(isLoading = false, error = it.message ?: tr("Couldn't load collage layouts"))
                 emptyList()
             }
             // Like CollageActivity: show only layouts whose slot count matches the photo count,
@@ -103,7 +130,7 @@ class CollageEditorViewModel(
             if (templates.isEmpty()) {
                 // No layouts at all — still let the user see their first photo full-frame would be
                 // ideal, but without geometry we surface an error like the LAS "no templates" toast.
-                _uiState.value = CollageEditorUiState.Error("No collage layouts available")
+                _uiState.value = CollageEditorUiState.Error(tr("No collage layouts available"))
                 _pickerState.value = _pickerState.value.copy(isLoading = false)
                 return@launch
             }
@@ -121,10 +148,6 @@ class CollageEditorViewModel(
     }
 
     fun applyTemplate(template: TemplateItem) {
-        if (template.isPremium && !settings.isPremium.value) {
-            _messages.tryEmit("“${template.title}” is a premium layout")
-            return
-        }
         _pickerState.value = _pickerState.value.copy(selectedTemplateId = template.id)
         updateReady { state ->
             // Keep photos already placed; drop any whose slot no longer exists in the new layout. The
@@ -154,7 +177,7 @@ class CollageEditorViewModel(
                         state.copy(images = state.images + (slotIndex to image), transforms = state.transforms - slotIndex)
                     }
                 }
-                .onFailure { _messages.tryEmit("Couldn't open that photo") }
+                .onFailure { _messages.tryEmit(tr("Couldn't open that photo")) }
         }
     }
 

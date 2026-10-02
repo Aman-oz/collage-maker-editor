@@ -7,6 +7,12 @@ package org.example.project.ui.editor
 internal const val MaxEditHistory = 20
 
 /**
+ * How many tool edits anyone can save. With more than this applied, the editor's first Done shows a
+ * non-subscriber the paywall (see [EditorViewModel.consumePremiumOffer]).
+ */
+internal const val FreeEditCount = 3
+
+/**
  * Immutable undo/redo history around a [current] value. Every operation returns a new history.
  *
  * @param undoStack past values, oldest first; the last one is what [undo] restores.
@@ -20,6 +26,9 @@ internal data class EditHistory<T>(
 ) {
     val canUndo: Boolean get() = undoStack.isNotEmpty()
     val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    /** The edits in effect on [current]: undone ones don't count, redone ones do again. */
+    val appliedEdits: Int get() = undoStack.size
 
     /** Records a new edit: the old [current] becomes undoable, and any redo branch is discarded. */
     fun push(value: T): EditHistory<T> = copy(

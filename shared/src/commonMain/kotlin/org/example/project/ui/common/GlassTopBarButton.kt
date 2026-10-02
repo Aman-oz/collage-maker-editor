@@ -41,6 +41,9 @@ internal val TopBarHorizontalPadding = 16.dp
 /** Diameter of the circular top-bar buttons (glass back/close/done, and undo/redo beside them). */
 internal val TopBarButtonSize = 40.dp
 
+/** The premium crown in a top bar (Home, Templates, Frames): one size wherever it appears. */
+internal val TopBarPremiumIconSize = 28.dp
+
 /**
  * Room a centered top-bar title leaves on each side for the widest trailing group, undo + redo +
  * Done (three [TopBarButtonSize] buttons, 8dp apart), plus a gap — so the title stays centered on

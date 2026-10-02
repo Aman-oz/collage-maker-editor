@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.data.ThemeMode
+import org.example.project.i18n.tr
 import org.example.project.ui.common.DialogShape
 import org.example.project.ui.preview.ThemePreviews
 
@@ -75,7 +76,7 @@ internal fun ThemeDialog(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Choose Theme",
+            text = tr("Choose Theme"),
             color = colors.onSurface,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
@@ -83,7 +84,7 @@ internal fun ThemeDialog(
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "Pick how the app looks to you",
+            text = tr("Pick how the app looks to you"),
             color = colors.onSurface.copy(alpha = 0.7f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
@@ -108,11 +109,11 @@ internal fun ThemeDialog(
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(containerColor = SettingsAccent, contentColor = Color.White),
         ) {
-            Text(text = "Apply", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Apply"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onDismiss) {
-            Text(text = "Cancel", color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = tr("Cancel"), color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -143,7 +144,7 @@ private fun ThemeOptionRow(option: ThemeOption, selected: Boolean, onClick: () -
         Icon(imageVector = option.icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(14.dp))
         Text(
-            text = option.label,
+            text = tr(option.label),
             modifier = Modifier.weight(1f),
             color = colors.onSurface,
             fontSize = 15.sp,

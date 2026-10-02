@@ -73,4 +73,20 @@ class OverlayPresetsTest {
     fun totalPresetCountMatchesAllCategoriesCombined() {
         assertEquals(8 + 12 + 5 + 4 + 4 + 4, OverlayPresets.size)
     }
+
+    @Test
+    fun premiumPresets_areTheRequestedPositionsInEachTab() {
+        val premium = OverlayPresets.filter { it.isPremium }.groupBy({ it.category }, { it.label })
+        assertEquals(
+            mapOf(
+                // 2nd and second last.
+                OverlayCategory.Effect to listOf("Grain", "Film"),
+                // 5th, 6th, third last and second last.
+                OverlayCategory.Colorful to listOf("Candy", "Tropical", "Confetti", "Halftone"),
+                // 2nd.
+                OverlayCategory.Hardmix to listOf("Cyan Split"),
+            ),
+            premium,
+        )
+    }
 }

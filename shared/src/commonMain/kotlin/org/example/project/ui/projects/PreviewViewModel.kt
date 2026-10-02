@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.ProjectsRepository
+import org.example.project.i18n.tr
 import org.example.project.ui.share.ShareTarget
 import org.example.project.ui.share.shareImage
 
@@ -62,7 +63,7 @@ class PreviewViewModel(
                 val shareCopy = FileKit.cacheDir / source.name
                 source copyTo shareCopy
                 shareImage(shareCopy.path, ShareTarget.More)
-            }.onFailure { _errors.tryEmit(it.message ?: "Could not share the image") }
+            }.onFailure { _errors.tryEmit(it.message ?: tr("Could not share the image")) }
         }
     }
 
@@ -70,7 +71,7 @@ class PreviewViewModel(
         viewModelScope.launch {
             runCatching { repository.delete(imagePath) }
                 .onSuccess { _deleted.value = true }
-                .onFailure { _errors.tryEmit(it.message ?: "Could not delete the project") }
+                .onFailure { _errors.tryEmit(it.message ?: tr("Could not delete the project")) }
         }
     }
 }

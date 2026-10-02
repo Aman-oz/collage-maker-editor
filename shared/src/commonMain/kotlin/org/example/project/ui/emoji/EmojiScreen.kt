@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -20,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -50,6 +48,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,80 +73,87 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import kotlin.math.min
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
 import org.example.project.ui.common.EmojiGridFontSizeSp
 import org.example.project.ui.common.StickerFlightOverlay
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.rememberStickerFlights
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.stickerFlightTarget
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun EmojiScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun EmojiTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: EmojiViewModel = koinViewModel(),
 ) {
     val textMeasurer = rememberTextMeasurer()
     EmojiContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
+        sourceImage = sourceImage,
+        isPremium = isPremium,
+        onBack = onClose,
+        onOpenPremium = onOpenPremium,
         onDone = { placedEmojis, canvasWidthPx ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyEmojis(
-                    bakeEmojis(
-                        source = image,
-                        textMeasurer = textMeasurer,
-                        placedEmojis = placedEmojis,
-                        previewCanvasWidthPx = canvasWidthPx,
-                    ),
-                )
-            }
-            onApplied()
+            onApply(
+                bakeEmojis(
+                    source = sourceImage,
+                    textMeasurer = textMeasurer,
+                    placedEmojis = placedEmojis,
+                    previewCanvasWidthPx = canvasWidthPx,
+                ),
+            )
         },
         modifier = modifier,
     )
 }
 
+/** The placed emojis, saved as each one's id, glyph, center (x, y) and scale end to end. */
+private val PlacedEmojisSaver = listSaver<List<PlacedEmoji>, Any>(
+    save = { placed -> placed.flatMap { listOf(it.id, it.emoji, it.offsetFraction.x, it.offsetFraction.y, it.scale) } },
+    restore = { saved ->
+        saved.chunked(5).map { (id, emoji, x, y, scale) ->
+            PlacedEmoji(id as Long, emoji as String, Offset(x as Float, y as Float), scale as Float)
+        }
+    },
+)
+
+private val StringListSaver = listSaver<List<String>, String>(save = { it }, restore = { it })
+
 @Composable
 private fun EmojiContent(
     sourceImage: ImageBitmap?,
+    isPremium: Boolean,
     onBack: () -> Unit,
+    onOpenPremium: () -> Unit,
     onDone: (placedEmojis: List<PlacedEmoji>, canvasWidthPx: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     // null selects the Recent tab, which isn't an EmojiCategory because it has no fixed emoji set.
-    var selectedCategory by remember { mutableStateOf<EmojiCategory?>(EmojiCategory.Smileys) }
-    var recentEmojis by remember { mutableStateOf(emptyList<String>()) }
-    var placedEmojis by remember { mutableStateOf(emptyList<PlacedEmoji>()) }
+    // The edit is saveable, unlike most tools': the paywall covers the editor, which drops plain
+    // `remember` state, and the emojis placed before it have to still be there after.
+    var selectedCategory by rememberSaveable { mutableStateOf<EmojiCategory?>(EmojiCategory.Smileys) }
+    var recentEmojis by rememberSaveable(stateSaver = StringListSaver) { mutableStateOf(emptyList()) }
+    var placedEmojis by rememberSaveable(stateSaver = PlacedEmojisSaver) { mutableStateOf(emptyList()) }
     var selectedEmojiId by remember { mutableStateOf<Long?>(null) }
-    var nextId by remember { mutableLongStateOf(0L) }
+    var nextId by rememberSaveable { mutableLongStateOf(0L) }
+    // The paywall is an offer, not a gate: it is shown once per edit, on the first Done with more
+    // than [FreeEmojiLimit] emojis placed, and the next Done applies either way.
+    var paywallShown by rememberSaveable { mutableStateOf(false) }
     var displayedImageWidthPx by remember { mutableStateOf(0f) }
     val stickerFlights = rememberStickerFlights(EmojiBaseSizeSp)
 
     // The box only exists so the flight overlay can draw over both the photo and the grid.
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(scheme.surface)
-                .safeDrawingPadding(),
-        ) {
-            ToolTopBar(
-                title = "Emoji",
-                onClose = onBack,
-                onDone = { onDone(placedEmojis, displayedImageWidthPx) },
-                doneEnabled = sourceImage != null,
-            )
-
+        ToolScaffold {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .toolStage()
                     .background(scheme.onSurface.copy(alpha = 0.08f))
                     .padding(20.dp),
                 contentAlignment = Alignment.Center,
@@ -167,7 +174,7 @@ private fun EmojiContent(
                         // Sized to the fitted photo (not the whole box) so the rounded clip hugs the photo.
                         Image(
                             bitmap = sourceImage,
-                            contentDescription = "Photo preview",
+                            contentDescription = tr("Photo preview"),
                             modifier = Modifier
                                 .offset { IntOffset(imageOffsetPx.x.roundToInt(), imageOffsetPx.y.roundToInt()) }
                                 .size(with(density) { imageWidthPx.toDp() }, with(density) { imageHeightPx.toDp() })
@@ -225,27 +232,41 @@ private fun EmojiContent(
                     }
                 } else {
                     Text(
-                        text = "No image to add emoji to",
+                        text = tr("No image to add emoji to"),
                         color = scheme.onSurface,
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
 
-            EmojiCategoryTabs(selected = selectedCategory, onSelected = { selectedCategory = it })
-
-            EmojiGrid(
-                emojis = selectedCategory?.let { EmojisByCategory[it].orEmpty() } ?: recentEmojis,
-                onEmojiTapped = { emoji, cellBounds ->
-                    stickerFlights.launch(emoji, cellBounds) {
-                        val id = nextId
-                        nextId += 1
-                        placedEmojis = placedEmojis + PlacedEmoji(id = id, emoji = emoji)
-                        selectedEmojiId = id
+            ToolPanel(
+                title = tr("Emoji"),
+                onClose = onBack,
+                onDone = {
+                    if (!isPremium && !paywallShown && placedEmojis.size > FreeEmojiLimit) {
+                        paywallShown = true
+                        onOpenPremium()
+                    } else {
+                        onDone(placedEmojis, displayedImageWidthPx)
                     }
-                    recentEmojis = (listOf(emoji) + (recentEmojis - emoji)).take(MaxRecentEmojis)
                 },
-            )
+                doneEnabled = sourceImage != null,
+            ) {
+                EmojiCategoryTabs(selected = selectedCategory, onSelected = { selectedCategory = it })
+
+                EmojiGrid(
+                    emojis = selectedCategory?.let { EmojisByCategory[it].orEmpty() } ?: recentEmojis,
+                    onEmojiTapped = { emoji, cellBounds ->
+                        stickerFlights.launch(emoji, cellBounds) {
+                            val id = nextId
+                            nextId += 1
+                            placedEmojis = placedEmojis + PlacedEmoji(id = id, emoji = emoji)
+                            selectedEmojiId = id
+                        }
+                        recentEmojis = (listOf(emoji) + (recentEmojis - emoji)).take(MaxRecentEmojis)
+                    },
+                )
+            }
         }
 
         StickerFlightOverlay(stickerFlights)
@@ -334,7 +355,7 @@ private fun BoxScope.PlacedEmojiView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Delete sticker",
+                    contentDescription = tr("Delete sticker"),
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
                 )
@@ -376,7 +397,7 @@ private fun BoxScope.PlacedEmojiView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.OpenInFull,
-                    contentDescription = "Resize sticker",
+                    contentDescription = tr("Resize sticker"),
                     tint = scheme.onPrimary,
                     modifier = Modifier.size(12.dp),
                 )
@@ -415,7 +436,7 @@ internal fun EmojiCategoryTabs(selected: EmojiCategory?, onSelected: (EmojiCateg
     ) {
         EmojiCategoryTab(
             icon = Icons.Outlined.Schedule,
-            contentDescription = "Recent",
+            contentDescription = tr("Recent"),
             selected = selected == null,
             onClick = { onSelected(null) },
         )
@@ -470,7 +491,7 @@ internal fun EmojiGrid(
     if (emojis.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text(
-                text = "Emojis you add will show up here",
+                text = tr("Emojis you add will show up here"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
@@ -517,6 +538,12 @@ internal fun EmojiGrid(
 @Composable
 private fun EmojiScreenPreview() {
     ThemePreviews {
-        EmojiContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onDone = { _, _ -> })
+        EmojiContent(
+            sourceImage = ImageBitmap(360, 480),
+            isPremium = false,
+            onBack = {},
+            onOpenPremium = {},
+            onDone = { _, _ -> },
+        )
     }
 }

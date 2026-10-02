@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
+import org.example.project.i18n.tr
 
 /**
  * Screen state for the Templates browser.
@@ -52,7 +53,7 @@ class TemplatesViewModel(
                     categories.firstOrNull()?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: "Couldn't load templates") }
+                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load templates")) }
                 }
         }
     }
@@ -70,7 +71,7 @@ class TemplatesViewModel(
                 }
                 .onFailure { e ->
                     if (_uiState.value.selectedCategoryId == category.id) {
-                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: "Couldn't load these templates") }
+                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: tr("Couldn't load these templates")) }
                     }
                 }
         }

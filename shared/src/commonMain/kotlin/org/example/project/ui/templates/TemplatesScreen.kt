@@ -3,6 +3,7 @@ package org.example.project.ui.templates
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInParent
+import org.example.project.i18n.tr
 import org.example.project.ui.theme.Brand
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -72,6 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.ui.common.TopBarPremiumIconSize
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.TopBarHeight
@@ -126,8 +128,8 @@ internal fun TemplatesContent(
     onGoPro: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Templates",
-    emptyMessage: String = "No templates in this category",
+    title: String = tr("Templates"),
+    emptyMessage: String = tr("No templates in this category"),
 ) {
     Column(
         modifier = modifier
@@ -180,7 +182,7 @@ private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Un
     ) {
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Back",
+            contentDescription = tr("Back"),
             onClick = onBack,
             contentColor = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.align(Alignment.CenterStart),
@@ -201,7 +203,11 @@ private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Un
             interactionSource = proBounce.interactionSource,
             modifier = Modifier.align(Alignment.CenterEnd).springBounce(proBounce),
         ) {
-            Image(painter = painterResource(Res.drawable.ic_premium_icon), contentDescription = "Premium")
+            Image(
+                painter = painterResource(Res.drawable.ic_premium_icon),
+                contentDescription = tr("Premium"),
+                modifier = Modifier.size(TopBarPremiumIconSize),
+            )
 //            Icon(imageVector = Icons.Filled.WorkspacePremium, contentDescription = "Premium", tint = PremiumGold)
         }
     }
@@ -383,7 +389,7 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
     ) {
         NetworkImage(
             url = frame.thumbnailUrl,
-            contentDescription = "Template",
+            contentDescription = tr("Template"),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -400,7 +406,7 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
 
                 Image(
                     painter = painterResource(Res.drawable.ic_premium_icon),
-                    contentDescription = "Premium",
+                    contentDescription = tr("Premium"),
                     modifier = Modifier.size(20.dp)
                 )
 //                Icon(
@@ -436,7 +442,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         ) {
             Icon(Icons.Filled.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.size(6.dp))
-            Text("Retry", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+            Text(tr("Retry"), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -51,7 +51,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.SavedImageKey
+import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
@@ -66,9 +69,13 @@ import photocollagemaker.shared.generated.resources.ic_home_outline
  * What the primary button next to Home offers to start next. The caller picks it from the flow the
  * user came from, so someone who just made a collage is nudged toward a different feature.
  */
-enum class ShareSuggestion(val label: String) {
+enum class ShareSuggestion(private val englishLabel: String) {
     NewCollage("Try Collage"),
     Freestyle("Try Freestyle"),
+    ;
+
+    /** In the app's current language; read it where it is shown, never keep it. */
+    val label: String get() = tr(englishLabel)
 }
 
 /** Fill of the suggestion button (same accent as the save screen's premium button). */
@@ -123,7 +130,7 @@ private fun ShareImageContent(
             Box(modifier = Modifier.topBar()) {
                 GlassTopBarButton(
                     icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Back",
+                    contentDescription = tr("Back"),
                     onClick = onBack,
                     modifier = Modifier.align(Alignment.CenterStart),
                 )
@@ -136,9 +143,11 @@ private fun ShareImageContent(
                 if (image != null) {
                     Image(
                         bitmap = image,
-                        contentDescription = "Saved image",
+                        contentDescription = tr("Saved image"),
                         modifier = Modifier
                             .aspectRatio(image.width.toFloat() / image.height)
+                            // Arrives from the save screen's preview of the same image.
+                            .navSharedElement(SavedImageKey)
                             .clip(PreviewShape),
                         contentScale = ContentScale.Fit,
                     )
@@ -210,7 +219,7 @@ private fun ShareImageContent(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Home",
+                        text = tr("Home"),
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -237,7 +246,7 @@ private fun SavedChip(modifier: Modifier = Modifier) {
     ) {
         Icon(Icons.Filled.Check, contentDescription = null, tint = SavedChipContent, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(text = "Saved", color = SavedChipContent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = tr("Saved"), color = SavedChipContent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

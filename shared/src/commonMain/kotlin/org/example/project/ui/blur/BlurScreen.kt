@@ -8,7 +8,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,14 +47,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.buildStrokePath
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
-import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_undo
@@ -65,21 +64,16 @@ import photocollagemaker.shared.generated.resources.ic_undo
 private data class BlurEdit(val blurLevel: Int, val strokes: List<BlurStroke>)
 
 @Composable
-fun BlurScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun BlurTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: BlurViewModel = koinViewModel(),
 ) {
     BlurContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onDone = { blurLevel, strokes ->
-            viewModel.sourceImage?.let { image ->
-                viewModel.applyBlur(bakeBlur(source = image, blurLevel = blurLevel, strokes = strokes))
-            }
-            onApplied()
-        },
+        sourceImage = sourceImage,
+        onBack = onClose,
+        onDone = { blurLevel, strokes -> onApply(bakeBlur(source = sourceImage, blurLevel = blurLevel, strokes = strokes)) },
         modifier = modifier,
     )
 }
@@ -130,23 +124,10 @@ private fun BlurContent(
 
     val scheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Blur",
-            onClose = onBack,
-            onDone = { onDone(edit.blurLevel, edit.strokes) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -226,45 +207,53 @@ private fun BlurContent(
                 }
             } else {
                 Text(
-                    text = "No image to blur",
+                    text = tr("No image to blur"),
                     color = scheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        ToolPanel(
+            title = tr("Blur"),
+            onClose = onBack,
+            onDone = { onDone(edit.blurLevel, edit.strokes) },
+            doneEnabled = sourceImage != null,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        BlurLevelStepper(
-            value = edit.blurLevel,
-            onValueChange = { commit(edit.copy(blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax))) },
-        )
+            BlurLevelStepper(
+                value = edit.blurLevel,
+                onValueChange = { commit(edit.copy(blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax))) },
+            )
 
-        UndoRedoRow(
-            undoEnabled = undoStack.isNotEmpty(),
-            redoEnabled = redoStack.isNotEmpty(),
-            onUndo = ::undo,
-            onRedo = ::redo,
-        )
+            UndoRedoRow(
+                undoEnabled = undoStack.isNotEmpty(),
+                redoEnabled = redoStack.isNotEmpty(),
+                onUndo = ::undo,
+                onRedo = ::redo,
+            )
 
-        BrushSizeLabelRow(value = brushSize)
-        CenterFillSlider(
-            value = brushSize,
-            onValueChange = { brushSize = it },
-            range = BrushSizeRange,
-            referenceValue = BrushSizeRange.start,
-            onDraggingChange = { isAdjustingBrush = it },
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
+            BrushSizeLabelRow(value = brushSize)
+            CenterFillSlider(
+                value = brushSize,
+                onValueChange = { brushSize = it },
+                range = BrushSizeRange,
+                referenceValue = BrushSizeRange.start,
+                onDraggingChange = { isAdjustingBrush = it },
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+        }
     }
 }
 
@@ -278,7 +267,7 @@ internal fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit, modifier
     ) {
         StepperButton(
             icon = Icons.Filled.Remove,
-            contentDescription = "Decrease blur",
+            contentDescription = tr("Decrease blur"),
             enabled = value > BlurLevelMin,
             onClick = { onValueChange(value - 1) },
         )
@@ -295,7 +284,7 @@ internal fun BlurLevelStepper(value: Int, onValueChange: (Int) -> Unit, modifier
         }
         StepperButton(
             icon = Icons.Filled.Add,
-            contentDescription = "Increase blur",
+            contentDescription = tr("Increase blur"),
             enabled = value < BlurLevelMax,
             onClick = { onValueChange(value + 1) },
         )
@@ -341,14 +330,14 @@ private fun UndoRedoRow(undoEnabled: Boolean, redoEnabled: Boolean, onUndo: () -
     ) {
         UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_undo),
-            contentDescription = "Undo",
+            contentDescription = tr("Undo"),
             enabled = undoEnabled,
             onClick = onUndo,
         )
         Spacer(modifier = Modifier.width(4.dp))
         UndoRedoButton(
             icon = vectorResource(Res.drawable.ic_redo),
-            contentDescription = "Redo",
+            contentDescription = tr("Redo"),
             enabled = redoEnabled,
             onClick = onRedo,
         )
@@ -365,7 +354,7 @@ private fun BrushSizeLabelRow(value: Float) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Brush Size",
+            text = tr("Brush Size"),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = scheme.onSurface,

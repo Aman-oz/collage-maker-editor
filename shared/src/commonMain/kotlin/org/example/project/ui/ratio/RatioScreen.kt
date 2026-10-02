@@ -4,12 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,29 +24,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.wholeNumberLabel
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.crop.AspectRatioOptions
 import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.preview.ThemePreviews
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun RatioScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun RatioTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RatioViewModel = koinViewModel(),
 ) {
-    RatioContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onApply = { bitmap ->
-            viewModel.applyRatio(bitmap)
-            onApplied()
-        },
-        modifier = modifier,
-    )
+    RatioContent(sourceImage = sourceImage, onBack = onClose, onApply = onApply, modifier = modifier)
 }
 
 @Composable
@@ -69,23 +59,10 @@ private fun RatioContent(
         sourceImage?.let { reframeImage(it, selected.ratio) }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Ratio",
-            onClose = onBack,
-            doneEnabled = reframed != null,
-            onDone = { reframed?.let { onApply(padImage(it, paddingPercent)) } },
-        )
-
+    ToolScaffold(modifier = modifier, photoInset = 24.dp) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(24.dp),
             contentAlignment = Alignment.Center,
@@ -100,7 +77,7 @@ private fun RatioContent(
                 ) {
                     Image(
                         bitmap = reframed,
-                        contentDescription = "Ratio preview",
+                        contentDescription = tr("Ratio preview"),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(min(maxWidth, maxHeight) * paddingPercent / 100f),
@@ -108,31 +85,39 @@ private fun RatioContent(
                     )
                 }
             } else {
-                Text(text = "No image to reframe", color = scheme.onSurface)
+                Text(text = tr("No image to reframe"), color = scheme.onSurface)
             }
         }
 
-        CenterFillSlider(
-            value = paddingPercent,
-            onValueChange = { paddingPercent = it },
-            range = PaddingPercentRange,
-            referenceValue = PaddingPercentRange.start,
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        ToolPanel(
+            title = tr("Ratio"),
+            onClose = onBack,
+            doneEnabled = reframed != null,
+            onDone = { reframed?.let { onApply(padImage(it, paddingPercent)) } },
+        ) {
+            CenterFillSlider(
+                value = paddingPercent,
+                onValueChange = { paddingPercent = it },
+                range = PaddingPercentRange,
+                referenceValue = PaddingPercentRange.start,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+                modifier = Modifier.padding(top = 12.dp),
+            )
 
-        AspectRatioStrip(
-            options = AspectRatioOptions,
-            selected = selected,
-            onSelected = { selected = it },
-        )
+            AspectRatioStrip(
+                options = AspectRatioOptions,
+                selected = selected,
+                onSelected = { selected = it },
+            )
+        }
     }
 }
 

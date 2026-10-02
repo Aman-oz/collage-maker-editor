@@ -6,7 +6,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -41,11 +39,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.MaskBrushSizeDefault
 import org.example.project.ui.common.MaskBrushSizeRange
 import org.example.project.ui.common.MaskStroke
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.bakeMaskReveal
 import org.example.project.ui.common.buildStrokePath
@@ -55,8 +55,6 @@ import org.example.project.ui.common.grayscaleBitmap
 import org.example.project.ui.common.maskBrushRadiusFraction
 import org.example.project.ui.common.strokeToPath
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.reveal.RevealEditViewModel
-import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.vectorResource
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_redo
@@ -68,19 +66,16 @@ import photocollagemaker.shared.generated.resources.ic_undo
  * tool, only the base layer differs (grayscale instead of blur).
  */
 @Composable
-fun ColorSplashScreen(
-    onBack: () -> Unit,
-    onApplied: () -> Unit,
+internal fun ColorSplashTool(
+    sourceImage: ImageBitmap,
+    onClose: () -> Unit,
+    onApply: (ImageBitmap) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RevealEditViewModel = koinViewModel(),
 ) {
     ColorSplashContent(
-        sourceImage = viewModel.sourceImage,
-        onBack = onBack,
-        onDone = { base, reveal, strokes ->
-            viewModel.applyResult(bakeMaskReveal(base = base, reveal = reveal, strokes = strokes))
-            onApplied()
-        },
+        sourceImage = sourceImage,
+        onBack = onClose,
+        onDone = { base, reveal, strokes -> onApply(bakeMaskReveal(base = base, reveal = reveal, strokes = strokes)) },
         modifier = modifier,
     )
 }
@@ -105,23 +100,10 @@ private fun ColorSplashContent(
 
     val scheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = "Splash",
-            onClose = onBack,
-            onDone = { if (grayImage != null && colorImage != null) onDone(grayImage, colorImage, strokes) },
-            doneEnabled = sourceImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -200,73 +182,81 @@ private fun ColorSplashContent(
                     }
                 }
             } else {
-                Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+                Text(tr("No image to edit"), color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            UndoRedoButton(
-                icon = vectorResource(Res.drawable.ic_undo),
-                contentDescription = "Undo",
-                enabled = strokes.isNotEmpty(),
-                onClick = {
-                    val last = strokes.lastOrNull() ?: return@UndoRedoButton
-                    redoStack = redoStack + last
-                    strokes = strokes.dropLast(1)
-                },
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            UndoRedoButton(
-                icon = vectorResource(Res.drawable.ic_redo),
-                contentDescription = "Redo",
-                enabled = redoStack.isNotEmpty(),
-                onClick = {
-                    val next = redoStack.lastOrNull() ?: return@UndoRedoButton
-                    strokes = strokes + next
-                    redoStack = redoStack.dropLast(1)
-                },
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        ToolPanel(
+            title = tr("Splash"),
+            onClose = onBack,
+            onDone = { if (grayImage != null && colorImage != null) onDone(grayImage, colorImage, strokes) },
+            doneEnabled = sourceImage != null,
         ) {
-            Text(
-                text = "Brush Size",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = scheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "${brushSize.roundToInt()}",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = scheme.primary,
-            )
-        }
-        CenterFillSlider(
-            value = brushSize,
-            onValueChange = { brushSize = it },
-            range = MaskBrushSizeRange,
-            referenceValue = MaskBrushSizeRange.start,
-            onDraggingChange = { isAdjustingBrush = it },
-            trackColor = scheme.onSurface.copy(alpha = 0.12f),
-            fillColor = scheme.primary,
-            thumbColor = scheme.primary,
-            thumbWidth = 32.dp,
-            thumbHeight = 18.dp,
-            horizontalPadding = 12.dp,
-            glassThumb = true,
-            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        )
+            Spacer(modifier = Modifier.height(28.dp))
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                UndoRedoButton(
+                    icon = vectorResource(Res.drawable.ic_undo),
+                    contentDescription = tr("Undo"),
+                    enabled = strokes.isNotEmpty(),
+                    onClick = {
+                        val last = strokes.lastOrNull() ?: return@UndoRedoButton
+                        redoStack = redoStack + last
+                        strokes = strokes.dropLast(1)
+                    },
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                UndoRedoButton(
+                    icon = vectorResource(Res.drawable.ic_redo),
+                    contentDescription = tr("Redo"),
+                    enabled = redoStack.isNotEmpty(),
+                    onClick = {
+                        val next = redoStack.lastOrNull() ?: return@UndoRedoButton
+                        strokes = strokes + next
+                        redoStack = redoStack.dropLast(1)
+                    },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = tr("Brush Size"),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = scheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${brushSize.roundToInt()}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = scheme.primary,
+                )
+            }
+            CenterFillSlider(
+                value = brushSize,
+                onValueChange = { brushSize = it },
+                range = MaskBrushSizeRange,
+                referenceValue = MaskBrushSizeRange.start,
+                onDraggingChange = { isAdjustingBrush = it },
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 12.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
     }
 }
 

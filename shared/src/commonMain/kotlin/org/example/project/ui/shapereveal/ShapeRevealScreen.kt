@@ -8,15 +8,12 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -44,27 +41,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.min
+import org.example.project.i18n.tr
 import org.example.project.ui.blur.BlurLevelDefault
 import org.example.project.ui.blur.BlurLevelMax
 import org.example.project.ui.blur.BlurLevelMin
 import org.example.project.ui.blur.BlurLevelStepper
 import org.example.project.ui.common.RevealShape
-import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.reveal.RevealEditViewModel
-import org.koin.compose.viewmodel.koinViewModel
 
 /** s-Blur: blur the whole photo, then move/scale/rotate a shape to reveal the original sharpness. */
 @Composable
-fun SelectiveBlurScreen(onBack: () -> Unit, onApplied: () -> Unit, modifier: Modifier = Modifier, viewModel: RevealEditViewModel = koinViewModel()) {
-    ShapeRevealContent(sourceImage = viewModel.sourceImage, title = "s-Blur", effect = RevealEffect.Blur, onBack = onBack, onDone = { viewModel.applyResult(it); onApplied() }, modifier = modifier)
+internal fun SelectiveBlurTool(sourceImage: ImageBitmap, onClose: () -> Unit, onApply: (ImageBitmap) -> Unit, modifier: Modifier = Modifier) {
+    ShapeRevealContent(sourceImage = sourceImage, title = tr("s-Blur"), effect = RevealEffect.Blur, onBack = onClose, onDone = onApply, modifier = modifier)
 }
 
 /** s-Splash: grayscale the whole photo, then move/scale/rotate a shape to reveal the original colour. */
 @Composable
-fun SelectiveSplashScreen(onBack: () -> Unit, onApplied: () -> Unit, modifier: Modifier = Modifier, viewModel: RevealEditViewModel = koinViewModel()) {
-    ShapeRevealContent(sourceImage = viewModel.sourceImage, title = "s-Splash", effect = RevealEffect.Grayscale, onBack = onBack, onDone = { viewModel.applyResult(it); onApplied() }, modifier = modifier)
+internal fun SelectiveSplashTool(sourceImage: ImageBitmap, onClose: () -> Unit, onApply: (ImageBitmap) -> Unit, modifier: Modifier = Modifier) {
+    ShapeRevealContent(sourceImage = sourceImage, title = tr("s-Splash"), effect = RevealEffect.Grayscale, onBack = onClose, onDone = onApply, modifier = modifier)
 }
 
 @Composable
@@ -89,23 +85,10 @@ private fun ShapeRevealContent(
 
     val scheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.surface)
-            .safeDrawingPadding(),
-    ) {
-        ToolTopBar(
-            title = title,
-            onClose = onBack,
-            onDone = { if (baseImage != null && revealImage != null) onDone(bakeShapeReveal(baseImage, revealImage, placement, textMeasurer)) },
-            doneEnabled = baseImage != null && revealImage != null,
-        )
-
+    ToolScaffold(modifier = modifier) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .toolStage()
                 .background(scheme.onSurface.copy(alpha = 0.08f))
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -150,26 +133,33 @@ private fun ShapeRevealContent(
                     }
                 }
             } else {
-                Text("No image to edit", color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+                Text(tr("No image to edit"), color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        ToolPanel(
+            title = title,
+            onClose = onBack,
+            onDone = { if (baseImage != null && revealImage != null) onDone(bakeShapeReveal(baseImage, revealImage, placement, textMeasurer)) },
+            doneEnabled = baseImage != null && revealImage != null,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (effect == RevealEffect.Blur) {
-            BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+            if (effect == RevealEffect.Blur) {
+                BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            ShapePickerRow(
+                base = baseImage,
+                reveal = revealImage,
+                textMeasurer = textMeasurer,
+                selected = placement.shape,
+                onSelected = { placement = placement.copy(shape = it) },
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
         }
-
-        ShapePickerRow(
-            base = baseImage,
-            reveal = revealImage,
-            textMeasurer = textMeasurer,
-            selected = placement.shape,
-            onSelected = { placement = placement.copy(shape = it) },
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -223,6 +213,6 @@ private fun ShapePickerRow(
 @Composable
 private fun ShapeRevealPreview() {
     ThemePreviews {
-        ShapeRevealContent(sourceImage = ImageBitmap(360, 480), title = "s-Blur", effect = RevealEffect.Blur, onBack = {}, onDone = {})
+        ShapeRevealContent(sourceImage = ImageBitmap(360, 480), title = tr("s-Blur"), effect = RevealEffect.Blur, onBack = {}, onDone = {})
     }
 }

@@ -37,3 +37,15 @@ fun projectImageKey(path: String): String = "project-image:$path"
 
 /** Shared-element key for a template's frame, used by the Templates grid cell and the Templates editor canvas. */
 fun templateFrameKey(id: String): String = "template-frame:$id"
+
+/**
+ * Shared-element key for the image being exported: the save screen's preview morphs into the share
+ * screen's. Only one image is ever in that flow, so the key needs no id.
+ */
+const val SavedImageKey: String = "saved-image"
+
+/**
+ * Shared-element key for the background remover's photo: the area inside the crop rectangle morphs
+ * into the eraser's canvas, and back. Only one photo is ever in that flow, so the key needs no id.
+ */
+const val BackgroundRemoverPhotoKey: String = "bg-remover-photo"

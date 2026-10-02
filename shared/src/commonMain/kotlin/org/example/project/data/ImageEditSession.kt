@@ -6,8 +6,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Holds the photo currently being edited so the editor and its tool screens (crop, filter, ...)
- * share one in-memory working copy instead of passing image data through navigation arguments.
+ * Holds the photo currently being edited so the editor and the screens around it (background
+ * remover, save, ...) share one in-memory working copy instead of passing image data through
+ * navigation arguments.
  */
 class ImageEditSession {
     private val _image = MutableStateFlow<ImageBitmap?>(null)

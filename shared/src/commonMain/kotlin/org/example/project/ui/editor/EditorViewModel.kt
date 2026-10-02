@@ -1,5 +1,6 @@
 package org.example.project.ui.editor
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.i18n.tr
 
 sealed interface EditorUiState {
     data object Loading : EditorUiState
@@ -23,12 +26,12 @@ sealed interface EditorUiState {
 
 /**
  * Decodes the picked image so the editing tools can work on it, and keeps [uiState] in sync with
- * [ImageEditSession] so edits made in other tool screens (crop, filter, ...) reflect back here.
+ * [ImageEditSession], the working copy the save screen reads.
  *
- * Undo/redo is built on that same observation: every tool writes its result with `session.set`, so
- * each new bitmap the session emits is recorded as one step in an [EditHistory] — no tool needs to
- * know history exists. Undo/redo write the restored bitmap back to the session too, so the save
- * screen and the next tool see it.
+ * Undo/redo is built on that same observation: every tool's result goes to the session
+ * ([applyEdit]), so each new bitmap the session emits is recorded as one step in an [EditHistory] —
+ * no tool needs to know history exists. Undo/redo write the restored bitmap back to the session
+ * too, so the save screen and the next tool see it.
  *
  * [imagePath] is passed in from the navigation key via Koin's `parametersOf`. When it is `null` the
  * image was already put in the session by another editor (e.g. a baked collage), so nothing is
@@ -37,7 +40,21 @@ sealed interface EditorUiState {
 class EditorViewModel(
     private val imagePath: String?,
     private val session: ImageEditSession,
+    settings: AppSettings,
 ) : ViewModel() {
+
+    /**
+     * Whether the user is subscribed; some tools (Filter, Overlay, Adjust, Text, Sticker) show
+     * everyone else the paywall on Done.
+     */
+    val isPremium: StateFlow<Boolean> = settings.isPremium
+
+    /**
+     * The tool open inside the editor, or `null`. It lives here rather than in the screen because
+     * the paywall (opened from a tool's Done) covers the editor, and a covered nav entry
+     * leaves composition and loses its `remember` state: the tool has to still be open on return.
+     */
+    internal val toolSession = mutableStateOf<ToolSession?>(null)
 
     private val _uiState = MutableStateFlow<EditorUiState>(EditorUiState.Loading)
 
@@ -60,7 +77,7 @@ class EditorViewModel(
     private fun loadImage() {
         if (imagePath == null) {
             // The session is in-memory only, so after process death there is nothing to restore.
-            if (session.image.value == null) _uiState.value = EditorUiState.Error("This image is no longer available")
+            if (session.image.value == null) _uiState.value = EditorUiState.Error(tr("This image is no longer available"))
             return
         }
         viewModelScope.launch {
@@ -69,7 +86,7 @@ class EditorViewModel(
                     imageLoaded = true
                     session.set(it)
                 }
-                .onFailure { _uiState.value = EditorUiState.Error(it.message ?: "Could not open this image") }
+                .onFailure { _uiState.value = EditorUiState.Error(it.message ?: tr("Could not open this image")) }
         }
     }
 
@@ -87,6 +104,28 @@ class EditorViewModel(
                 publish()
             }
         }
+    }
+
+    /**
+     * Commits the result of a tool (they all open inside the editor). It goes through the session,
+     * so [observeSession] records it as one undoable step.
+     */
+    fun applyEdit(bitmap: ImageBitmap) {
+        session.set(bitmap)
+    }
+
+    private var premiumOfferShown = false
+
+    /**
+     * Whether the editor's Done should open the paywall instead of going on to save: `true` once,
+     * for a non-subscriber with more than [FreeEditCount] tool edits applied. It is an offer, not a
+     * gate, so asking marks it as made and the next Done goes through either way.
+     */
+    fun consumePremiumOffer(): Boolean {
+        val edits = history?.appliedEdits ?: 0
+        if (isPremium.value || premiumOfferShown || edits <= FreeEditCount) return false
+        premiumOfferShown = true
+        return true
     }
 
     fun undo() = restore { it.undo() }

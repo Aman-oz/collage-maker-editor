@@ -120,4 +120,35 @@ class AdjustMathTest {
         val matrix = values.toColorMatrix()
         assertMatrixEquals(brightnessMatrix(10f), matrix)
     }
+
+    @Test
+    fun signedAdjustLabel_roundsAndSignsPositiveValues() {
+        assertEquals("0", signedAdjustLabel(0f))
+        assertEquals("0", signedAdjustLabel(-0.4f))
+        assertEquals("+35", signedAdjustLabel(34.6f))
+        assertEquals("-100", signedAdjustLabel(-100f))
+        assertEquals("+100", signedAdjustLabel(100f))
+    }
+
+    @Test
+    fun changedAdjustment_findsTheAdjustmentThatDiffers() {
+        val base = AdjustValues(brightness = 10f)
+        assertEquals(null, changedAdjustment(base, base))
+        assertEquals(AdjustmentType.Sharpen, changedAdjustment(base, base.with(AdjustmentType.Sharpen, -5f)))
+    }
+
+    @Test
+    fun changedCount_countsAdjustmentsMovedOffZero() {
+        assertEquals(0, AdjustValues().changedCount())
+        assertEquals(2, AdjustValues(brightness = 10f, hue = -5f).changedCount())
+        assertEquals(PremiumAdjustmentCount, AdjustValues(brightness = 10f, hue = -5f, sharpen = 1f).changedCount())
+        // Back at zero is not a change, however it got there.
+        assertEquals(1, AdjustValues(contrast = 20f).with(AdjustmentType.Exposure, 0f).changedCount())
+    }
+
+    @Test
+    fun adjustValues_roundTripThroughTheirSavedFloats() {
+        val values = AdjustValues(brightness = 1f, contrast = -2f, saturation = 3f, hue = -4f, sharpen = 5f, exposure = -6f)
+        assertEquals(values, adjustValuesOf(values.toFloatList()))
+    }
 }
