@@ -499,7 +499,8 @@ internal fun EmojiGrid(
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Fixed(10),
+        // About ten columns on a phone; more on a tablet rather than ever-larger cells.
+        columns = GridCells.Adaptive(38.dp),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         modifier = modifier,
     ) {

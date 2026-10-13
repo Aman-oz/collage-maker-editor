@@ -65,6 +65,7 @@ import org.example.project.data.ThemeMode
 import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassDialogHost
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
@@ -177,30 +178,33 @@ private fun SettingsContent(
                 .statusBarsPadding(),
         ) {
             SettingsTopBar(onBack = onBack)
+            // Scrolls from anywhere on the screen, but the card and rows stay phone-width on a tablet,
+            // where full-width pills would be long thin bars and the 2.5:1 card would be very tall.
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                Spacer(Modifier.height(4.dp))
-                PremiumCard(onClick = onPremium)
+                Column(modifier = Modifier.readableWidth().padding(horizontal = 16.dp)) {
+                    Spacer(Modifier.height(4.dp))
+                    PremiumCard(onClick = onPremium)
 
-                SectionHeader(tr("General"))
-                SettingsRow(Res.drawable.ic_language, tr("Languages"), onOpenLanguage)
-                SettingsRow(Res.drawable.ic_theme, tr("Theme")) { dialogName = SettingsDialog.Theme.name }
+                    SectionHeader(tr("General"))
+                    SettingsRow(Res.drawable.ic_language, tr("Languages"), onOpenLanguage)
+                    SettingsRow(Res.drawable.ic_theme, tr("Theme")) { dialogName = SettingsDialog.Theme.name }
 
-                SectionHeader(tr("About"))
-                SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
-                SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
-                SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
+                    SectionHeader(tr("About"))
+                    SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
+                    SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
+                    SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
 
-                SectionHeader(tr("Legal"))
-                SettingsRow(Res.drawable.ic_privacy_policy, tr("Privacy Policy"), onPrivacyPolicy)
-                SettingsRow(Res.drawable.ic_terms_and_conditions, tr("Terms of Use"), onTermsOfUse)
+                    SectionHeader(tr("Legal"))
+                    SettingsRow(Res.drawable.ic_privacy_policy, tr("Privacy Policy"), onPrivacyPolicy)
+                    SettingsRow(Res.drawable.ic_terms_and_conditions, tr("Terms of Use"), onTermsOfUse)
 
-                Spacer(Modifier.height(24.dp))
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                }
             }
         }
 

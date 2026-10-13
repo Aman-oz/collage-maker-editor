@@ -1,5 +1,6 @@
 package org.example.project.ui.setbackground
 
+import org.example.project.ui.common.readableWidth
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
@@ -354,7 +355,8 @@ private fun SetBackgroundContent(
 
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                    .readableWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
             ) {

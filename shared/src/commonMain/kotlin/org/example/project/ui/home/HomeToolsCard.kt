@@ -42,12 +42,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.fletchmckee.liquid.LiquidState
@@ -69,8 +71,8 @@ private val ToolCircleSize = 62.dp
 /** How much a tool's drop swells while pressed. It overflows its cell, like a drop lifting off. */
 private const val ToolDropPressedScale = 1.22f
 
-/** Where each tool's circle sits vertically: the card's top padding, the item's, then half the circle. */
-private val ToolCircleCenterY = 14.dp + 4.dp + ToolCircleSize / 2
+/** Where a tool's circle sits vertically: the card's top padding, the item's, then half the circle. */
+private fun toolCircleCenterY(circleSize: Dp): Dp = 14.dp + 4.dp + circleSize / 2
 
 /** One soft light per tool in the card's backdrop, so the glass has colour to bend and magnify. */
 private val ToolGlowColors = listOf(
@@ -108,7 +110,8 @@ private val CardBounceDip = 2.dp
  * because Liquid samples the backdrop from the node's layout bounds.
  */
 @Composable
-internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier) {
+internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier, scale: Float = 1f) {
+    val circleSize = ToolCircleSize * scale
     val scheme = MaterialTheme.colorScheme
     val isLight = scheme.background.luminance() > 0.5f
     val liquidState = rememberLiquidState()
@@ -168,23 +171,27 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier)
                     placeable.place((constraints.maxWidth - width) / 2, (CardBounceDip.toPx() * b).roundToInt())
                 }
             }
-            .shadow(elevation = 10.dp, shape = CardShape, ambientColor = HomeAccent, spotColor = HomeAccent),
+            .shadow(elevation = 10.dp, shape = CardShape, ambientColor = HomeAccent, spotColor = HomeAccent)
+            // The card's rounded outline comes from this one clip, not from the backdrop or the glass:
+            // see the glass panel below.
+            .clip(CardShape),
     ) {
         // The backdrop the glass bends: the plain surface, lit by a soft light behind a tool only while
         // it is pressed, so at rest the card is exactly the plain white card.
         Canvas(
+            // Not clipped to the card's corners: a rounded backdrop leaves transparent pixels in its
+            // corners, which the glass's lens and frost pull in as dark, twisted smudges.
             modifier = Modifier
                 .matchParentSize()
-                .clip(CardShape)
                 .liquefiable(liquidState),
         ) {
             drawRect(scheme.surface)
             val cellWidth = size.width / tools.size
-            val centerY = ToolCircleCenterY.toPx()
+            val centerY = toolCircleCenterY(circleSize).toPx()
             tools.indices.forEach { i ->
                 if (pressProgress[i].value <= 0f) return@forEach
                 val center = Offset(cellWidth * (i + 0.5f), centerY)
-                val radius = ToolCircleSize.toPx() * 0.95f
+                val radius = circleSize.toPx() * 0.95f
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -203,13 +210,15 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier)
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(CardShape)
                 .liquid(liquidState) {
-                    shape = CardShape
+                    // A rectangular lens with no edge light, as the bottom bar does: a lens shaped to
+                    // the rounded corners bends the backdrop into twisted shading there. The card's
+                    // clip rounds it, and the border carries the rim.
+                    shape = RectangleShape
                     frost = 14.dp
                     curve = 0.2f
                     refraction = 0.15f
-                    edge = 0.3f
+                    edge = 0f
                     saturation = 1.3f
                     tint = scheme.surface.copy(alpha = 0.35f)
                 }
@@ -222,6 +231,7 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier)
                     interaction = interactions[i],
                     press = pressProgress[i].value,
                     liquidState = liquidState,
+                    scale = scale,
                     onPressStart = bounceOnPress,
                     onTap = { tapTool(i) },
                 )
@@ -243,6 +253,7 @@ private fun RowScope.ToolItem(
     interaction: MutableInteractionSource,
     press: Float,
     liquidState: LiquidState,
+    scale: Float,
     onPressStart: () -> Unit,
     onTap: () -> Unit,
 ) {
@@ -252,7 +263,8 @@ private fun RowScope.ToolItem(
     LaunchedEffect(pressed) { if (pressed) currentOnPressStart() }
     // The spring overshoots slightly past 0 / 1; only the size and zoom may use the overshoot.
     val t = press.coerceIn(0f, 1f)
-    val dropSize = ToolCircleSize * (1f + (ToolDropPressedScale - 1f) * press)
+    val circleSize = ToolCircleSize * scale
+    val dropSize = circleSize * (1f + (ToolDropPressedScale - 1f) * press)
     // The resting circle's own grey border brightens into the drop's white rim.
     val rim = lerp(ToolCircleBorder, Color.White, t)
     // Opaque at rest (the plain circle); mostly clear once pressed, so the drop shows through.
@@ -265,7 +277,7 @@ private fun RowScope.ToolItem(
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(modifier = Modifier.size(ToolCircleSize), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(circleSize), contentAlignment = Alignment.Center) {
             // The resting circle's small shadow, a sibling under the glass (a liquid node doesn't
             // render inside the layer `shadow` creates). It fades out as the drop clears, or it would
             // show through as a grey disc.
@@ -323,7 +335,7 @@ private fun RowScope.ToolItem(
             Image(
                 painter = painterResource(tool.icon),
                 contentDescription = null,
-                modifier = Modifier.size(32.dp).graphicsLayer {
+                modifier = Modifier.size(32.dp * scale).graphicsLayer {
                     scaleX = iconZoom
                     scaleY = iconZoom
                 },
@@ -332,7 +344,7 @@ private fun RowScope.ToolItem(
         Text(
             text = tool.label,
             color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 13.sp,
+            fontSize = 13.sp * scale,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             modifier = Modifier.padding(top = 8.dp),

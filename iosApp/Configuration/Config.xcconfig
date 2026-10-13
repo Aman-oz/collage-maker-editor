@@ -1,4 +1,4 @@
-TEAM_ID=
+TEAM_ID=45DAG69ACW
 
 PRODUCT_NAME=Photo Collage Maker
 PRODUCT_BUNDLE_IDENTIFIER=org.example.project.PhotoCollageMaker$(TEAM_ID)

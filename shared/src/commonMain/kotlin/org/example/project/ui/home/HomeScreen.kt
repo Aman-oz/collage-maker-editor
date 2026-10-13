@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -262,78 +263,99 @@ private fun HomeTabContent(
     onOpenFrames: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            // Leave room for the bottom bar that floats over this content.
-            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(160.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+    // The cards are sized for a phone. On a wider screen (a tablet) they grow with the width, so
+    // they keep the phone's proportions instead of only stretching sideways.
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val scale = ((maxWidth - HomeContentPadding * 2) / HomePhoneContentWidth).coerceIn(1f, HomeMaxScale)
+        // Text and the small tool circles grow more gently than the cards, or they would look bloated.
+        val softScale = 1f + (scale - 1f) * 0.5f
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                // Leave room for the bottom bar that floats over this content.
+                .padding(start = HomeContentPadding, end = HomeContentPadding, top = 16.dp, bottom = 120.dp),
         ) {
-            FeatureCard(
-                title = tr("Create Collages"),
-                icon = Res.drawable.ic_collage_icon,
-                iconSize = 60.dp,
-                gradient = CollageGradient,
-                vertical = true,
-                onClick = onCreateCollage,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
-            Column(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth().height(160.dp * scale),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FeatureCard(
-                    title = tr("Free Style"),
-                    icon = Res.drawable.ic_freestyle_icon,
-                    iconSize = 36.dp,
-                    gradient = FreestyleGradient,
-                    vertical = false,
-                    onClick = onOpenFreestyle,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    title = tr("Create Collages"),
+                    icon = Res.drawable.ic_collage_icon,
+                    iconSize = 60.dp * scale,
+                    gradient = CollageGradient,
+                    vertical = true,
+                    textScale = softScale,
+                    onClick = onCreateCollage,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().weight(1.1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FeatureCard(
-                        title = tr("Templates"),
-                        icon = Res.drawable.ic_template_icon,
-                        iconSize = 34.dp,
-                        gradient = TemplatesGradient,
-                        vertical = true,
-                        iconGap = 2.dp,
-                        onClick = onOpenTemplates,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        title = tr("Free Style"),
+                        icon = Res.drawable.ic_freestyle_icon,
+                        iconSize = 36.dp * scale,
+                        gradient = FreestyleGradient,
+                        vertical = false,
+                        textScale = softScale,
+                        onClick = onOpenFreestyle,
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     )
-                    FeatureCard(
-                        title = tr("Editor"),
-                        icon = Res.drawable.ic_editor_icon,
-                        iconSize = 34.dp,
-                        gradient = EditorGradient,
-                        vertical = true,
-                        iconGap = 2.dp,
-                        onClick = onOpenEditor,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1.1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FeatureCard(
+                            title = tr("Templates"),
+                            icon = Res.drawable.ic_template_icon,
+                            iconSize = 34.dp * scale,
+                            gradient = TemplatesGradient,
+                            vertical = true,
+                            iconGap = 2.dp * scale,
+                            textScale = softScale,
+                            onClick = onOpenTemplates,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                        FeatureCard(
+                            title = tr("Editor"),
+                            icon = Res.drawable.ic_editor_icon,
+                            iconSize = 34.dp * scale,
+                            gradient = EditorGradient,
+                            vertical = true,
+                            iconGap = 2.dp * scale,
+                            textScale = softScale,
+                            onClick = onOpenEditor,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    }
                 }
             }
-        }
 
-        HomeToolsCard(
-            modifier = Modifier.padding(top = 16.dp),
-            tools = listOf(
-                HomeTool(tr("PIP"), Res.drawable.ic_pip_icon, onOpenPip),
-                HomeTool(tr("BG Remove"), Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
-                HomeTool(tr("Filters"), Res.drawable.ic_filter_icon, onOpenFilters),
-                HomeTool(tr("Frames"), Res.drawable.ic_frame_icon, onOpenFrames),
-            ),
-        )
+            HomeToolsCard(
+                scale = softScale,
+                modifier = Modifier.padding(top = 16.dp),
+                tools = listOf(
+                    HomeTool(tr("PIP"), Res.drawable.ic_pip_icon, onOpenPip),
+                    HomeTool(tr("BG Remove"), Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
+                    HomeTool(tr("Filters"), Res.drawable.ic_filter_icon, onOpenFilters),
+                    HomeTool(tr("Frames"), Res.drawable.ic_frame_icon, onOpenFrames),
+                ),
+            )
+        }
     }
 }
+
+/** The Home content's side padding. */
+private val HomeContentPadding = 20.dp
+
+/** The content width the Home cards were designed at (a 412dp phone less its padding). */
+private val HomePhoneContentWidth = 372.dp
+
+/** The most the cards grow, so a landscape tablet doesn't blow them up to fill the screen height. */
+private const val HomeMaxScale = 2f
 
 /**
  * A gradient entry card. [vertical] stacks the icon above the title (square-ish cards); otherwise
@@ -356,6 +378,7 @@ private fun FeatureCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     iconGap: Dp = 8.dp,
+    textScale: Float = 1f,
 ) {
     val shape = RoundedCornerShape(14.dp)
     val interaction = remember { MutableInteractionSource() }
@@ -411,7 +434,7 @@ private fun FeatureCard(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = if (vertical) 15.sp else 16.sp,
+                fontSize = (if (vertical) 15.sp else 16.sp) * textScale,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

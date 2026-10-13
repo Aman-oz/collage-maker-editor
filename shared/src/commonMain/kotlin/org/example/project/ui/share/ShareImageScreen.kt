@@ -1,5 +1,6 @@
 package org.example.project.ui.share
 
+import org.example.project.ui.common.readableWidth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
@@ -158,8 +159,10 @@ private fun ShareImageContent(
 
             SavedChip(modifier = Modifier.align(Alignment.CenterHorizontally))
 
+            // The targets, divider and buttons are capped on a tablet: spread across the full width
+            // the icons drift far apart and the buttons become screen-wide bars.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 40.dp),
+                modifier = Modifier.readableWidth().padding(start = 32.dp, end = 32.dp, top = 40.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 ShareTarget.entries.forEach { target ->
@@ -179,13 +182,13 @@ private fun ShareImageContent(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
+                modifier = Modifier.readableWidth().padding(horizontal = 32.dp, vertical = 12.dp),
                 thickness = 2.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 4.dp, bottom = 48.dp),
+                modifier = Modifier.readableWidth().padding(start = 32.dp, end = 32.dp, top = 4.dp, bottom = 48.dp),
                 // Home keeps its natural width; the suggestion takes all the space left over.
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {

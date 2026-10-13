@@ -1,5 +1,6 @@
 package org.example.project.ui.pip
 
+import org.example.project.ui.common.PhotoGridMinCellSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -84,7 +85,7 @@ private fun PipContent(
     ) {
         PipTopBar(onBack = onBack)
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Adaptive(PhotoGridMinCellSize),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

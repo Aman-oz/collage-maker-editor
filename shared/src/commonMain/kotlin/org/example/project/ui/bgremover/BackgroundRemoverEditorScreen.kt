@@ -1,5 +1,6 @@
 package org.example.project.ui.bgremover
 
+import org.example.project.ui.common.readableWidth
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -579,7 +580,8 @@ private fun BackgroundRemoverEditorContent(
             Row(
                 modifier = Modifier
                     .then(slideUp)
-                    .fillMaxWidth()
+                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                    .readableWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
             ) {

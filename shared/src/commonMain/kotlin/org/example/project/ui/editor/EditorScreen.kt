@@ -554,7 +554,9 @@ private fun EditorToolbar(
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            // Centred when every tool fits (a wide tablet) rather than bunched at the left.
+            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             items(EditorTool.entries) { tool ->
                 EditorToolItem(

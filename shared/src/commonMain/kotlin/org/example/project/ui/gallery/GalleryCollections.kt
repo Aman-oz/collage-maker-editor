@@ -1,5 +1,6 @@
 package org.example.project.ui.gallery
 
+import org.example.project.ui.common.PhotoGridMinCellSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -169,7 +170,7 @@ internal fun AlbumSectionGrid(
     onOpenAlbum: (GalleryAlbum) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Adaptive(PhotoGridMinCellSize),
         contentPadding = contentPadding,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),

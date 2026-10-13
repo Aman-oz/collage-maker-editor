@@ -1,5 +1,7 @@
 package org.example.project.ui.gallery
 
+import org.example.project.ui.common.readableWidth
+import org.example.project.ui.common.PhotoGridMinCellSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -912,7 +914,7 @@ private fun PhotoGrid(
     emptyMessage: String? = null,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Adaptive(PhotoGridMinCellSize),
         contentPadding = contentPadding,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1044,7 +1046,8 @@ private fun PhotoGridItem(
 @Composable
 private fun PermissionRequestContent(onRequestAccess: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        // Capped so the explanation wraps into a readable block on a tablet.
+        modifier = Modifier.fillMaxSize().readableWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

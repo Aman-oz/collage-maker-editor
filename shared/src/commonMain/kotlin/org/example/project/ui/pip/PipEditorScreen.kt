@@ -1,5 +1,6 @@
 package org.example.project.ui.pip
 
+import org.example.project.ui.common.readableWidth
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -368,7 +369,8 @@ private fun PipEditorContent(
 
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                    .readableWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
             ) {

@@ -222,8 +222,12 @@ internal class ToolScaffoldScope(
                 )
                 .background(surface),
         ) {
-            ToolTopBar(title = title, onClose = onClose, onDone = onDone, doneEnabled = doneEnabled)
-            content()
+            // The panel's background spans the screen, but its controls stay phone-width and centred:
+            // a slider or chip row stretched across a tablet is hard to use and reads as empty.
+            Column(modifier = Modifier.readableWidth()) {
+                ToolTopBar(title = title, onClose = onClose, onDone = onDone, doneEnabled = doneEnabled)
+                content()
+            }
         }
     }
 }

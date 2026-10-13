@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.example.project.ui.common.readableWidth
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -268,7 +269,7 @@ private fun OnboardingContent(
         Spacer(Modifier.height(12.dp))
         Text(
             text = tr(OnboardingPages[pagerState.currentPage].title),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            modifier = Modifier.readableWidth().padding(horizontal = 24.dp),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -284,8 +285,9 @@ private fun OnboardingContent(
                     onFinish()
                 }
             },
+            // Capped on a tablet, where a full-width button would be a long bar across the screen.
             modifier = Modifier
-                .fillMaxWidth()
+                .readableWidth()
                 .padding(horizontal = 24.dp)
                 .height(52.dp),
             shape = CircleShape,

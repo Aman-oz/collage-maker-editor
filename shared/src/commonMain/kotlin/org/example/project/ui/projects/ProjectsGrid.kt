@@ -1,5 +1,6 @@
 package org.example.project.ui.projects
 
+import org.example.project.ui.common.PhotoGridMinCellSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,7 +59,7 @@ internal fun ProjectsTabContent(
         projects == null -> Box(modifier)
         projects.isEmpty() -> ProjectsEmptyState(modifier)
         else -> LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Adaptive(PhotoGridMinCellSize),
             // Leave room for the bottom bar that floats over this content.
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

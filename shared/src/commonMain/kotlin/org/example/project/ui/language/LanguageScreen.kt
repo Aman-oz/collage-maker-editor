@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
 import org.koin.compose.viewmodel.koinViewModel
@@ -195,8 +196,10 @@ private fun LanguageRow(
     val bottom = lerp(colors.surface, colors.onSurface, 0.06f)
 
     Row(
+        // Capped on a tablet, where full-width pills would be long thin bars; the list itself stays
+        // full width so it scrolls from anywhere on the screen.
         modifier = Modifier
-            .fillMaxWidth()
+            .readableWidth()
             .height(52.dp)
             .clip(CardShape)
             .background(Brush.verticalGradient(listOf(top, bottom)))

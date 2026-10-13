@@ -1,5 +1,6 @@
 package org.example.project.ui.save
 
+import org.example.project.ui.common.readableWidth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -168,8 +169,9 @@ private fun SaveImageContent(
                     onClick = onSaveClean,
                     interactionSource = saveBounce.interactionSource,
                     enabled = !saving && image != null,
+                    // Capped on a tablet, where a full-width pill would span the whole screen.
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .readableWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp)
                         .springBounce(saveBounce)
                         .height(48.dp),
@@ -180,7 +182,7 @@ private fun SaveImageContent(
                 }
             } else {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp),
+                    modifier = Modifier.readableWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     val watermarkSaveBounce = rememberSpringBounce()

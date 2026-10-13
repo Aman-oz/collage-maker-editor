@@ -92,7 +92,9 @@ import org.example.project.data.billing.SubscriptionPlan
 import org.example.project.data.billing.SubscriptionProduct
 import org.example.project.i18n.AppLocale
 import org.example.project.i18n.tr
+import org.example.project.ui.common.ReadableContentMaxWidth
 import org.example.project.ui.common.bubbleClick
+import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.settings.SettingsLinks
@@ -302,7 +304,7 @@ private fun PremiumContent(
                 PremiumTop(onClose = onClose, onRestore = { if (!uiState.busy) onRestore() })
                 Spacer(Modifier.height(14.dp))
                 Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
+                    modifier = Modifier.readableWidth().padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     PremiumPlan.entries.forEach { plan ->
@@ -373,7 +375,9 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val heroHeight = maxWidth * HeroAspect
+        // Full width, but no taller than the hero is at the content's capped width: on a tablet the
+        // width-derived height would push the plans and the button below the fold.
+        val heroHeight = minOf(maxWidth, ReadableContentMaxWidth) * HeroAspect
         HeroPager(pagerState, Modifier.fillMaxWidth().height(heroHeight))
         HeroIndicator(
             pagerState = pagerState,
@@ -393,6 +397,7 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
         FeaturesCard(
             modifier = Modifier
                 .padding(top = heroHeight - CardOverlap)
+                .readableWidth()
                 .padding(horizontal = 20.dp),
         )
     }
@@ -653,7 +658,7 @@ private fun PremiumFooter(
         }
     }
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        modifier = Modifier.readableWidth().padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(

@@ -1,5 +1,7 @@
 package org.example.project.ui.templates
 
+import androidx.compose.foundation.layout.widthIn
+import org.example.project.ui.common.ReadableContentMaxWidth
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInParent
@@ -357,7 +359,8 @@ private fun categoryAccent(): Color =
 @Composable
 private fun FramesGrid(frames: List<TemplateFrame>, onFrameClick: (TemplateFrame) -> Unit) {
     LazyVerticalStaggeredGrid(
-        columns = StaggeredGridCells.Fixed(2),
+        // Two columns on a phone; as many 160dp+ columns as fit on a tablet.
+        columns = StaggeredGridCells.Adaptive(160.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -422,7 +425,11 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
 
 @Composable
 private fun ErrorState(message: String, onRetry: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+    // Capped so a long server error wraps into a readable block on a tablet.
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.widthIn(max = ReadableContentMaxWidth).padding(24.dp),
+    ) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,

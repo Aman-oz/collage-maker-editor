@@ -85,7 +85,7 @@ fun ProEditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             .safeContentPadding(),
     ) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Adaptive(150.dp),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

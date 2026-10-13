@@ -1,5 +1,7 @@
 package org.example.project.ui.home
 
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -163,6 +165,9 @@ private const val BarBounceSqueeze = 0.025f
 private val BarBounceDip = 3.dp
 private val BarBounceSpring = spring<Float>(dampingRatio = 0.32f, stiffness = 380f)
 
+/** The widest the tab slots spread; wider than any phone, so phones keep full-width slots. */
+private val BarItemsMaxWidth = 480.dp
+
 /** Drops the released bubble onto its tab with a visible wobble. */
 private val SettleSpring = spring<Float>(dampingRatio = 0.55f, stiffness = 320f)
 
@@ -282,8 +287,14 @@ internal fun HomeBottomBar(
 
         Column(modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars)) {
             Spacer(Modifier.height(HumpHeight))
+            // The glass spans the screen, but the tabs (and the bubble and drag area, which are laid
+            // out against this box's width) stay within [BarItemsMaxWidth] centred under the "+":
+            // on a tablet, full-width slots would put Home and Projects at the far screen edges.
             Box(
                 modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth()
+                    .widthIn(max = BarItemsMaxWidth)
                     .fillMaxWidth()
                     .height(BarHeight)
                     .pointerInput(Unit) {
