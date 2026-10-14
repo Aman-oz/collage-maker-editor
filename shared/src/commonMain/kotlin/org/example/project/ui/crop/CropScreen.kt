@@ -19,12 +19,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,7 +63,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.min
 import org.example.project.i18n.tr
+import org.example.project.ui.common.EditorSidePanelWidth
 import org.example.project.ui.common.ToolScaffold
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
@@ -95,42 +99,65 @@ internal fun CropContent(
     val scheme = MaterialTheme.colorScheme
     val state = remember(sourceImage) { CropState(sourceImage) }
 
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(scheme.surface)
             .safeDrawingPadding(),
     ) {
-        ToolTopBar(
-            title = title,
-            onClose = onBack,
-            doneEnabled = state.canCrop,
-            onDone = { state.crop()?.let(onCropConfirmed) },
-        )
-
-        if (showTransformTools) {
-            CropTransformRow(
-                enabled = state.image != null,
-                onRotate = { state.transform(1, flipHorizontal = false, flipVertical = false) },
-                onFlipHorizontal = { state.transform(0, flipHorizontal = true, flipVertical = false) },
-                onFlipVertical = { state.transform(0, flipHorizontal = false, flipVertical = true) },
+        val topBar: @Composable () -> Unit = {
+            ToolTopBar(
+                title = title,
+                onClose = onBack,
+                doneEnabled = state.canCrop,
+                onDone = { state.crop()?.let(onCropConfirmed) },
+            )
+        }
+        val transformRow: @Composable () -> Unit = {
+            if (showTransformTools) {
+                CropTransformRow(
+                    enabled = state.image != null,
+                    onRotate = { state.transform(1, flipHorizontal = false, flipVertical = false) },
+                    onFlipHorizontal = { state.transform(0, flipHorizontal = true, flipVertical = false) },
+                    onFlipVertical = { state.transform(0, flipHorizontal = false, flipVertical = true) },
+                )
+            }
+        }
+        val stage: @Composable (Modifier) -> Unit = { stageModifier ->
+            CropStage(
+                state = state,
+                modifier = stageModifier.background(scheme.onSurface.copy(alpha = 0.08f)),
+                cropSharedKey = cropSharedKey,
+            )
+        }
+        val ratioStrip: @Composable () -> Unit = {
+            AspectRatioStrip(
+                options = AspectRatioOptions,
+                selected = state.selectedOption,
+                onSelected = state::selectOption,
             )
         }
 
-        CropStage(
-            state = state,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(scheme.onSurface.copy(alpha = 0.08f)),
-            cropSharedKey = cropSharedKey,
-        )
-
-        AspectRatioStrip(
-            options = AspectRatioOptions,
-            selected = state.selectedOption,
-            onSelected = state::selectOption,
-        )
+        if (isSideBySideEditor(maxWidth, maxHeight)) {
+            // A phone on its side: the photo takes the left at full height, the way the editor
+            // lays out its tools, and the bars stack in a column on the right.
+            Row(modifier = Modifier.fillMaxSize()) {
+                stage(Modifier.weight(1f).fillMaxHeight())
+                Column(modifier = Modifier.width(EditorSidePanelWidth).fillMaxHeight()) {
+                    topBar()
+                    Spacer(modifier = Modifier.weight(1f))
+                    transformRow()
+                    ratioStrip()
+                }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                topBar()
+                transformRow()
+                stage(Modifier.fillMaxWidth().weight(1f))
+                ratioStrip()
+            }
+        }
     }
 }
 

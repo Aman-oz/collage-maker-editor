@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -103,6 +104,8 @@ import kotlinx.coroutines.withContext
 import org.example.project.AppLog
 import org.example.project.ui.common.BackgroundRemoverPhotoKey
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.EditorSidePanelWidth
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassDialogHost
@@ -249,9 +252,6 @@ private fun BackgroundRemoverEditorContent(
         controlsShown = true
         controlsSlide.animateTo(0f, tween(ControlsSlideMillis, easing = LinearOutSlowInEasing))
     }
-    // One layer offset shared by the three rows, so they travel as a single panel. Read in the
-    // layer block, so the slide redraws the rows without recomposing the screen.
-    val slideUp = Modifier.graphicsLayer { translationY = ControlsSlideDistance.toPx() * controlsSlide.value }
 
     // Must be a bitmap this app created (the ViewModel copies it), since the ops redraw it scaled.
     val original = sourceImage
@@ -338,283 +338,315 @@ private fun BackgroundRemoverEditorContent(
     val liquidState = rememberLiquidState()
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(scheme.surface)
                 .liquefiable(liquidState)
                 .safeDrawingPadding(),
         ) {
-            ToolTopBar(
-                title = if (mode == EraseMode.Auto) tr("Auto") else tr("Erase"),
-                onClose = discard::requestBack,
-                onDone = { original?.let { onDone(it, ops) } },
-                doneEnabled = original != null && !magicRunning && !aiRunning,
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clipToBounds()
-                    .pointerInput(mode) {
-                        if (mode != EraseMode.Zoom) return@pointerInput
-                        detectTransformGestures { _, panChange, zoomChange, _ ->
-                            setZoom(zoom * zoomChange)
-                            if (zoom > FitZoom) pan += panChange
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (original != null) {
-                    // The chip sits outside the zoom layer so it stays put, and at its size, over the photo.
-                    Box(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .aspectRatio(original.width.toFloat() / original.height)
-                            // Arrives from the crop screen's crop rectangle, which has this shape.
-                            .navSharedElement(BackgroundRemoverPhotoKey),
-                    ) {
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    scaleX = zoom
-                                    scaleY = zoom
-                                    translationX = pan.x
-                                    translationY = pan.y
-                                },
-                        ) {
-                            val density = LocalDensity.current
-                            val widthPx = with(density) { maxWidth.toPx() }
-                            val heightPx = with(density) { maxHeight.toPx() }
-                            val imageSize = Size(widthPx, heightPx)
-
-                            fun fractionFor(p: Offset) = Offset((p.x / widthPx).coerceIn(0f, 1f), (p.y / heightPx).coerceIn(0f, 1f))
-
-                            val currentBackdrop = backdrop
-                            if (currentBackdrop == null) {
-                                Checkerboard(modifier = Modifier.fillMaxSize())
-                            } else {
-                                Box(modifier = Modifier.fillMaxSize().background(currentBackdrop))
+            // A phone on its side has no height for the photo above three rows of controls, so
+            // there the photo takes the left and the controls stack in a column on the right.
+            val sideBySide = isSideBySideEditor(maxWidth, maxHeight)
+            // One layer offset shared by the control rows, so they travel as a single panel: up
+            // from the bottom, or in from the right edge beside the photo. Read in the layer block,
+            // so the slide redraws the rows without recomposing the screen.
+            val slideUp = Modifier.graphicsLayer {
+                if (sideBySide) {
+                    translationX = EditorSidePanelWidth.toPx() * controlsSlide.value
+                } else {
+                    translationY = ControlsSlideDistance.toPx() * controlsSlide.value
+                }
+            }
+            val topBar: @Composable () -> Unit = {
+                ToolTopBar(
+                    title = if (mode == EraseMode.Auto) tr("Auto") else tr("Erase"),
+                    onClose = discard::requestBack,
+                    onDone = { original?.let { onDone(it, ops) } },
+                    doneEnabled = original != null && !magicRunning && !aiRunning,
+                )
+            }
+            val stage: @Composable (Modifier) -> Unit = { stageModifier ->
+                Box(
+                    modifier = stageModifier
+                        .clipToBounds()
+                        .pointerInput(mode) {
+                            if (mode != EraseMode.Zoom) return@pointerInput
+                            detectTransformGestures { _, panChange, zoomChange, _ ->
+                                setZoom(zoom * zoomChange)
+                                if (zoom > FitZoom) pan += panChange
                             }
-
-                            Canvas(
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (original != null) {
+                        // The chip sits outside the zoom layer so it stays put, and at its size, over the photo.
+                        Box(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .aspectRatio(original.width.toFloat() / original.height)
+                                // Arrives from the crop screen's crop rectangle, which has this shape.
+                                .navSharedElement(BackgroundRemoverPhotoKey),
+                        ) {
+                            BoxWithConstraints(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    // The erase ops clear pixels; an offscreen layer keeps them from also
-                                    // clearing the backdrop drawn underneath.
-                                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                                    .pointerInput(mode, widthPx, heightPx) {
-                                        if (mode != EraseMode.Auto) return@pointerInput
-                                        detectTapGestures(onTap = { applyMagic(fractionFor(it)) })
-                                    }
-                                    .pointerInput(mode, widthPx, heightPx) {
-                                        if (mode != EraseMode.Eraser) return@pointerInput
-                                        detectDragGestures(
-                                            onDragStart = { position ->
-                                                isDragging = true
-                                                cursorPositionPx = position
-                                                currentStroke = listOf(fractionFor(position))
-                                            },
-                                            onDragEnd = {
-                                                isDragging = false
-                                                if (currentStroke.isNotEmpty()) {
-                                                    push(EraseOp.Brush(MaskStroke(currentStroke, radiusFraction()), brushRestore))
-                                                }
-                                                currentStroke = emptyList()
-                                            },
-                                            onDragCancel = {
-                                                isDragging = false
-                                                currentStroke = emptyList()
-                                            },
-                                            onDrag = { change, _ ->
-                                                change.consume()
-                                                cursorPositionPx = change.position
-                                                currentStroke = currentStroke + fractionFor(change.position)
-                                            },
-                                        )
+                                    .graphicsLayer {
+                                        scaleX = zoom
+                                        scaleY = zoom
+                                        translationX = pan.x
+                                        translationY = pan.y
                                     },
                             ) {
-                                if (comparing) {
-                                    drawImageScaled(original, IntOffset.Zero, IntSize(size.width.roundToInt(), size.height.roundToInt()))
+                                val density = LocalDensity.current
+                                val widthPx = with(density) { maxWidth.toPx() }
+                                val heightPx = with(density) { maxHeight.toPx() }
+                                val imageSize = Size(widthPx, heightPx)
+
+                                fun fractionFor(p: Offset) = Offset((p.x / widthPx).coerceIn(0f, 1f), (p.y / heightPx).coerceIn(0f, 1f))
+
+                                val currentBackdrop = backdrop
+                                if (currentBackdrop == null) {
+                                    Checkerboard(modifier = Modifier.fillMaxSize())
                                 } else {
-                                    val live = if (currentStroke.isNotEmpty()) {
-                                        listOf(EraseOp.Brush(MaskStroke(currentStroke, radiusFraction()), brushRestore))
-                                    } else {
-                                        emptyList()
-                                    }
-                                    drawErasedImage(original, ops + live, imageSize)
+                                    Box(modifier = Modifier.fillMaxSize().background(currentBackdrop))
                                 }
-                                if (mode == EraseMode.Eraser && (isDragging || isAdjustingBrush)) {
-                                    drawCircle(
-                                        color = scheme.primary,
-                                        radius = radiusFraction() * widthPx,
-                                        center = if (isDragging) cursorPositionPx else center,
-                                        style = Stroke(width = 2.dp.toPx() / zoom),
-                                    )
+
+                                Canvas(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        // The erase ops clear pixels; an offscreen layer keeps them from also
+                                        // clearing the backdrop drawn underneath.
+                                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                        .pointerInput(mode, widthPx, heightPx) {
+                                            if (mode != EraseMode.Auto) return@pointerInput
+                                            detectTapGestures(onTap = { applyMagic(fractionFor(it)) })
+                                        }
+                                        .pointerInput(mode, widthPx, heightPx) {
+                                            if (mode != EraseMode.Eraser) return@pointerInput
+                                            detectDragGestures(
+                                                onDragStart = { position ->
+                                                    isDragging = true
+                                                    cursorPositionPx = position
+                                                    currentStroke = listOf(fractionFor(position))
+                                                },
+                                                onDragEnd = {
+                                                    isDragging = false
+                                                    if (currentStroke.isNotEmpty()) {
+                                                        push(EraseOp.Brush(MaskStroke(currentStroke, radiusFraction()), brushRestore))
+                                                    }
+                                                    currentStroke = emptyList()
+                                                },
+                                                onDragCancel = {
+                                                    isDragging = false
+                                                    currentStroke = emptyList()
+                                                },
+                                                onDrag = { change, _ ->
+                                                    change.consume()
+                                                    cursorPositionPx = change.position
+                                                    currentStroke = currentStroke + fractionFor(change.position)
+                                                },
+                                            )
+                                        },
+                                ) {
+                                    if (comparing) {
+                                        drawImageScaled(original, IntOffset.Zero, IntSize(size.width.roundToInt(), size.height.roundToInt()))
+                                    } else {
+                                        val live = if (currentStroke.isNotEmpty()) {
+                                            listOf(EraseOp.Brush(MaskStroke(currentStroke, radiusFraction()), brushRestore))
+                                        } else {
+                                            emptyList()
+                                        }
+                                        drawErasedImage(original, ops + live, imageSize)
+                                    }
+                                    if (mode == EraseMode.Eraser && (isDragging || isAdjustingBrush)) {
+                                        drawCircle(
+                                            color = scheme.primary,
+                                            radius = radiusFraction() * widthPx,
+                                            center = if (isDragging) cursorPositionPx else center,
+                                            style = Stroke(width = 2.dp.toPx() / zoom),
+                                        )
+                                    }
                                 }
                             }
+
+                            BackdropChip(
+                                next = nextBackdrop(backdrop),
+                                onClick = { backdrop = nextBackdrop(backdrop) },
+                                modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
+                            )
                         }
 
-                        BackdropChip(
-                            next = nextBackdrop(backdrop),
-                            onClick = { backdrop = nextBackdrop(backdrop) },
-                            modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
-                        )
+                        if (magicRunning) CircularProgressIndicator()
+                        if (aiRunning) LoadingOverlay(contentDescription = tr("Removing background"))
+                    } else {
+                        Text(tr("No image to edit"), color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
                     }
 
-                    if (magicRunning) CircularProgressIndicator()
-                    if (aiRunning) LoadingOverlay(contentDescription = tr("Removing background"))
-                } else {
-                    Text(tr("No image to edit"), color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+                    SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+                }
+            }
+            val controls: @Composable () -> Unit = {
+                Row(
+                    modifier = Modifier
+                        .then(slideUp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Zoom shows no erase/recover pair; the row keeps its height so the photo doesn't jump.
+                    when (mode) {
+                        EraseMode.Eraser -> {
+                            DuotoneToggle(
+                                icon = vectorResource(Res.drawable.ic_eraser_brush),
+                                contentDescription = tr("Erase"),
+                                selected = !brushRestore,
+                                onClick = { brushRestore = false },
+                            )
+                            DuotoneToggle(
+                                icon = vectorResource(Res.drawable.ic_recover),
+                                contentDescription = tr("Recover"),
+                                selected = brushRestore,
+                                onClick = { brushRestore = true },
+                            )
+                        }
+                        EraseMode.Auto -> {
+                            TintedToggle(
+                                icon = vectorResource(Res.drawable.ic_eraser_magic),
+                                contentDescription = tr("Magic erase"),
+                                selected = !magicRestore,
+                                onClick = { magicRestore = false },
+                            )
+                            TintedToggle(
+                                icon = vectorResource(Res.drawable.ic_recover_magic),
+                                contentDescription = tr("Magic recover"),
+                                selected = magicRestore,
+                                onClick = { magicRestore = true },
+                            )
+                        }
+                        EraseMode.Zoom -> Spacer(modifier = Modifier.size(ToggleSize))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_undo),
+                        contentDescription = tr("Undo"),
+                        enabled = ops.isNotEmpty(),
+                        onClick = onUndo,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_redo),
+                        contentDescription = tr("Redo"),
+                        enabled = canRedo,
+                        onClick = onRedo,
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    HoldToCompareButton(onPressedChange = { comparing = it })
                 }
 
-                SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
-            }
-
-            Row(
-                modifier = Modifier
-                    .then(slideUp)
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Zoom shows no erase/recover pair; the row keeps its height so the photo doesn't jump.
-                when (mode) {
-                    EraseMode.Eraser -> {
-                        DuotoneToggle(
-                            icon = vectorResource(Res.drawable.ic_eraser_brush),
-                            contentDescription = tr("Erase"),
-                            selected = !brushRestore,
-                            onClick = { brushRestore = false },
+                // Fixed height (a slider plus its row of range labels) so switching tools never moves the photo.
+                Box(modifier = Modifier.then(slideUp).fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+                    when (mode) {
+                        EraseMode.Eraser -> CenterFillSlider(
+                            value = brushSize,
+                            onValueChange = { brushSize = it },
+                            range = MaskBrushSizeRange,
+                            referenceValue = MaskBrushSizeRange.start,
+                            onDraggingChange = { isAdjustingBrush = it },
+                            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                            fillColor = scheme.primary,
+                            thumbColor = scheme.primary,
+                            thumbWidth = 32.dp,
+                            thumbHeight = 18.dp,
+                            horizontalPadding = 12.dp,
+                            glassThumb = true,
+                            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                            valueLabel = ::wholeNumberLabel,
                         )
-                        DuotoneToggle(
-                            icon = vectorResource(Res.drawable.ic_recover),
-                            contentDescription = tr("Recover"),
-                            selected = brushRestore,
-                            onClick = { brushRestore = true },
+                        EraseMode.Auto -> MagicStrengthSlider(
+                            value = magicStrength,
+                            onValueChange = { magicStrength = it },
+                            color = magicColor,
+                        )
+                        // Starts from the centre (fit): left zooms out, right zooms in. It reads the
+                        // zoom back, so a pinch keeps the thumb in step.
+                        EraseMode.Zoom -> CenterFillSlider(
+                            value = zoomToSlider(zoom),
+                            onValueChange = { setZoom(sliderToZoom(it)) },
+                            range = ZoomSliderRange,
+                            referenceValue = 0f,
+                            trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                            fillColor = scheme.primary,
+                            thumbColor = scheme.primary,
+                            thumbWidth = 32.dp,
+                            thumbHeight = 18.dp,
+                            horizontalPadding = 12.dp,
+                            glassThumb = true,
+                            glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                            // The slider runs -1..1 around fit; the labels show the zoom it stands for.
+                            valueLabel = { "${(sliderToZoom(it) * 100).roundToInt()}%" },
                         )
                     }
-                    EraseMode.Auto -> {
-                        TintedToggle(
-                            icon = vectorResource(Res.drawable.ic_eraser_magic),
-                            contentDescription = tr("Magic erase"),
-                            selected = !magicRestore,
-                            onClick = { magicRestore = false },
-                        )
-                        TintedToggle(
-                            icon = vectorResource(Res.drawable.ic_recover_magic),
-                            contentDescription = tr("Magic recover"),
-                            selected = magicRestore,
-                            onClick = { magicRestore = true },
-                        )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier
+                        .then(slideUp)
+                        // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                        .readableWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                ) {
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_eraser_manual),
+                        label = tr("Eraser"),
+                        selected = mode == EraseMode.Eraser,
+                        onClick = { mode = EraseMode.Eraser },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_zoom),
+                        label = tr("Zoom"),
+                        selected = mode == EraseMode.Zoom,
+                        onClick = { mode = EraseMode.Zoom },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_eraser_auto),
+                        label = tr("Auto"),
+                        selected = mode == EraseMode.Auto,
+                        enabled = original != null,
+                        onClick = { mode = EraseMode.Auto },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_eraser_ai),
+                        label = tr("Ai Magic"),
+                        selected = aiRunning,
+                        badge = if (aiApplied) null else tr("New"),
+                        enabled = original != null && !aiRunning,
+                        onClick = {
+                            AppLog.d(ScreenTag, "Ai Magic tapped (premium: $isPremium, applied: $aiApplied)")
+                            if (isPremium) onAiMagic() else showAiPremiumDialog = true
+                        },
+                    )
+                }
+            }
+
+            if (sideBySide) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    stage(Modifier.weight(1f).fillMaxHeight())
+                    Column(modifier = Modifier.width(EditorSidePanelWidth).fillMaxHeight()) {
+                        topBar()
+                        Spacer(modifier = Modifier.weight(1f))
+                        controls()
                     }
-                    EraseMode.Zoom -> Spacer(modifier = Modifier.size(ToggleSize))
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_undo),
-                    contentDescription = tr("Undo"),
-                    enabled = ops.isNotEmpty(),
-                    onClick = onUndo,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_redo),
-                    contentDescription = tr("Redo"),
-                    enabled = canRedo,
-                    onClick = onRedo,
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                HoldToCompareButton(onPressedChange = { comparing = it })
-            }
-
-            // Fixed height (a slider plus its row of range labels) so switching tools never moves the photo.
-            Box(modifier = Modifier.then(slideUp).fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
-                when (mode) {
-                    EraseMode.Eraser -> CenterFillSlider(
-                        value = brushSize,
-                        onValueChange = { brushSize = it },
-                        range = MaskBrushSizeRange,
-                        referenceValue = MaskBrushSizeRange.start,
-                        onDraggingChange = { isAdjustingBrush = it },
-                        trackColor = scheme.onSurface.copy(alpha = 0.12f),
-                        fillColor = scheme.primary,
-                        thumbColor = scheme.primary,
-                        thumbWidth = 32.dp,
-                        thumbHeight = 18.dp,
-                        horizontalPadding = 12.dp,
-                        glassThumb = true,
-                        glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-                        valueLabel = ::wholeNumberLabel,
-                    )
-                    EraseMode.Auto -> MagicStrengthSlider(
-                        value = magicStrength,
-                        onValueChange = { magicStrength = it },
-                        color = magicColor,
-                    )
-                    // Starts from the centre (fit): left zooms out, right zooms in. It reads the
-                    // zoom back, so a pinch keeps the thumb in step.
-                    EraseMode.Zoom -> CenterFillSlider(
-                        value = zoomToSlider(zoom),
-                        onValueChange = { setZoom(sliderToZoom(it)) },
-                        range = ZoomSliderRange,
-                        referenceValue = 0f,
-                        trackColor = scheme.onSurface.copy(alpha = 0.12f),
-                        fillColor = scheme.primary,
-                        thumbColor = scheme.primary,
-                        thumbWidth = 32.dp,
-                        thumbHeight = 18.dp,
-                        horizontalPadding = 12.dp,
-                        glassThumb = true,
-                        glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-                        // The slider runs -1..1 around fit; the labels show the zoom it stands for.
-                        valueLabel = { "${(sliderToZoom(it) * 100).roundToInt()}%" },
-                    )
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    topBar()
+                    stage(Modifier.fillMaxWidth().weight(1f))
+                    controls()
                 }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier
-                    .then(slideUp)
-                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
-                    .readableWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-            ) {
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_eraser_manual),
-                    label = tr("Eraser"),
-                    selected = mode == EraseMode.Eraser,
-                    onClick = { mode = EraseMode.Eraser },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_zoom),
-                    label = tr("Zoom"),
-                    selected = mode == EraseMode.Zoom,
-                    onClick = { mode = EraseMode.Zoom },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_eraser_auto),
-                    label = tr("Auto"),
-                    selected = mode == EraseMode.Auto,
-                    enabled = original != null,
-                    onClick = { mode = EraseMode.Auto },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_eraser_ai),
-                    label = tr("Ai Magic"),
-                    selected = aiRunning,
-                    badge = if (aiApplied) null else tr("New"),
-                    enabled = original != null && !aiRunning,
-                    onClick = {
-                        AppLog.d(ScreenTag, "Ai Magic tapped (premium: $isPremium, applied: $aiApplied)")
-                        if (isPremium) onAiMagic() else showAiPremiumDialog = true
-                    },
-                )
             }
         }
 

@@ -85,7 +85,8 @@ the editor's top bar and a grid of every tool, then the tool's panel, which slid
 edge instead of up from the bottom. `ToolScaffold` does that for every tool, which is why it finds
 the stage by its `toolStage()` layout id rather than being a plain `Column`. The Collage, Freestyle,
 PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The save and
-share screens switch at the same size too: the picture on the left, their buttons in the column.
+share screens, the background remover's crop step (`CropContent`) and its eraser switch at the
+same size too: the picture on the left, their bars and buttons in the column.
 
 The host uses coroutine-driven `Animatable`s rather than `AnimatedContent` on purpose: a tool's
 first composition can be heavy (blurring, desaturating, thumbnails), and an animation started on
