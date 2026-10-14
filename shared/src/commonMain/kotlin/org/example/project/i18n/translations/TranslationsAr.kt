@@ -718,4 +718,6 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "أدوات أخرى",
     "Edit" to
         "تعديل",
+    "Try this Pro feature for free" to
+        "جرّب ميزة Pro مجانًا",
 )

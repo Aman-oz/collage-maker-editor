@@ -718,4 +718,6 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Ещё инструменты",
     "Edit" to
         "Редактировать",
+    "Try this Pro feature for free" to
+        "Попробуйте эту функцию Pro бесплатно",
 )

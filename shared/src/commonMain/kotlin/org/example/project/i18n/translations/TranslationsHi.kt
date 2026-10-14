@@ -718,4 +718,6 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "और टूल",
     "Edit" to
         "संपादित करें",
+    "Try this Pro feature for free" to
+        "यह Pro फ़ीचर मुफ़्त में आज़माएँ",
 )

@@ -63,6 +63,9 @@ class CollageEditorViewModel(
             return template?.isPremium == true && !settings.isPremium.value
         }
 
+    /** Whether the user subscribes; a non-subscriber on a premium layout sees the Pro banner. */
+    val isSubscribed: StateFlow<Boolean> = settings.isPremium
+
     private var premiumOfferShown = false
 
     /**

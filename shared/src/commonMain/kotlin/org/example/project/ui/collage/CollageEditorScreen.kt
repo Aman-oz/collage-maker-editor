@@ -98,6 +98,8 @@ import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
@@ -188,6 +190,7 @@ fun CollageEditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()
     val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
+    val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
     // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
     val liquidState = rememberLiquidState()
@@ -206,6 +209,7 @@ fun CollageEditorScreen(
         CollageEditorContent(
             uiState = uiState,
             pickerState = pickerState,
+            isSubscribed = isSubscribed,
             onClose = discard::requestBack,
             onPremium = onPremium,
             onDone = { canvasWidthPx, spacePx, cornerPx ->
@@ -249,6 +253,7 @@ fun CollageEditorScreen(
 private fun CollageEditorContent(
     uiState: CollageEditorUiState,
     pickerState: CollagePickerState,
+    isSubscribed: Boolean,
     onClose: () -> Unit,
     onPremium: () -> Unit,
     onDone: (canvasWidthPx: Float, spacePx: Float, cornerPx: Float) -> Unit,
@@ -338,6 +343,12 @@ private fun CollageEditorContent(
             }
         }
 
+        // A premium layout can be tried by anyone; for a non-subscriber this bar under the photo
+        // says so and leads to the paywall, as Done does.
+        val onPremiumLayout = (uiState as? CollageEditorUiState.Ready)?.collage?.template?.isPremium == true
+        ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
+        PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
+
         CollageToolTabs(
             chrome = chrome,
             selected = selectedTool,
@@ -370,6 +381,10 @@ private fun CollageEditorContent(
                         onRatioChange = onRatioChange,
                     )
                 }
+            } else if (uiState is CollageEditorUiState.Loading && selectedTool == CollageTool.Layouts) {
+                // The layout list arrives from the server along with the photos; show the strip's
+                // placeholders instead of an empty panel until then.
+                LayoutsTab(chrome = chrome, pickerState = pickerState, onTemplateSelected = onTemplateSelected)
             }
         }
     }
@@ -601,8 +616,16 @@ private fun CollageToolTab(chrome: CollageChrome, tool: CollageTool, selected: B
 @Composable
 private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, onTemplateSelected: (TemplateItem) -> Unit) {
     when {
-        pickerState.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = chrome.accent, modifier = Modifier.size(28.dp))
+        // Placeholder tiles in the strip's own grid, each with a spinner, while the list loads.
+        pickerState.isLoading -> LazyHorizontalGrid(
+            rows = GridCells.Fixed(2),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            userScrollEnabled = false,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(LayoutPlaceholderCount) { LayoutThumbnailPlaceholder(chrome) }
         }
         pickerState.error != null && pickerState.templates.isEmpty() -> Box(
             modifier = Modifier.fillMaxSize(),
@@ -626,6 +649,23 @@ private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, o
                 )
             }
         }
+    }
+}
+
+/** Enough placeholder tiles to fill the strip on a wide screen. */
+private const val LayoutPlaceholderCount = 24
+
+/** A [LayoutThumbnail]-sized tile with a spinner, shown while the layout list loads. */
+@Composable
+private fun LayoutThumbnailPlaceholder(chrome: CollageChrome) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(chrome.muted.copy(alpha = 0.12f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(color = chrome.accent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -877,6 +917,7 @@ private fun CollageEditorScreenPreview() {
         CollageEditorContent(
             uiState = CollageEditorUiState.Loading,
             pickerState = CollagePickerState(isLoading = true),
+            isSubscribed = false,
             onClose = {},
             onPremium = {},
             onDone = { _, _, _ -> },

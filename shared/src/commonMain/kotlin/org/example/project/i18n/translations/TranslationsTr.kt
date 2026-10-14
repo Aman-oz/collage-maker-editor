@@ -718,4 +718,6 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Diğer araçlar",
     "Edit" to
         "Düzenle",
+    "Try this Pro feature for free" to
+        "Bu Pro özelliği ücretsiz deneyin",
 )

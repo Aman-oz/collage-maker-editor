@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
@@ -39,13 +40,25 @@ sealed interface TemplatesEditorUiState {
  * template's decorative frame image, lets the user drop a photo into each slot, and bakes the frame
  * plus the placed photos into one image on Done.
  *
- * [frame] is passed in from the navigation key via Koin's `parametersOf`.
+ * [frame] is passed in from the navigation key via Koin's `parametersOf`. A premium [frame] opens
+ * for anyone to try, but Done sends a non-subscriber to the paywall ([needsPremium]).
  */
 class TemplatesEditorViewModel(
     private val frame: TemplateFrame,
     private val session: ImageEditSession,
     private val imageLoader: NetworkImageLoader,
+    private val settings: AppSettings,
 ) : ViewModel() {
+
+    /** Whether the user subscribes; a non-subscriber on a premium frame sees the Pro bar. */
+    val isSubscribed: StateFlow<Boolean> = settings.isPremium
+
+    /**
+     * Whether Done has to go to the paywall instead of baking: the frame is premium and the user is
+     * not subscribed. Read at the moment of Done, so it is `false` for someone just back from
+     * subscribing; the placed photos are kept here meanwhile.
+     */
+    val needsPremium: Boolean get() = frame.isPremium && !settings.isPremium.value
 
     private val _uiState = MutableStateFlow<TemplatesEditorUiState>(TemplatesEditorUiState.Loading)
     val uiState: StateFlow<TemplatesEditorUiState> = _uiState.asStateFlow()

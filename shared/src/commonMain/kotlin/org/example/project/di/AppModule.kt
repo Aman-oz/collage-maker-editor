@@ -8,6 +8,7 @@ import org.example.project.data.ProjectsRepository
 import org.example.project.data.bgremover.BackgroundRemoverApi
 import org.example.project.data.billing.AppBillingWrapper
 import org.example.project.data.billing.billingPlatformModule
+import org.example.project.data.centraldata.CentralDataApi
 import org.example.project.data.createKeyValueStore
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
@@ -52,16 +53,17 @@ val coreModule: Module = module {
     single { SavedImageHandoff() }
     // Persisted user preferences (theme, language); App observes the theme from here.
     single { AppSettings(createKeyValueStore()) }
-    // Ktor client + loader for the remote collage layout thumbnails (collages.json preview URLs).
+    // Ktor client + loader for the remote collage layout thumbnails (collage preview URLs).
     single { createHttpClient() }
     single { NetworkImageLoader(get()) }
     // The AI background remover's upload/download client (endpoint from local.properties).
     single { BackgroundRemoverApi(get()) }
-    // Loads the bundled collages.json layout catalog.
-    single { CollageCatalog() }
-    // Fetches the server template catalog (categories + templates) for the Templates screen.
+    // The central-data server (key from local.properties) behind the collage, template and frame
+    // catalogs. Collages fall back to the bundled collages.json offline.
+    single { CentralDataApi(get()) }
+    single { CollageCatalog(get()) }
+    // Fetch the template and frame catalogs (sub-categories + assets) from the central-data server.
     single { TemplatesRepository(get()) }
-    // Fetches the server frames catalog (sub-categories + frames) for the Frames screen.
     single { FramesRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
@@ -98,7 +100,7 @@ val viewModelModule: Module = module {
     viewModelOf(::FramesViewModel)
     viewModelOf(::PremiumViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
-    viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get()) }
+    viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }
     viewModelOf(::PipViewModel)
     viewModel { (templateName: String, imagePaths: List<String>) -> PipEditorViewModel(templateName, imagePaths, get(), get(), get()) }
 }

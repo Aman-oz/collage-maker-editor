@@ -101,16 +101,14 @@ fun TemplatesScreen(
     viewModel: TemplatesViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
 
     TemplatesContent(
         uiState = uiState,
         onBack = onBack,
         onCategorySelected = viewModel::selectCategory,
-        // A premium template opens the paywall unless the user already subscribes.
-        onFrameClick = { frame ->
-            if (frame.isPremium && !isPremium) onOpenPremium() else onOpenEditor(frame)
-        },
+        // A premium template opens for anyone to try; its editor shows the Pro bar and sends a
+        // non-subscriber to the paywall on Done.
+        onFrameClick = onOpenEditor,
         onGoPro = onOpenPremium,
         onRetry = viewModel::retry,
         modifier = modifier,

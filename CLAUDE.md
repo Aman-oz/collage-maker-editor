@@ -94,6 +94,13 @@ for the same reason. Text makes the same one-time offer when the edit is a premi
 (`isPremiumTextEdit`: the Stylish font, the red colour, a size set within 30–50, or text gone back
 into after it was written), and Sticker when more than `FreeEmojiLimit` (2) emojis are placed.
 
+While a non-subscriber tries a premium filter, overlay, collage layout, template or frame, a
+`ProFeatureBar` (`ui/common/ProFeatureBar.kt`, on the paywall's `SelectedPlanGradient`) sits under
+the photo and opens the paywall. At the same moments `PreventScreenCapture` blocks screenshots and
+recordings (Android `FLAG_SECURE`, reference-counted; a no-op on iOS, which has no public API for
+it). Templates and frames therefore open from the grid for anyone; their
+editor's Done is the gate (`TemplatesEditorViewModel.needsPremium`).
+
 The editor's own Done makes that one-time offer too, when more than `FreeEditCount` (3) tool edits
 are applied (`EditorViewModel.consumePremiumOffer`, counted from the undo history).
 
@@ -119,9 +126,11 @@ from the back stack.
 - **Collage** (`ui/collage/`): layout geometry is hand-coded, ported from the older Android "LAS"
   app. `frames/*FrameImage.kt` + `FrameImageUtils.createTemplateItems(name)` map a
   `collage_<count>_<index>.png` name to slot polygons (`geom/` has the `PhotoItem`/`TemplateItem`
-  model). `CollageCatalog` joins that with the bundled `composeResources/files/collages.json`
-  (preview URLs, premium flag) and drops entries with no generator. A new layout needs both a JSON
-  entry and a generator case.
+  model). `CollageCatalog` joins that with the layout list from the central-data server (see
+  Networking; each layout is listed once per Dark/Light sub-category and paired by file name,
+  `data/collage/RemoteCollages.kt`) and drops entries with no generator. Without the API key, or
+  offline, the bundled `composeResources/files/collages.json` is used. A new layout needs both a
+  server asset and a generator case.
 - **Freestyle** (`ui/freestyle/`): the picked photos open spread over a grid by the pure
   `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. The canvas fill and a
   text label's fill are both a `FreestyleFill` (solid or gradient) whose `brush` the preview and
@@ -134,14 +143,14 @@ from the back stack.
   collage, freestyle and Set Background backgrounds) leads with a colour-wheel swatch
   (`ColorPickerFill`) that opens `ColorPickerDialog` through `rememberColorPickerLauncher`
   (`ui/common/ColorPicker.kt`, HSV maths in `ColorPickerMath.kt`). A new colour list should too.
-- **Templates** (`ui/templates/`): server-driven. `TemplatesRepository` hits the unauthenticated
-  plain-HTTP LAS collagemaker API, which is why cleartext traffic is enabled in the Android
-  manifest and iOS `Info.plist` (ATS). The server sends slot coordinates as quoted strings, which
-  `LenientFloatSerializer` handles.
+- **Templates** (`ui/templates/`): server-driven. `TemplatesRepository` reads the central-data
+  server's `subcategories?categoryId=` (the category pills) and `assets?subCategoryId=` (the
+  templates). Each asset's `more_fields.frames` holds the frame picture, its pixel size (which
+  picks the grid cell's `TemplateLayout`) and the photo slots. The server gives a slot's top-left
+  corner; `toFrames()` converts it to the centre that `TemplateSlot` and the editor use.
 - **Frames** (`ui/frames/`): the same screens as Templates (`TemplatesContent`, `TemplatesEditorScreen`)
-  fed by `FramesRepository`, which calls the same server's `getSubCategories` and
-  `getassets?subcategoryId=` (the LAS `FramesActivity`). The payload is the same `FrameItem` shape,
-  so it reuses the templates DTOs and their `toCategories()` / `toFrames()` mapping.
+  fed by `FramesRepository`, which calls the same endpoints under the frames category. The assets
+  have the same shape, so it reuses `toCategories()` / `toFrames()`.
 
 ### PIP — `ui/pip/`
 
@@ -187,6 +196,13 @@ is a small in-house URL→`ImageBitmap` memo cache, not an image library. It dec
 `expect fun decodeImageBitmap` because FileKit only decodes files on disk. Compose code uses
 `ui/common/NetworkImage.kt`.
 
+The collage, template and frame catalogs come from one central-data server,
+`data/centraldata/CentralDataApi` (`GET /api/v1/instance/{instanceId}/subcategories` and
+`/assets`, authenticated with an `X-API-Key` header). The key comes from `local.properties`
+(`CENTRAL_DATA_API_KEY`, or `COLLAGES_API_KEY`) through the generated `CentralDataConfig`, which also
+holds the instance and the three category ids. The server's image URLs are relative paths that
+need the key too: `NetworkImageLoader` sends the key to that host only.
+
 ### Billing — `AppBillingWrapper`
 
 `data/billing/` holds the subscriptions. `BillingProductIds` has the three store product IDs
@@ -209,7 +225,7 @@ There is no server-side receipt verification yet.
 ### DI — Koin
 
 `di/AppModule.kt` declares `coreModule` (Platform, `ImageEditSession`, the HttpClient,
-`NetworkImageLoader`, `CollageCatalog`, `TemplatesRepository`) and `viewModelModule`.
+`NetworkImageLoader`, `CentralDataApi`, `CollageCatalog`, `TemplatesRepository`, `FramesRepository`) and `viewModelModule`.
 `di/Koin.kt`'s `initKoin` is idempotent and called from `CollageApplication` on Android (with
 `androidContext`) and from `MainViewController` on iOS. Screens obtain ViewModels via
 `koinViewModel()`. ViewModels that need a nav argument (`EditorViewModel`, `CollageEditorViewModel`,

@@ -718,4 +718,6 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "도구 더 보기",
     "Edit" to
         "편집",
+    "Try this Pro feature for free" to
+        "이 Pro 기능을 무료로 사용해 보세요",
 )

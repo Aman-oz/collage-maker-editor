@@ -1,69 +1,53 @@
 package org.example.project.ui.templates
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.get
-import io.ktor.http.encodeURLParameter
+import org.example.project.data.centraldata.CentralAssetDto
+import org.example.project.data.centraldata.CentralDataApi
+import org.example.project.data.centraldata.CentralDataConfig
+import org.example.project.data.centraldata.CentralFrameDto
+import org.example.project.data.centraldata.CentralSubcategoryDto
 
 /**
- * Fetches template categories and templates from the LAS "collagemaker" server — the same endpoints
- * the Android `FramesTemplatesActivity` uses via `RemoteRepositoryImpl`/`ApiService`:
+ * Fetches template categories and templates from the central-data server:
  *
- * - `GET /api/collagemaker/getTempcategories` → the category list (rvCategory).
- * - `GET /api/collagemaker/gettemplates?tempCategoryId=<id>` → that category's templates (rvFrames).
- *
- * The server is plain HTTP on an IP, so cleartext traffic must be permitted per platform (Android
- * `usesCleartextTraffic`, iOS `NSAppTransportSecurity`). The endpoints are unauthenticated.
+ * - `subcategories?categoryId=<templates category>` → the category list (rvCategory).
+ * - `assets?subCategoryId=<id>` → that category's templates (rvFrames).
  */
-class TemplatesRepository(private val client: HttpClient) {
+class TemplatesRepository(private val api: CentralDataApi) {
 
     suspend fun getCategories(): List<TemplateCategory> =
-        client.get("$BASE_URL$CATEGORIES_PATH")
-            .body<TemplateCategoryResponseDto>()
-            .toCategories()
+        api.subcategories(CentralDataConfig.TEMPLATES_CATEGORY_ID).toCategories()
 
     suspend fun getTemplates(categoryId: String): List<TemplateFrame> =
-        client.get("$BASE_URL$TEMPLATES_PATH?tempCategoryId=${categoryId.encodeURLParameter()}")
-            .body<TemplateFrameResponseDto>()
-            .toFrames()
-
-    internal companion object {
-        const val BASE_URL = "http://161.97.164.28:9006"
-        private const val CATEGORIES_PATH = "/api/collagemaker/getTempcategories"
-        private const val TEMPLATES_PATH = "/api/collagemaker/gettemplates"
-    }
+        api.assetsInSubcategory(categoryId).toFrames(api::absoluteUrl)
 }
 
-/**
- * Enabled categories in server order. Shared with the Frames catalog, whose `getSubCategories`
- * response has the same shape.
- */
-internal fun TemplateCategoryResponseDto.toCategories(): List<TemplateCategory> =
-    data
-        .filter { it.isEnable && it._id.isNotBlank() }
+/** Enabled categories in server order. Shared with the Frames catalog. */
+internal fun List<CentralSubcategoryDto>.toCategories(): List<TemplateCategory> =
+    filter { it.isEnabled && it.id.isNotBlank() }
         .sortedBy { it.sequence }
-        .map { TemplateCategory(id = it._id, name = it.name) }
+        .map { TemplateCategory(id = it.id, name = it.name) }
 
 /**
- * Enabled, thumbnailed frames in server order. Shared with the Frames catalog: its `getassets`
- * items are the same LAS `FrameItem` and open the same `NewFrameEditor` in the LAS app.
+ * Enabled frames with a picture, in server order. Shared with the Frames catalog, whose assets have
+ * the same shape. [absoluteUrl] resolves the server's relative image paths.
  */
-internal fun TemplateFrameResponseDto.toFrames(): List<TemplateFrame> =
-    data
-        .filter { it.isEnable && it.thumbnail.isNotBlank() }
+internal fun List<CentralAssetDto>.toFrames(absoluteUrl: (String) -> String): List<TemplateFrame> =
+    filter { it.isEnabled }
         .sortedBy { it.sequence }
-        .map { dto ->
+        .mapNotNull { asset ->
+            val frame = asset.moreFields.frames?.takeIf { it.imageUrl.isNotBlank() } ?: return@mapNotNull null
             TemplateFrame(
-                id = dto._id,
-                thumbnailUrl = dto.thumbnail,
-                imageUrl = dto.image,
-                layout = dto.layout.toTemplateLayout(dto.isPortrait),
-                isPremium = dto.isPremium,
-                slots = dto.coordinates.mapIndexed { index, c ->
+                id = asset.id,
+                thumbnailUrl = absoluteUrl(asset.thumbnailUrl?.takeIf { it.isNotBlank() } ?: frame.imageUrl),
+                imageUrl = absoluteUrl(frame.imageUrl),
+                layout = frame.layout(),
+                isPremium = asset.isPremium,
+                slots = frame.coordinates.mapIndexed { index, c ->
+                    // The server gives the top-left corner; the editor positions slots by their centre.
                     TemplateSlot(
                         index = index,
-                        x = c.x,
-                        y = c.y,
+                        x = c.x + c.width / 2f,
+                        y = c.y + c.height / 2f,
                         width = c.width,
                         height = c.height,
                         rotation = c.rotation,
@@ -73,10 +57,17 @@ internal fun TemplateFrameResponseDto.toFrames(): List<TemplateFrame> =
             )
         }
 
-/** Maps the server's `layout` string to [TemplateLayout], tolerating its "sqaure" typo. */
-private fun String.toTemplateLayout(isPortrait: Boolean): TemplateLayout = when {
-    equals("landscape", ignoreCase = true) -> TemplateLayout.Landscape
-    startsWith("sq", ignoreCase = true) -> TemplateLayout.Square
-    equals("portrait", ignoreCase = true) -> TemplateLayout.Portrait
-    else -> if (isPortrait) TemplateLayout.Portrait else TemplateLayout.Landscape
+/**
+ * The grid cell shape for a frame picture, from its pixel size (the server no longer sends a layout
+ * name). Frames come in 0.67, 0.78, 1.28, 1.34 and 1.49 as well as square, so it rounds to the
+ * nearest family; an unknown size is treated as portrait, the common case.
+ */
+private fun CentralFrameDto.layout(): TemplateLayout {
+    if (width <= 0f || height <= 0f) return TemplateLayout.Portrait
+    val ratio = width / height
+    return when {
+        ratio < 0.9f -> TemplateLayout.Portrait
+        ratio > 1.1f -> TemplateLayout.Landscape
+        else -> TemplateLayout.Square
+    }
 }

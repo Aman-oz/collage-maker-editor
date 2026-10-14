@@ -109,8 +109,8 @@ import photocollagemaker.shared.generated.resources.img_template_premium
 /** Brand red: checkmarks, the PRO tab, the card outline and the Continue button. */
 internal val PremiumRed = Color(0xFFE0282E)
 
-/** Selected plan fill: the red → orange sweep of the design. */
-private val SelectedPlanGradient = Brush.horizontalGradient(listOf(Color(0xFFDD2A2E), Color(0xFFFF8A3D)))
+/** Selected plan fill: the red → orange sweep of the design. Also the editors' Pro banner. */
+internal val SelectedPlanGradient = Brush.horizontalGradient(listOf(Color(0xFFDD2A2E), Color(0xFFFF8A3D)))
 
 /** The dark chip carrying a plan's badge ("SAVE 80%"). */
 internal val PlanBadgeColor = Color(0xFF26262B)

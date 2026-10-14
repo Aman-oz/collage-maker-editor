@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
@@ -70,6 +72,8 @@ internal fun FilterTool(
 ) {
     FilterContent(
         sourceImage = sourceImage,
+        isSubscribed = isPremium,
+        onOpenPremium = onOpenPremium,
         onBack = onClose,
         onApply = { filter, intensity ->
             // A premium filter previews for everyone, but Done sends a non-subscriber to the paywall.
@@ -87,6 +91,8 @@ internal fun FilterTool(
 @Composable
 private fun FilterContent(
     sourceImage: ImageBitmap?,
+    isSubscribed: Boolean,
+    onOpenPremium: () -> Unit,
     onBack: () -> Unit,
     onApply: (filter: PhotoFilter, intensity: Float) -> Unit,
     modifier: Modifier = Modifier,
@@ -100,33 +106,43 @@ private fun FilterContent(
     var comparing by remember { mutableStateOf(false) }
 
     ToolScaffold(modifier = modifier) {
-        Box(
+        Column(
             modifier = Modifier
                 .toolStage()
-                .background(scheme.onSurface.copy(alpha = 0.08f))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center,
+                .background(scheme.onSurface.copy(alpha = 0.08f)),
         ) {
-            if (sourceImage != null) {
-                // Live, temporary preview — the actual bitmap is only baked when Done is tapped.
-                // aspectRatio sizes the Image to the photo itself, so the rounded clip follows the
-                // photo's edges instead of the letterboxed stage.
-                Image(
-                    bitmap = sourceImage,
-                    contentDescription = tr("Photo preview"),
-                    modifier = Modifier
-                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = if (comparing) null else selectedFilter.toColorFilter(intensity),
-                )
-            } else {
-                Text(
-                    text = tr("No image to filter"),
-                    color = scheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sourceImage != null) {
+                    // Live, temporary preview — the actual bitmap is only baked when Done is tapped.
+                    // aspectRatio sizes the Image to the photo itself, so the rounded clip follows the
+                    // photo's edges instead of the letterboxed stage.
+                    Image(
+                        bitmap = sourceImage,
+                        contentDescription = tr("Photo preview"),
+                        modifier = Modifier
+                            .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Fit,
+                        colorFilter = if (comparing) null else selectedFilter.toColorFilter(intensity),
+                    )
+                } else {
+                    Text(
+                        text = tr("No image to filter"),
+                        color = scheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
             }
+            // Under the photo while a non-subscriber previews a premium filter; it is part of the stage
+            // so it fades in and out with it, and leads to the paywall like Done does.
+            ProFeatureBar(visible = selectedFilter.isPremium && !isSubscribed, onClick = onOpenPremium)
+            PreventScreenCapture(enabled = selectedFilter.isPremium && !isSubscribed)
         }
 
         ToolPanel(
@@ -287,6 +303,6 @@ private fun FilterChip(
 @Composable
 private fun FilterScreenPreview() {
     ThemePreviews {
-        FilterContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onApply = { _, _ -> })
+        FilterContent(sourceImage = ImageBitmap(360, 480), isSubscribed = false, onOpenPremium = {}, onBack = {}, onApply = { _, _ -> })
     }
 }

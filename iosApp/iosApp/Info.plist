@@ -12,7 +12,7 @@
 	<string>Allow access to save your edited photos and collages to your photo library.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- The template server is plain HTTP on an IP address; allow cleartext to reach it. -->
+		<!-- The background remover's server is plain HTTP; allow cleartext to reach it. -->
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>

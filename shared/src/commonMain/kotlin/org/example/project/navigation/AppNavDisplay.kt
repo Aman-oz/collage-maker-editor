@@ -204,6 +204,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 // The baked template is already in the session; the template editor stays
                                 // underneath so Back from the editor returns to it for further tweaks.
                                 onDone = { backStack.add(Destination.Editor()) },
+                                onPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
                     }
@@ -248,6 +249,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 // Same as Templates: the baked frame is in the session and the frame editor
                                 // stays underneath, so Back from the editor returns to it.
                                 onDone = { backStack.add(Destination.Editor()) },
+                                onPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
                     }

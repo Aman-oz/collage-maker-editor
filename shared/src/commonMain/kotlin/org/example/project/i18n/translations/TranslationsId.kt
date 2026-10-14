@@ -718,4 +718,6 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Alat lainnya",
     "Edit" to
         "Edit",
+    "Try this Pro feature for free" to
+        "Coba fitur Pro ini gratis",
 )

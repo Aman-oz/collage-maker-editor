@@ -718,4 +718,6 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "مزید ٹولز",
     "Edit" to
         "ترمیم",
+    "Try this Pro feature for free" to
+        "یہ Pro فیچر مفت آزمائیں",
 )

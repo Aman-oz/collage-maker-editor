@@ -363,4 +363,5 @@ internal val AppStrings: List<String> = listOf(
     "Undo and redo step back and forward through your changes.",
     "More tools",
     "Edit",
+    "Try this Pro feature for free",
 )

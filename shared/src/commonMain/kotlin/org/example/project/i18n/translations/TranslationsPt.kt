@@ -718,4 +718,6 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Mais ferramentas",
     "Edit" to
         "Editar",
+    "Try this Pro feature for free" to
+        "Experimente este recurso Pro grátis",
 )

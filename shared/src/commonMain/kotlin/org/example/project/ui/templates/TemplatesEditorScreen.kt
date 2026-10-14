@@ -72,6 +72,8 @@ import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.rememberSpringBounce
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.common.topBar
@@ -83,12 +85,14 @@ fun TemplatesEditorScreen(
     frame: TemplateFrame,
     onBack: () -> Unit,
     onDone: () -> Unit,
+    onPremium: () -> Unit,
     modifier: Modifier = Modifier,
     // The Frames flow reuses this editor under its own name.
     title: String = tr("Templates"),
     viewModel: TemplatesEditorViewModel = koinViewModel { parametersOf(frame) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     var pendingSlotIndex by remember { mutableStateOf<Int?>(null) }
     // The slot outlined on the canvas and the target of "Add Image" / "Change Image": the first
     // one to begin with, then wherever the ViewModel moves it as slots fill or the user taps; null
@@ -117,7 +121,10 @@ fun TemplatesEditorScreen(
             EditorTopBar(
                 title = title,
                 onBack = onBack,
-                onDone = { if (viewModel.applyTemplate()) onDone() },
+                // A premium template or frame can be tried by anyone, but using it takes a subscription.
+                onDone = {
+                    if (viewModel.needsPremium) onPremium() else if (viewModel.applyTemplate()) onDone()
+                },
             )
 
             Box(
@@ -163,6 +170,9 @@ fun TemplatesEditorScreen(
                     )
                 }
             }
+
+            ProFeatureBar(visible = frame.isPremium && !isSubscribed, onClick = onPremium)
+            PreventScreenCapture(enabled = frame.isPremium && !isSubscribed)
 
             Text(
                 text = tr("Tap a photo to select it, double tap to replace it, pinch to zoom"),

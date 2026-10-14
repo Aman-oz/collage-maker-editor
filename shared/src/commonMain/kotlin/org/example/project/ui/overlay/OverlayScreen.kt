@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
@@ -80,6 +82,8 @@ internal fun OverlayTool(
 ) {
     OverlayContent(
         sourceImage = sourceImage,
+        isSubscribed = isPremium,
+        onOpenPremium = onOpenPremium,
         onBack = onClose,
         onApply = { preset, intensity ->
             when {
@@ -99,6 +103,8 @@ internal fun OverlayTool(
 @Composable
 private fun OverlayContent(
     sourceImage: ImageBitmap?,
+    isSubscribed: Boolean,
+    onOpenPremium: () -> Unit,
     onBack: () -> Unit,
     onApply: (OverlayPreset?, Float) -> Unit,
     modifier: Modifier = Modifier,
@@ -114,41 +120,53 @@ private fun OverlayContent(
     var comparing by remember { mutableStateOf(false) }
 
     ToolScaffold(modifier = modifier) {
-        Box(
+        Column(
             modifier = Modifier
                 .toolStage()
-                .background(scheme.onSurface.copy(alpha = 0.08f))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center,
+                .background(scheme.onSurface.copy(alpha = 0.08f)),
         ) {
-            if (sourceImage != null) {
-                // aspectRatio sizes the stage to the photo itself, so the overlay canvas covers
-                // exactly the photo and the rounded clip follows its edges.
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
-                        .clip(RoundedCornerShape(16.dp)),
-                ) {
-                    Image(
-                        bitmap = sourceImage,
-                        contentDescription = tr("Photo preview"),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                    )
-                    val preset = selectedPreset
-                    if (preset != null && !comparing && intensity > 0f) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            preset.draw(this, intensity / 100f, preset.naturalBlendMode)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sourceImage != null) {
+                    // aspectRatio sizes the stage to the photo itself, so the overlay canvas covers
+                    // exactly the photo and the rounded clip follows its edges.
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                            .clip(RoundedCornerShape(16.dp)),
+                    ) {
+                        Image(
+                            bitmap = sourceImage,
+                            contentDescription = tr("Photo preview"),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                        val preset = selectedPreset
+                        if (preset != null && !comparing && intensity > 0f) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                preset.draw(this, intensity / 100f, preset.naturalBlendMode)
+                            }
                         }
                     }
+                } else {
+                    Text(
+                        text = tr("No image to overlay"),
+                        color = scheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
-            } else {
-                Text(
-                    text = tr("No image to overlay"),
-                    color = scheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
             }
+            // Under the photo while a non-subscriber previews a premium overlay (one that Done would
+            // apply, so not faded out); it is part of the stage so it fades in and out with it, and
+            // leads to the paywall like Done does.
+            val tryingPremium = selectedPreset?.isPremium == true && intensity > 0f && !isSubscribed
+            ProFeatureBar(visible = tryingPremium, onClick = onOpenPremium)
+            PreventScreenCapture(enabled = tryingPremium)
         }
 
         ToolPanel(
@@ -365,6 +383,6 @@ private fun Modifier.chipFrame(selected: Boolean, accent: Color, onClick: () -> 
 @Composable
 private fun OverlayScreenPreview() {
     ThemePreviews {
-        OverlayContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onApply = { _, _ -> })
+        OverlayContent(sourceImage = ImageBitmap(360, 480), isSubscribed = false, onOpenPremium = {}, onBack = {}, onApply = { _, _ -> })
     }
 }

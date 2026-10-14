@@ -718,4 +718,6 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Thêm công cụ",
     "Edit" to
         "Chỉnh sửa",
+    "Try this Pro feature for free" to
+        "Dùng thử miễn phí tính năng Pro này",
 )

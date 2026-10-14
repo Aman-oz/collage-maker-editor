@@ -718,4 +718,6 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "その他のツール",
     "Edit" to
         "編集",
+    "Try this Pro feature for free" to
+        "このProの機能を無料で試す",
 )

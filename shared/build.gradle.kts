@@ -41,6 +41,44 @@ abstract class GenerateBgRemoverConfig : DefaultTask() {
     }
 }
 
+/**
+ * Generates `CentralDataConfig` (the central-data server behind the collage, template and frame
+ * catalogs: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
+ * way as [GenerateBgRemoverConfig]. A missing key generates "": collages then fall back to the
+ * bundled `collages.json`, and Templates / Frames report the error.
+ */
+abstract class GenerateCentralDataConfig : DefaultTask() {
+    @get:Input abstract val baseUrl: Property<String>
+    @get:Input abstract val instanceId: Property<String>
+    @get:Input abstract val collagesCategoryId: Property<String>
+    @get:Input abstract val templatesCategoryId: Property<String>
+    @get:Input abstract val framesCategoryId: Property<String>
+    @get:Input abstract val apiKey: Property<String>
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        fun literal(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
+        val file = outputDir.file("org/example/project/data/centraldata/CentralDataConfig.kt").get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |// Generated from local.properties by :shared:generateCentralDataConfig. Do not edit.
+            |package org.example.project.data.centraldata
+            |
+            |internal object CentralDataConfig {
+            |    const val BASE_URL: String = ${literal(baseUrl.get())}
+            |    const val INSTANCE_ID: String = ${literal(instanceId.get())}
+            |    const val COLLAGES_CATEGORY_ID: String = ${literal(collagesCategoryId.get())}
+            |    const val TEMPLATES_CATEGORY_ID: String = ${literal(templatesCategoryId.get())}
+            |    const val FRAMES_CATEGORY_ID: String = ${literal(framesCategoryId.get())}
+            |    const val API_KEY: String = ${literal(apiKey.get())}
+            |}
+            |""".trimMargin(),
+        )
+    }
+}
+
 val localProperties: Provider<Properties> = providers
     .fileContents(rootProject.layout.projectDirectory.file("local.properties"))
     .asText
@@ -59,6 +97,18 @@ val generateBgRemoverConfig = tasks.register<GenerateBgRemoverConfig>("generateB
     apiKeyHeader = localProperty("BG_REMOVER_API_KEY_HEADER", "KEY")
     apiKey = localProperty("BG_REMOVER_API_KEY", "X_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/bgRemoverConfig/kotlin")
+}
+
+val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("generateCentralDataConfig") {
+    // Only the key is secret; the endpoint and ids default to the production instance.
+    fun withDefault(key: String, default: String) = localProperty(key).map { it.ifEmpty { default } }
+    baseUrl = withDefault("CENTRAL_DATA_BASE_URL", "https://central-data.thetatechnologies.co/")
+    instanceId = withDefault("CENTRAL_DATA_INSTANCE_ID", "6abb951fe25e70de3bfd8169")
+    collagesCategoryId = withDefault("CENTRAL_DATA_COLLAGES_CATEGORY_ID", "6abb9538e25e70de3bfd816b")
+    templatesCategoryId = withDefault("CENTRAL_DATA_TEMPLATES_CATEGORY_ID", "6ac5e1b1d78628e67e4bb760")
+    framesCategoryId = withDefault("CENTRAL_DATA_FRAMES_CATEGORY_ID", "6ac5e234d78628e67e4bb7e7")
+    apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
+    outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }
 
 kotlin {
@@ -109,6 +159,7 @@ kotlin {
         }
         commonMain {
             kotlin.srcDir(generateBgRemoverConfig.map { it.outputDir })
+            kotlin.srcDir(generateCentralDataConfig.map { it.outputDir })
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
