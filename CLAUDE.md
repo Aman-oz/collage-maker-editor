@@ -79,6 +79,14 @@ lets the host drive the stage's alpha and the panel's slide; on its own (preview
 ordinary opaque column. A stage that pads the photo by something other than `ToolStageInset`
 (Crop, Ratio, Rotate) passes `photoInset`, so the editor's photo lands exactly under it.
 
+On a phone on its side (`isSideBySideEditor`, `ui/common/EditorPanelLayout.kt`) the photo takes the
+left side at full height and the controls move to an `EditorSidePanelWidth` column on the right:
+the editor's top bar and a grid of every tool, then the tool's panel, which slides in from the right
+edge instead of up from the bottom. `ToolScaffold` does that for every tool, which is why it finds
+the stage by its `toolStage()` layout id rather than being a plain `Column`. The Collage, Freestyle,
+PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The save and
+share screens switch at the same size too: the picture on the left, their buttons in the column.
+
 The host uses coroutine-driven `Animatable`s rather than `AnimatedContent` on purpose: a tool's
 first composition can be heavy (blurring, desaturating, thumbnails), and an animation started on
 that frame skips ahead by however long it took. The tool is mounted hidden *between* the two beats,

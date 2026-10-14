@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,10 +28,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
@@ -145,7 +150,10 @@ internal val LocalInlineToolHost = compositionLocalOf<InlineToolHostState<*>?> {
 
 /**
  * The frame every editor tool is laid out in: a stage ([ToolScaffoldScope.toolStage]) with the tool
- * panel ([ToolScaffoldScope.ToolPanel]: ✕ / title / ✓ over the tool's controls) under it.
+ * panel ([ToolScaffoldScope.ToolPanel]: ✕ / title / ✓ over the tool's controls) under it. On a phone
+ * on its side ([isSideBySideEditor]) the stage takes the left side at full height instead and the
+ * panel sits in an [EditorSidePanelWidth] column on the right, where the photo editor keeps its own
+ * top bar and tools, so the photo is never squeezed into the strip a panel underneath would leave.
  *
  * Inside the editor ([LocalInlineToolHost]) it has no background of its own: the stage fades in
  * over the editor's photo and the panel slides up over the editor's toolbar area, both driven by
@@ -164,26 +172,70 @@ internal fun ToolScaffold(
     val host = LocalInlineToolHost.current
     val surface = MaterialTheme.colorScheme.surface
     if (host != null) SideEffect { host.photoInset = photoInset }
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .then(if (host == null) Modifier.background(surface) else Modifier)
             .windowInsetsPadding(insets),
     ) {
-        val scope = remember(this, host, surface) { ToolScaffoldScope(this, host, surface) }
-        scope.content()
+        val sideBySide = isSideBySideEditor(maxWidth, maxHeight)
+        val scope = remember(host, surface, sideBySide) { ToolScaffoldScope(host, surface, sideBySide) }
+        Layout(content = { scope.content() }, modifier = Modifier.fillMaxSize()) { measurables, constraints ->
+            val width = constraints.maxWidth
+            val height = constraints.maxHeight
+            val stage = measurables.firstOrNull { it.layoutId == ToolStageId }
+            val others = measurables.filter { it !== stage }
+            if (sideBySide) {
+                // The stage on the left at full height; the panel (and anything else) stacked from the
+                // top of the column on the right.
+                val columnWidth = EditorSidePanelWidth.roundToPx().coerceAtMost(width)
+                val stagePlaceable = stage?.measure(Constraints.fixed(width - columnWidth, height))
+                val placeables = others.map { it.measure(Constraints(columnWidth, columnWidth, 0, height)) }
+                layout(width, height) {
+                    stagePlaceable?.place(0, 0)
+                    var y = 0
+                    placeables.forEach { placeable ->
+                        placeable.place(width - columnWidth, y)
+                        y += placeable.height
+                    }
+                }
+            } else {
+                // A Column with the stage weighted: everything else takes its own height, the stage the
+                // rest, in the order the tool lays them out (stage first, panel under it).
+                val placeables = others.associateWith { it.measure(Constraints(width, width, 0, height)) }
+                val stageHeight = (height - placeables.values.sumOf { it.height }).coerceAtLeast(0)
+                val stagePlaceable = stage?.measure(Constraints.fixed(width, stageHeight))
+                layout(width, height) {
+                    var y = 0
+                    measurables.forEach { measurable ->
+                        val placeable = if (measurable === stage) stagePlaceable else placeables[measurable]
+                        placeable?.place(0, y)
+                        y += placeable?.height ?: 0
+                    }
+                }
+            }
+        }
     }
 }
 
+/** The [layoutId] that tells [ToolScaffold] which child is the stage. */
+private object ToolStageId
+
+/**
+ * What a tool lays out in [ToolScaffold]: its stage and its [ToolPanel].
+ *
+ * @param sideBySide the stage and panel sit side by side (a phone on its side) rather than one over
+ * the other; the panel then slides in from the right edge instead of up from the bottom.
+ */
 @Stable
 internal class ToolScaffoldScope(
-    private val column: ColumnScope,
     private val host: InlineToolHostState<*>?,
     private val surface: Color,
-) : ColumnScope by column {
+    private val sideBySide: Boolean,
+) {
 
-    /** Marks the tool's stage: it takes all the room above the panel. Add the stage's own look after it. */
-    fun Modifier.toolStage(): Modifier = with(column) { this@toolStage.fillMaxWidth().weight(1f) }
+    /** Marks the tool's stage: it takes all the room the panel leaves. Add the stage's own look after it. */
+    fun Modifier.toolStage(): Modifier = this.layoutId(ToolStageId)
         .then(if (host != null) Modifier.graphicsLayer { alpha = host.stage.value } else Modifier)
         // Opaque, so once faded in it fully covers the editor's photo underneath.
         .background(surface)
@@ -198,10 +250,12 @@ internal class ToolScaffoldScope(
         content: @Composable ColumnScope.() -> Unit,
     ) {
         // Slides by its own height plus the system bar under it, so while hidden it is fully off
-        // screen rather than showing through a translucent navigation bar. Placed at an offset
-        // rather than moved by a graphicsLayer, which would make the Liquid Glass buttons sample
-        // the wrong backdrop.
-        val bottomInsetPx = WindowInsets.safeDrawing.getBottom(LocalDensity.current)
+        // screen rather than showing through a translucent navigation bar; beside the stage, by its
+        // own width plus the inset at the right edge instead. Placed at an offset rather than moved
+        // by a graphicsLayer, which would make the Liquid Glass buttons sample the wrong backdrop.
+        val density = LocalDensity.current
+        val bottomInsetPx = WindowInsets.safeDrawing.getBottom(density)
+        val endInsetPx = WindowInsets.safeDrawing.getRight(density, LayoutDirection.Ltr)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -213,7 +267,11 @@ internal class ToolScaffoldScope(
                                 val placeable = measurable.measure(constraints)
                                 layout(placeable.width, placeable.height) {
                                     val hidden = 1f - host.panel.value
-                                    placeable.place(0, (hidden * (placeable.height + bottomInsetPx)).roundToInt())
+                                    if (sideBySide) {
+                                        placeable.place((hidden * (placeable.width + endInsetPx)).roundToInt(), 0)
+                                    } else {
+                                        placeable.place(0, (hidden * (placeable.height + bottomInsetPx)).roundToInt())
+                                    }
                                 }
                             }
                     } else {

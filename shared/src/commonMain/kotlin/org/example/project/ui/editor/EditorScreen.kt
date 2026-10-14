@@ -17,7 +17,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +33,9 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -75,6 +80,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
@@ -96,12 +102,14 @@ import org.example.project.ui.auto.AutoTool
 import org.example.project.ui.blur.BlurTool
 import org.example.project.ui.colorsplash.ColorSplashTool
 import org.example.project.ui.common.DiscardChangesPopup
+import org.example.project.ui.common.EditorSidePanelWidth
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.InlineToolHostState
 import org.example.project.ui.common.LocalInlineToolHost
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.UndoRedoDoneWidth
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.rememberDiscardChangesState
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
@@ -291,53 +299,78 @@ private fun EditorContent(
         onBackCompleted = { session = null },
     )
 
+    val topBar = @Composable {
+        EditorTopBar(
+            chrome = chrome,
+            canUndo = ready?.canUndo == true,
+            canRedo = ready?.canRedo == true,
+            onClose = onClose,
+            onUndo = onUndo,
+            onRedo = onRedo,
+            onDone = onDone,
+        )
+    }
+    val onToolSelected = { tool: EditorTool ->
+        // Taps that land while the toolbar is already on its way out are ignored.
+        if (session == null && ready != null) session = ToolSession(tool, ready.image)
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(chrome.background)
                 .safeDrawingPadding(),
         ) {
-            // Fades with the toolbar, then gives up its height as the tool's layout settles in.
-            Box(
-                modifier = Modifier
-                    .clipToBounds()
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        val height = (placeable.height * (1f - host.layout.value)).roundToInt()
-                        layout(placeable.width, height) { placeable.place(0, height - placeable.height) }
+            if (isSideBySideEditor(maxWidth, maxHeight)) {
+                // A phone on its side: the photo on the left at full height, the top bar and every
+                // tool in a column on the right. The column has the width the tools' panels take
+                // there (see ToolScaffold), so the photo needn't resize as a tool opens, only inset.
+                Row(modifier = Modifier.fillMaxSize()) {
+                    EditorCanvas(
+                        chrome = chrome,
+                        uiState = uiState,
+                        host = host,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                    EditorSideColumn(host = host) {
+                        topBar()
+                        EditorToolGrid(chrome = chrome, onToolSelected = onToolSelected, modifier = Modifier.weight(1f))
                     }
-                    .graphicsLayer { alpha = 1f - host.editorBars.value },
-            ) {
-                EditorTopBar(
-                    chrome = chrome,
-                    canUndo = ready?.canUndo == true,
-                    canRedo = ready?.canRedo == true,
-                    onClose = onClose,
-                    onUndo = onUndo,
-                    onRedo = onRedo,
-                    onDone = onDone,
-                )
-            }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Fades with the toolbar, then gives up its height as the tool's layout settles in.
+                    Box(
+                        modifier = Modifier
+                            .clipToBounds()
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val height = (placeable.height * (1f - host.layout.value)).roundToInt()
+                                layout(placeable.width, height) { placeable.place(0, height - placeable.height) }
+                            }
+                            .graphicsLayer { alpha = 1f - host.editorBars.value },
+                    ) {
+                        topBar()
+                    }
 
-            EditorCanvas(
-                chrome = chrome,
-                uiState = uiState,
-                host = host,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
+                    EditorCanvas(
+                        chrome = chrome,
+                        uiState = uiState,
+                        host = host,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    )
 
-            EditorBottomArea(host = host) {
-                EditorToolbar(
-                    chrome = chrome,
-                    selectedTool = null,
-                    onToolSelected = { tool ->
-                        // Taps that land while the toolbar is already on its way out are ignored.
-                        if (session == null && ready != null) session = ToolSession(tool, ready.image)
-                    },
-                )
+                    EditorBottomArea(host = host) {
+                        EditorToolbar(
+                            chrome = chrome,
+                            selectedTool = null,
+                            onToolSelected = onToolSelected,
+                        )
+                    }
+                }
             }
         }
 
@@ -410,6 +443,52 @@ private fun EditorBottomArea(host: InlineToolHostState<*>, toolbar: @Composable 
         val slide = ((placeable.height + bottomInsetPx) * host.editorBars.value).roundToInt()
         layout(constraints.maxWidth, height) {
             placeable.place(0, height - placeable.height + slide)
+        }
+    }
+}
+
+/**
+ * The landscape editor's right-hand column (top bar and tools). As a tool opens it slides off the
+ * right edge along [InlineToolHostState.editorBars], fading as it goes, and the tool's panel slides
+ * in from that edge into the same place. Offset in the layout pass rather than by a graphicsLayer
+ * translation, which would make the Liquid Glass buttons sample the wrong backdrop.
+ */
+@Composable
+private fun EditorSideColumn(host: InlineToolHostState<*>, content: @Composable ColumnScope.() -> Unit) {
+    val endInsetPx = WindowInsets.safeDrawing.getRight(LocalDensity.current, LayoutDirection.Ltr)
+    Column(
+        modifier = Modifier
+            .width(EditorSidePanelWidth)
+            .fillMaxHeight()
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    placeable.place(((placeable.width + endInsetPx) * host.editorBars.value).roundToInt(), 0)
+                }
+            }
+            .graphicsLayer { alpha = 1f - host.editorBars.value },
+        content = content,
+    )
+}
+
+/**
+ * Every tool at once, in rows, for the landscape column: the column is phone-width but has height
+ * to spare, so the 15 tools fit in three rows with no scrolling (and no "more" arrows).
+ */
+@Composable
+private fun EditorToolGrid(chrome: EditorChrome, onToolSelected: (EditorTool) -> Unit, modifier: Modifier = Modifier) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(68.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+        // Centred in the column's height when the rows don't fill it.
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        gridItems(EditorTool.entries) { tool ->
+            Box(contentAlignment = Alignment.Center) {
+                EditorToolItem(chrome = chrome, tool = tool, selected = false, onClick = { onToolSelected(tool) })
+            }
         }
     }
 }

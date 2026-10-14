@@ -1,6 +1,7 @@
 package org.example.project.ui.collage
 
 import org.example.project.i18n.tr
+import org.example.project.ui.common.EditorPanelLayout
 import org.example.project.ui.common.TopBarButtonSize
 import androidx.compose.ui.text.style.TextOverflow
 import io.github.fletchmckee.liquid.liquefiable
@@ -38,10 +39,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -273,121 +277,138 @@ private fun CollageEditorContent(
     var canvasWidthPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
-    Column(
+    EditorPanelLayout(
+        panelHeight = ToolPanelHeight,
+        tabsAbovePanel = true,
+        // Beside the collage the column has height to spare, so Layouts and Background grow into it.
+        panelFillsSideColumn = true,
         modifier = modifier
-            .fillMaxSize()
             .background(chrome.surface)
             .safeDrawingPadding(),
-    ) {
-        CollageTopBar(
-            chrome = chrome,
-            onClose = onClose,
-            onPremium = onPremium,
-            onDone = {
-                val state = (uiState as? CollageEditorUiState.Ready)?.collage
-                if (state != null) {
-                    val spacePx = with(density) { state.space.dp.toPx() }
-                    val cornerPx = with(density) { state.corner.dp.toPx() }
-                    onDone(canvasWidthPx, spacePx, cornerPx)
-                }
-            },
-            doneEnabled = uiState is CollageEditorUiState.Ready,
-        )
+        topBar = {
+            CollageTopBar(
+                chrome = chrome,
+                onClose = onClose,
+                onPremium = onPremium,
+                onDone = {
+                    val state = (uiState as? CollageEditorUiState.Ready)?.collage
+                    if (state != null) {
+                        val spacePx = with(density) { state.space.dp.toPx() }
+                        val cornerPx = with(density) { state.corner.dp.toPx() }
+                        onDone(canvasWidthPx, spacePx, cornerPx)
+                    }
+                },
+                doneEnabled = uiState is CollageEditorUiState.Ready,
+            )
+        },
+        stage = { stageModifier ->
+            Column(modifier = stageModifier) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(chrome.stage),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (uiState) {
+                        CollageEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(chrome.stage),
-            contentAlignment = Alignment.Center,
-        ) {
-            when (uiState) {
-                CollageEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
-
-                is CollageEditorUiState.Ready -> CollagePreview(
-                    state = uiState.collage,
-                    chrome = chrome,
-                    selectedSlot = selectedSlot,
-                    onCanvasWidthPxChanged = { canvasWidthPx = it },
-                    onSlotTap = { index ->
-                        val hasImage = uiState.collage.images.containsKey(index)
-                        selectedSlot = when {
-                            !hasImage -> {
+                        is CollageEditorUiState.Ready -> CollagePreview(
+                            state = uiState.collage,
+                            chrome = chrome,
+                            selectedSlot = selectedSlot,
+                            onCanvasWidthPxChanged = { canvasWidthPx = it },
+                            onSlotTap = { index ->
+                                val hasImage = uiState.collage.images.containsKey(index)
+                                selectedSlot = when {
+                                    !hasImage -> {
+                                        onRequestSlotImage(index)
+                                        null
+                                    }
+                                    selectedSlot == null -> index
+                                    selectedSlot == index -> null
+                                    else -> {
+                                        onSwapImages(selectedSlot!!, index)
+                                        null
+                                    }
+                                }
+                            },
+                            // Double tap replaces the slot's photo; the selection is dropped so a stale one can't
+                            // swap the new photo away on the next tap.
+                            onSlotDoubleTap = { index ->
+                                selectedSlot = null
                                 onRequestSlotImage(index)
-                                null
-                            }
-                            selectedSlot == null -> index
-                            selectedSlot == index -> null
-                            else -> {
-                                onSwapImages(selectedSlot!!, index)
-                                null
-                            }
-                        }
-                    },
-                    // Double tap replaces the slot's photo; the selection is dropped so a stale one can't
-                    // swap the new photo away on the next tap.
-                    onSlotDoubleTap = { index ->
-                        selectedSlot = null
-                        onRequestSlotImage(index)
-                    },
-                    onSlotTransform = onSlotTransform,
-                )
+                            },
+                            onSlotTransform = onSlotTransform,
+                        )
 
-                is CollageEditorUiState.Error -> Text(
-                    text = uiState.message,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
-        }
-
-        // A premium layout can be tried by anyone; for a non-subscriber this bar under the photo
-        // says so and leads to the paywall, as Done does.
-        val onPremiumLayout = (uiState as? CollageEditorUiState.Ready)?.collage?.template?.isPremium == true
-        ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
-        PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
-
-        CollageToolTabs(
-            chrome = chrome,
-            selected = selectedTool,
-            onToolSelected = { selectedTool = it; selectedSlot = null },
-        )
-
-        Box(modifier = Modifier.fillMaxWidth().height(ToolPanelHeight)) {
-            if (uiState is CollageEditorUiState.Ready) {
-                val collage = uiState.collage
-                when (selectedTool) {
-                    CollageTool.Layouts -> LayoutsTab(
-                        chrome = chrome,
-                        pickerState = pickerState,
-                        onTemplateSelected = onTemplateSelected,
-                    )
-                    CollageTool.Border -> BorderTab(
-                        chrome = chrome,
-                        state = collage,
-                        onSpaceChange = onSpaceChange,
-                        onCornerChange = onCornerChange,
-                    )
-                    CollageTool.Background -> BackgroundTab(
-                        chrome = chrome,
-                        selected = collage.backgroundColor,
-                        onColorChange = onBackgroundColorChange,
-                    )
-                    CollageTool.Ratio -> RatioTab(
-                        chrome = chrome,
-                        selected = collage.ratio,
-                        onRatioChange = onRatioChange,
-                    )
+                        is CollageEditorUiState.Error -> Text(
+                            text = uiState.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(24.dp),
+                        )
+                    }
                 }
-            } else if (uiState is CollageEditorUiState.Loading && selectedTool == CollageTool.Layouts) {
-                // The layout list arrives from the server along with the photos; show the strip's
-                // placeholders instead of an empty panel until then.
-                LayoutsTab(chrome = chrome, pickerState = pickerState, onTemplateSelected = onTemplateSelected)
+
+                // A premium layout can be tried by anyone; for a non-subscriber this bar under the photo
+                // says so and leads to the paywall, as Done does.
+                val onPremiumLayout = (uiState as? CollageEditorUiState.Ready)?.collage?.template?.isPremium == true
+                ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
+                PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
             }
-        }
-    }
+        },
+        tabs = {
+            CollageToolTabs(
+                chrome = chrome,
+                selected = selectedTool,
+                onToolSelected = { selectedTool = it; selectedSlot = null },
+            )
+        },
+        panel = { sideBySide ->
+            // Beside the collage the panel gets the column's whole height: Layouts and Background
+            // become vertical grids that fill it, Border and Ratio keep their usual height at the
+            // bottom, just above the tabs that open them.
+            val fixedHeight = if (sideBySide) Modifier.fillMaxWidth().height(ToolPanelHeight) else Modifier.fillMaxSize()
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                if (uiState is CollageEditorUiState.Ready) {
+                    val collage = uiState.collage
+                    when (selectedTool) {
+                        CollageTool.Layouts -> LayoutsTab(
+                            chrome = chrome,
+                            pickerState = pickerState,
+                            vertical = sideBySide,
+                            onTemplateSelected = onTemplateSelected,
+                        )
+                        CollageTool.Border -> BorderTab(
+                            chrome = chrome,
+                            state = collage,
+                            onSpaceChange = onSpaceChange,
+                            onCornerChange = onCornerChange,
+                            modifier = fixedHeight,
+                        )
+                        CollageTool.Background -> BackgroundTab(
+                            chrome = chrome,
+                            selected = collage.backgroundColor,
+                            vertical = sideBySide,
+                            onColorChange = onBackgroundColorChange,
+                        )
+                        CollageTool.Ratio -> RatioTab(
+                            chrome = chrome,
+                            selected = collage.ratio,
+                            onRatioChange = onRatioChange,
+                            modifier = fixedHeight,
+                        )
+                    }
+                } else if (uiState is CollageEditorUiState.Loading && selectedTool == CollageTool.Layouts) {
+                    // The layout list arrives from the server along with the photos; show the strip's
+                    // placeholders instead of an empty panel until then.
+                    LayoutsTab(chrome = chrome, pickerState = pickerState, vertical = sideBySide, onTemplateSelected = onTemplateSelected)
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -613,18 +634,20 @@ private fun CollageToolTab(chrome: CollageChrome, tool: CollageTool, selected: B
     }
 }
 
+/**
+ * The layout picker: a two-row strip that scrolls sideways under the collage, or, with [vertical]
+ * (beside it, in landscape), a grid that fills the column and scrolls down.
+ */
 @Composable
-private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, onTemplateSelected: (TemplateItem) -> Unit) {
+private fun LayoutsTab(
+    chrome: CollageChrome,
+    pickerState: CollagePickerState,
+    vertical: Boolean,
+    onTemplateSelected: (TemplateItem) -> Unit,
+) {
     when {
         // Placeholder tiles in the strip's own grid, each with a spinner, while the list loads.
-        pickerState.isLoading -> LazyHorizontalGrid(
-            rows = GridCells.Fixed(2),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false,
-            modifier = Modifier.fillMaxSize(),
-        ) {
+        pickerState.isLoading -> CollageOptionGrid(vertical = vertical, cellSize = LayoutThumbnailSize, userScrollEnabled = false) {
             items(LayoutPlaceholderCount) { LayoutThumbnailPlaceholder(chrome) }
         }
         pickerState.error != null && pickerState.templates.isEmpty() -> Box(
@@ -633,13 +656,7 @@ private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, o
         ) {
             Text(pickerState.error, color = chrome.muted, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
         }
-        else -> LazyHorizontalGrid(
-            rows = GridCells.Fixed(2),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
+        else -> CollageOptionGrid(vertical = vertical, cellSize = LayoutThumbnailSize) {
             items(pickerState.templates) { template ->
                 LayoutThumbnail(
                     chrome = chrome,
@@ -655,12 +672,50 @@ private fun LayoutsTab(chrome: CollageChrome, pickerState: CollagePickerState, o
 /** Enough placeholder tiles to fill the strip on a wide screen. */
 private const val LayoutPlaceholderCount = 24
 
+private val LayoutThumbnailSize = 56.dp
+
+/**
+ * The grid the Layouts and Background tabs lay their tiles out in: two rows scrolling sideways, or,
+ * [vertical], as many [cellSize] columns as fit, scrolling down. The tiles keep their own size;
+ * in the vertical grid each sits centred in its cell, so the columns spread evenly.
+ */
+@Composable
+private fun CollageOptionGrid(
+    vertical: Boolean,
+    cellSize: Dp,
+    spacing: Dp = 8.dp,
+    userScrollEnabled: Boolean = true,
+    content: LazyGridScope.() -> Unit,
+) {
+    if (vertical) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(cellSize + spacing),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing),
+            userScrollEnabled = userScrollEnabled,
+            modifier = Modifier.fillMaxSize(),
+            content = content,
+        )
+    } else {
+        LazyHorizontalGrid(
+            rows = GridCells.Fixed(2),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            verticalArrangement = Arrangement.spacedBy(spacing),
+            userScrollEnabled = userScrollEnabled,
+            modifier = Modifier.fillMaxSize(),
+            content = content,
+        )
+    }
+}
+
 /** A [LayoutThumbnail]-sized tile with a spinner, shown while the layout list loads. */
 @Composable
 private fun LayoutThumbnailPlaceholder(chrome: CollageChrome) {
     Box(
         modifier = Modifier
-            .size(56.dp)
+            .wrapContentSize()
+            .size(LayoutThumbnailSize)
             .clip(RoundedCornerShape(8.dp))
             .background(chrome.muted.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center,
@@ -675,8 +730,10 @@ private fun LayoutThumbnail(chrome: CollageChrome, template: TemplateItem, selec
     val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            // Centred in a vertical grid's cell, which can be wider than the tile.
+            .wrapContentSize()
             .springBounce(bounce)
-            .size(56.dp)
+            .size(LayoutThumbnailSize)
             .clip(shape)
             .border(1.5.dp, if (selected) chrome.accent else Color.Transparent, shape)
             .clickable(
@@ -712,10 +769,11 @@ private fun BorderTab(
     state: CollageState,
     onSpaceChange: (Float) -> Unit,
     onCornerChange: (Float) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     Column(
         // Two labelled sliders only just fit the panel's fixed height, hence the tight padding.
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         BorderSliderRow(
@@ -777,24 +835,23 @@ private fun BorderSliderRow(
 private val BackgroundSwatchSize = 50.dp
 private val BackgroundSwatchSpacing = 10.dp
 
+/**
+ * The background colours: two rows scrolling sideways, led by the custom colour swatch spanning
+ * both, or, with [vertical] (beside the collage, in landscape), a grid that scrolls down, led by
+ * that swatch at the colours' own size.
+ */
 @Composable
-private fun BackgroundTab(chrome: CollageChrome, selected: Color, onColorChange: (Color) -> Unit) {
+private fun BackgroundTab(chrome: CollageChrome, selected: Color, vertical: Boolean, onColorChange: (Color) -> Unit) {
     val pickCustomColor = rememberColorPickerLauncher(initial = selected, onPicked = onColorChange)
-    LazyHorizontalGrid(
-        rows = GridCells.Fixed(2),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-        verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        // The custom colour swatch spans both rows, so the colour pairs after it stay aligned. It
-        // is the one ringed while the background is a colour of the user's own.
-        item(span = { GridItemSpan(maxLineSpan) }) {
+    CollageOptionGrid(vertical = vertical, cellSize = BackgroundSwatchSize, spacing = BackgroundSwatchSpacing) {
+        // In the strip the custom colour swatch spans both rows, so the colour pairs after it stay
+        // aligned. It is the one ringed while the background is a colour of the user's own.
+        item(span = { GridItemSpan(if (vertical) 1 else maxLineSpan) }) {
             BackgroundColorSwatch(
                 chrome = chrome,
                 selected = selected !in CollageBackgroundColors,
                 onClick = pickCustomColor,
-                height = BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
+                height = if (vertical) BackgroundSwatchSize else BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
             ) { ColorPickerFill(it) }
         }
         items(CollageBackgroundColors) { color ->
@@ -819,6 +876,8 @@ private fun BackgroundColorSwatch(
     val bounce = rememberSpringBounce()
     Box(
         modifier = Modifier
+            // Centred in a vertical grid's cell, which can be wider than the swatch.
+            .wrapContentSize()
             .springBounce(bounce)
             .size(width = BackgroundSwatchSize, height = height)
             .clip(outer)
@@ -837,12 +896,17 @@ private fun BackgroundColorSwatch(
 }
 
 @Composable
-private fun RatioTab(chrome: CollageChrome, selected: CollageRatio, onRatioChange: (CollageRatio) -> Unit) {
+private fun RatioTab(
+    chrome: CollageChrome,
+    selected: CollageRatio,
+    onRatioChange: (CollageRatio) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
+) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
     ) {
         items(CollageRatio.entries) { ratio ->
             RatioOption(chrome = chrome, ratio = ratio, selected = ratio == selected, onClick = { onRatioChange(ratio) })

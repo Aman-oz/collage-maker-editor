@@ -80,6 +80,7 @@ import io.github.vinceglb.filekit.path
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ColorPickerDialog
 import org.example.project.ui.common.ColorPickerFill
+import org.example.project.ui.common.EditorPanelLayout
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.GlassButtonStyle
 import org.example.project.ui.common.GlassTopBarButton
@@ -256,76 +257,75 @@ private fun FreestyleEditorContent(
 
     // One observer for the whole screen: any finger lift ends the drag/pinch/slider step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(onGestureEnd)) {
-        Column(
+        EditorPanelLayout(
+            panelHeight = ToolPanelHeight,
             modifier = Modifier
-                .fillMaxSize()
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: it slides up over the panels while the canvas
                 // keeps its size, and the text bar docks itself above it instead.
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
-        ) {
-            FreestyleTopBar(
-                chrome = chrome,
-                canUndo = (uiState as? FreestyleEditorUiState.Ready)?.canUndo == true,
-                canRedo = (uiState as? FreestyleEditorUiState.Ready)?.canRedo == true,
-                doneEnabled = freestyle != null,
-                onClose = onClose,
-                onHelp = { showGuide = true },
-                onUndo = onUndo,
-                onRedo = onRedo,
-                onDone = { onDone(canvasSizePx) },
-            )
+            topBar = {
+                FreestyleTopBar(
+                    chrome = chrome,
+                    canUndo = (uiState as? FreestyleEditorUiState.Ready)?.canUndo == true,
+                    canRedo = (uiState as? FreestyleEditorUiState.Ready)?.canRedo == true,
+                    doneEnabled = freestyle != null,
+                    onClose = onClose,
+                    onHelp = { showGuide = true },
+                    onUndo = onUndo,
+                    onRedo = onRedo,
+                    onDone = { onDone(canvasSizePx) },
+                )
+            },
+            stage = { stageModifier ->
+                Box(
+                    modifier = stageModifier
+                        .background((freestyle ?: FreestyleState()).background.brush)
+                        // Taps that reach the canvas (off every layer) deselect; layers consume their own taps.
+                        .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (uiState) {
+                        FreestyleEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .background((freestyle ?: FreestyleState()).background.brush)
-                    // Taps that reach the canvas (off every layer) deselect; layers consume their own taps.
-                    .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) },
-                contentAlignment = Alignment.Center,
-            ) {
-                when (uiState) {
-                    FreestyleEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
+                        is FreestyleEditorUiState.Ready -> FreestyleCanvas(
+                            stickerFlights = stickerFlights,
+                            layers = uiState.freestyle.layers,
+                            chrome = chrome,
+                            selectedLayerId = selectedLayerId,
+                            onCanvasSizeChanged = { canvasSizePx = it },
+                            onTextLayerDoubleTapped = { layer ->
+                                selectedLayerId = layer.id
+                                onSelectLayer(layer.id)
+                                selectedTool = FreestyleTool.Text
+                                openTextEntry(layer)
+                            },
+                            onLayerSelected = { id ->
+                                selectedLayerId = id
+                                onSelectLayer(id)
+                                // Selecting a label opens the panel that edits it (font, color, retyping).
+                                val isText = uiState.freestyle.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
+                                if (isText) selectedTool = FreestyleTool.Text
+                            },
+                            onLayerTransformed = onTransformLayer,
+                            onLayerScaleRotated = onScaleRotateLayer,
+                            onLayerDeleted = { id ->
+                                onDeleteLayer(id)
+                                selectedLayerId = null
+                            },
+                        )
 
-                    is FreestyleEditorUiState.Ready -> FreestyleCanvas(
-                        stickerFlights = stickerFlights,
-                        layers = uiState.freestyle.layers,
-                        chrome = chrome,
-                        selectedLayerId = selectedLayerId,
-                        onCanvasSizeChanged = { canvasSizePx = it },
-                        onTextLayerDoubleTapped = { layer ->
-                            selectedLayerId = layer.id
-                            onSelectLayer(layer.id)
-                            selectedTool = FreestyleTool.Text
-                            openTextEntry(layer)
-                        },
-                        onLayerSelected = { id ->
-                            selectedLayerId = id
-                            onSelectLayer(id)
-                            // Selecting a label opens the panel that edits it (font, color, retyping).
-                            val isText = uiState.freestyle.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                            if (isText) selectedTool = FreestyleTool.Text
-                        },
-                        onLayerTransformed = onTransformLayer,
-                        onLayerScaleRotated = onScaleRotateLayer,
-                        onLayerDeleted = { id ->
-                            onDeleteLayer(id)
-                            selectedLayerId = null
-                        },
-                    )
-
-                    is FreestyleEditorUiState.Error -> Text(
-                        text = uiState.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(24.dp),
-                    )
+                        is FreestyleEditorUiState.Error -> Text(
+                            text = uiState.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(24.dp),
+                        )
+                    }
                 }
-            }
-
-            Box(modifier = Modifier.fillMaxWidth().height(ToolPanelHeight)) {
+            },
+            panel = {
                 if (freestyle != null) {
                     when (selectedTool) {
                         FreestyleTool.Background -> BackgroundPanel(
@@ -375,17 +375,20 @@ private fun FreestyleEditorContent(
                         )
                     }
                 }
-            }
-
-            FreestyleToolRow(
-                chrome = chrome,
-                selected = selectedTool,
-                enabled = freestyle != null,
-                replacing = selectedImageLayer != null,
-                onToolSelected = { selectedTool = it },
-                onImageAction = { onImageAction(selectedImageLayer?.id) },
-            )
-        }
+            },
+            tabs = { sideBySide ->
+                FreestyleToolRow(
+                    chrome = chrome,
+                    selected = selectedTool,
+                    enabled = freestyle != null,
+                    replacing = selectedImageLayer != null,
+                    onToolSelected = { selectedTool = it },
+                    onImageAction = { onImageAction(selectedImageLayer?.id) },
+                    // Five tools fit the side column's width only a little narrower than usual.
+                    itemWidth = if (sideBySide) 70.dp else ToolItemWidth,
+                )
+            },
+        )
 
         textEntry?.let { entry ->
             TextEntryBar(
@@ -501,6 +504,8 @@ private fun GuideButton(tint: Color, onClick: () -> Unit) {
     }
 }
 
+private val ToolItemWidth = 78.dp
+
 @Composable
 private fun FreestyleToolRow(
     chrome: FreestyleChrome,
@@ -509,6 +514,7 @@ private fun FreestyleToolRow(
     replacing: Boolean,
     onToolSelected: (FreestyleTool) -> Unit,
     onImageAction: () -> Unit,
+    itemWidth: Dp = ToolItemWidth,
 ) {
     Row(
         modifier = Modifier
@@ -523,6 +529,7 @@ private fun FreestyleToolRow(
                 label = tool.label,
                 selected = tool == selected,
                 enabled = enabled,
+                width = itemWidth,
                 onClick = { onToolSelected(tool) },
             )
         }
@@ -532,6 +539,7 @@ private fun FreestyleToolRow(
             label = if (replacing) tr("Replace") else tr("Add Image"),
             selected = false,
             enabled = enabled,
+            width = itemWidth,
             onClick = onImageAction,
         )
     }
@@ -544,6 +552,7 @@ private fun ToolItem(
     label: String,
     selected: Boolean,
     enabled: Boolean,
+    width: Dp,
     onClick: () -> Unit,
 ) {
     val tint = when {
@@ -555,7 +564,7 @@ private fun ToolItem(
     Column(
         modifier = Modifier
             .springBounce(bounce)
-            .width(78.dp)
+            .width(width)
             .clip(RoundedCornerShape(10.dp))
             .clickable(
                 interactionSource = bounce.interactionSource,

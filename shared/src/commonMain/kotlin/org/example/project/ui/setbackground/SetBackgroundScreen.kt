@@ -1,6 +1,7 @@
 package org.example.project.ui.setbackground
 
 import org.example.project.ui.common.readableWidth
+import org.example.project.ui.common.EditorPanelLayout
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
@@ -245,69 +246,68 @@ private fun SetBackgroundContent(
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(onGestureEnd)) {
-        Column(
+        EditorPanelLayout(
+            panelHeight = ToolPanelHeight,
             modifier = Modifier
-                .fillMaxSize()
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: it slides up over the panels while the photo
                 // keeps its size, and the text bar docks itself above it instead.
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
-        ) {
-            SetBackgroundTopBar(
-                canUndo = uiState.canUndo,
-                canRedo = uiState.canRedo,
-                doneEnabled = sourceImage != null,
-                onClose = onBack,
-                onUndo = onUndo,
-                onRedo = onRedo,
-                onDone = { onDone(previewSizePx) },
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    // Taps that reach here (off every layer) deselect; layers consume their own taps.
-                    .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) }
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (sourceImage != null) {
-                    Box(modifier = Modifier.aspectRatio(sourceImage.width.toFloat() / sourceImage.height)) {
-                        Canvas(modifier = Modifier.fillMaxSize()) { drawComposite(sourceImage, edit.backdrop) }
-                        FreestyleCanvas(
-                            stickerFlights = stickerFlights,
-                            layers = edit.layers,
-                            chrome = chrome,
-                            selectedLayerId = selectedLayerId,
-                            onCanvasSizeChanged = { previewSizePx = it },
-                            onTextLayerDoubleTapped = { layer ->
-                                selectedLayerId = layer.id
-                                onSelectLayer(layer.id)
-                                tool = SetBackgroundTool.Text
-                                openTextEntry(layer)
-                            },
-                            onLayerSelected = { id ->
-                                selectedLayerId = id
-                                onSelectLayer(id)
-                                // Selecting a label opens the panel that edits it (font, color, retyping).
-                                val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                                if (isText) tool = SetBackgroundTool.Text
-                            },
-                            onLayerTransformed = onTransformLayer,
-                            onLayerScaleRotated = onScaleRotateLayer,
-                            onLayerDeleted = { id ->
-                                onDeleteLayer(id)
-                                selectedLayerId = null
-                            },
-                        )
+            topBar = {
+                SetBackgroundTopBar(
+                    canUndo = uiState.canUndo,
+                    canRedo = uiState.canRedo,
+                    doneEnabled = sourceImage != null,
+                    onClose = onBack,
+                    onUndo = onUndo,
+                    onRedo = onRedo,
+                    onDone = { onDone(previewSizePx) },
+                )
+            },
+            stage = { stageModifier ->
+                Box(
+                    modifier = stageModifier
+                        // Taps that reach here (off every layer) deselect; layers consume their own taps.
+                        .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (sourceImage != null) {
+                        Box(modifier = Modifier.aspectRatio(sourceImage.width.toFloat() / sourceImage.height)) {
+                            Canvas(modifier = Modifier.fillMaxSize()) { drawComposite(sourceImage, edit.backdrop) }
+                            FreestyleCanvas(
+                                stickerFlights = stickerFlights,
+                                layers = edit.layers,
+                                chrome = chrome,
+                                selectedLayerId = selectedLayerId,
+                                onCanvasSizeChanged = { previewSizePx = it },
+                                onTextLayerDoubleTapped = { layer ->
+                                    selectedLayerId = layer.id
+                                    onSelectLayer(layer.id)
+                                    tool = SetBackgroundTool.Text
+                                    openTextEntry(layer)
+                                },
+                                onLayerSelected = { id ->
+                                    selectedLayerId = id
+                                    onSelectLayer(id)
+                                    // Selecting a label opens the panel that edits it (font, color, retyping).
+                                    val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
+                                    if (isText) tool = SetBackgroundTool.Text
+                                },
+                                onLayerTransformed = onTransformLayer,
+                                onLayerScaleRotated = onScaleRotateLayer,
+                                onLayerDeleted = { id ->
+                                    onDeleteLayer(id)
+                                    selectedLayerId = null
+                                },
+                            )
+                        }
+                    } else {
+                        Text(tr("No image to edit"), color = chrome.content, style = MaterialTheme.typography.bodyLarge)
                     }
-                } else {
-                    Text(tr("No image to edit"), color = chrome.content, style = MaterialTheme.typography.bodyLarge)
                 }
-            }
-
-            Box(modifier = Modifier.fillMaxWidth().height(ToolPanelHeight)) {
+            },
+            panel = {
                 when (tool) {
                     SetBackgroundTool.Background -> BackgroundPanel(
                         tab = tab,
@@ -351,37 +351,38 @@ private fun SetBackgroundContent(
                         onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { onAddSticker(emoji) } },
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier
-                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
-                    .readableWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-            ) {
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_background),
-                    label = tr("Background"),
-                    selected = tool == SetBackgroundTool.Background,
-                    onClick = { tool = SetBackgroundTool.Background },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_text_editor),
-                    label = tr("Text"),
-                    selected = tool == SetBackgroundTool.Text,
-                    enabled = sourceImage != null,
-                    onClick = { tool = SetBackgroundTool.Text },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_stickers_editor),
-                    label = tr("Stickers"),
-                    selected = tool == SetBackgroundTool.Stickers,
-                    enabled = sourceImage != null,
-                    onClick = { tool = SetBackgroundTool.Stickers },
-                )
-            }
-        }
+            },
+            tabs = {
+                Row(
+                    modifier = Modifier
+                        // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                        .readableWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                ) {
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_background),
+                        label = tr("Background"),
+                        selected = tool == SetBackgroundTool.Background,
+                        onClick = { tool = SetBackgroundTool.Background },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_text_editor),
+                        label = tr("Text"),
+                        selected = tool == SetBackgroundTool.Text,
+                        enabled = sourceImage != null,
+                        onClick = { tool = SetBackgroundTool.Text },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_stickers_editor),
+                        label = tr("Stickers"),
+                        selected = tool == SetBackgroundTool.Stickers,
+                        enabled = sourceImage != null,
+                        onClick = { tool = SetBackgroundTool.Stickers },
+                    )
+                }
+            },
+        )
 
         textEntry?.let { entry ->
             TextEntryBar(

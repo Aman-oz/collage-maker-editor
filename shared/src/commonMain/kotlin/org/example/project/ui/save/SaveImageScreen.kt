@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +60,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.i18n.tr
+import org.example.project.ui.common.EditorSidePanelWidth
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.SavedImageKey
 import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.rememberSpringBounce
@@ -146,75 +149,49 @@ private fun SaveImageContent(
     val saving = status == SaveStatus.Saving
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            SaveImageTopBar(onBack = onBack)
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (image != null) {
-                    WatermarkedPreview(image = image, watermark = watermark, onRemoveWatermark = onRemoveWatermark)
-                }
-                if (saving) CircularProgressIndicator(color = PremiumAccent)
-            }
-
-            if (isPremium) {
-                val saveBounce = rememberSpringBounce()
-                Button(
-                    onClick = onSaveClean,
-                    interactionSource = saveBounce.interactionSource,
-                    enabled = !saving && image != null,
-                    // Capped on a tablet, where a full-width pill would span the whole screen.
-                    modifier = Modifier
-                        .readableWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp)
-                        .springBounce(saveBounce)
-                        .height(48.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            val preview: @Composable (Modifier) -> Unit = { previewModifier ->
+                Box(
+                    modifier = previewModifier
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .padding(if (isSideBySideEditor(maxWidth, maxHeight)) 16.dp else 24.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = tr("Save Image"), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    if (image != null) {
+                        WatermarkedPreview(image = image, watermark = watermark, onRemoveWatermark = onRemoveWatermark)
+                    }
+                    if (saving) CircularProgressIndicator(color = PremiumAccent)
+                }
+            }
+            val buttons: @Composable (Modifier) -> Unit = { buttonsModifier ->
+                SaveButtons(
+                    isPremium = isPremium,
+                    enabled = !saving && image != null,
+                    onSaveWithWatermark = onSaveWithWatermark,
+                    onSaveClean = onSaveClean,
+                    onRemoveWatermark = onRemoveWatermark,
+                    modifier = buttonsModifier,
+                )
+            }
+            if (isSideBySideEditor(maxWidth, maxHeight)) {
+                // A phone on its side: under the picture there is no room for both it and the
+                // buttons, so the picture takes the left at full height and the rest moves right,
+                // as in the editors.
+                Row(modifier = Modifier.fillMaxSize()) {
+                    preview(Modifier.weight(1f).fillMaxHeight())
+                    Column(modifier = Modifier.width(EditorSidePanelWidth).fillMaxHeight()) {
+                        SaveImageTopBar(onBack = onBack)
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                            buttons(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp))
+                        }
+                    }
                 }
             } else {
-                Row(
-                    modifier = Modifier.readableWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    val watermarkSaveBounce = rememberSpringBounce()
-                    OutlinedButton(
-                        onClick = onSaveWithWatermark,
-                        interactionSource = watermarkSaveBounce.interactionSource,
-                        enabled = !saving && image != null,
-                        modifier = Modifier.springBounce(watermarkSaveBounce).weight(1f).height(52.dp),
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                    ) {
-                        ButtonLabel(text = tr("Save with\nwatermark"), color = MaterialTheme.colorScheme.onSurface)
-                    }
-                    val removeBounce = rememberSpringBounce()
-                    Button(
-                        onClick = onRemoveWatermark,
-                        interactionSource = removeBounce.interactionSource,
-                        enabled = !saving && image != null,
-                        modifier = Modifier.springBounce(removeBounce).weight(1f).height(52.dp),
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
-                    ) {
-                        Image(
-                            painter = painterResource(Res.drawable.ic_premium_icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        ButtonLabel(text = tr("Remove\nwatermark"), color = Color.White)
-                    }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    SaveImageTopBar(onBack = onBack)
+                    preview(Modifier.weight(1f).fillMaxWidth())
+                    // Capped on a tablet, where full-width buttons would span the whole screen.
+                    buttons(Modifier.readableWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp))
                 }
             }
         }
@@ -223,6 +200,69 @@ private fun SaveImageContent(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
         )
+    }
+}
+
+/** Save clean for a subscriber; otherwise save with the watermark, or remove it (the paywall). */
+@Composable
+private fun SaveButtons(
+    isPremium: Boolean,
+    enabled: Boolean,
+    onSaveWithWatermark: () -> Unit,
+    onSaveClean: () -> Unit,
+    onRemoveWatermark: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (isPremium) {
+        val saveBounce = rememberSpringBounce()
+        Button(
+            onClick = onSaveClean,
+            interactionSource = saveBounce.interactionSource,
+            enabled = enabled,
+            modifier = modifier
+                .springBounce(saveBounce)
+                .height(48.dp),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
+        ) {
+            Text(text = tr("Save Image"), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+    } else {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            val watermarkSaveBounce = rememberSpringBounce()
+            OutlinedButton(
+                onClick = onSaveWithWatermark,
+                interactionSource = watermarkSaveBounce.interactionSource,
+                enabled = enabled,
+                modifier = Modifier.springBounce(watermarkSaveBounce).weight(1f).height(52.dp),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                ButtonLabel(text = tr("Save with\nwatermark"), color = MaterialTheme.colorScheme.onSurface)
+            }
+            val removeBounce = rememberSpringBounce()
+            Button(
+                onClick = onRemoveWatermark,
+                interactionSource = removeBounce.interactionSource,
+                enabled = enabled,
+                modifier = Modifier.springBounce(removeBounce).weight(1f).height(52.dp),
+                shape = CircleShape,
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent, contentColor = Color.White),
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.ic_premium_icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                ButtonLabel(text = tr("Remove\nwatermark"), color = Color.White)
+            }
+        }
     }
 }
 

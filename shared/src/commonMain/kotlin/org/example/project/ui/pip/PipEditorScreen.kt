@@ -1,6 +1,7 @@
 package org.example.project.ui.pip
 
 import org.example.project.ui.common.readableWidth
+import org.example.project.ui.common.EditorPanelLayout
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
 import org.example.project.ui.common.DiscardChangesPopup
@@ -241,93 +242,92 @@ private fun PipEditorContent(
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(onGestureEnd)) {
-        Column(
+        EditorPanelLayout(
+            panelHeight = ToolPanelHeight,
             modifier = Modifier
-                .fillMaxSize()
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: it slides up over the panels while the picture
                 // keeps its size, and the text bar docks itself above it instead.
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
-        ) {
-            PipEditorTopBar(
-                canUndo = uiState.canUndo,
-                canRedo = uiState.canRedo,
-                doneEnabled = ready,
-                onClose = onBack,
-                onUndo = onUndo,
-                onRedo = onRedo,
-                onDone = { onDone(previewSizePx) },
-            )
+            topBar = {
+                PipEditorTopBar(
+                    canUndo = uiState.canUndo,
+                    canRedo = uiState.canRedo,
+                    doneEnabled = ready,
+                    onClose = onBack,
+                    onUndo = onUndo,
+                    onRedo = onRedo,
+                    onDone = { onDone(previewSizePx) },
+                )
+            },
+            stage = { stageModifier ->
+                Box(
+                    modifier = stageModifier
+                        // Taps that reach here (off the picture) deselect; layers consume their own taps.
+                        .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        template != null && assets != null -> Box(
+                            modifier = Modifier.aspectRatio(assets.frame.width.toFloat() / assets.frame.height),
+                        ) {
+                            PipCanvas(
+                                template = template,
+                                assets = assets,
+                                backdrop = uiState.backdrop,
+                                edit = edit,
+                                onSlotTap = { index ->
+                                    selectedLayerId = null
+                                    // An empty window has nothing to reframe; go straight to filling it.
+                                    if (index != null && index !in edit.photos) onPickSlotPhoto(index)
+                                },
+                                onSlotDoubleTap = { index ->
+                                    selectedLayerId = null
+                                    onPickSlotPhoto(index)
+                                },
+                                onSlotTransform = onTransformSlot,
+                            )
+                            FreestyleCanvas(
+                                stickerFlights = stickerFlights,
+                                layers = edit.layers,
+                                chrome = chrome,
+                                selectedLayerId = selectedLayerId,
+                                onCanvasSizeChanged = { previewSizePx = it },
+                                onTextLayerDoubleTapped = { layer ->
+                                    selectedLayerId = layer.id
+                                    onSelectLayer(layer.id)
+                                    tool = PipTool.Text
+                                    openTextEntry(layer)
+                                },
+                                onLayerSelected = { id ->
+                                    selectedLayerId = id
+                                    onSelectLayer(id)
+                                    // Selecting a label opens the panel that edits it (font, color, retyping).
+                                    val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
+                                    if (isText) tool = PipTool.Text
+                                },
+                                onLayerTransformed = onTransformLayer,
+                                onLayerScaleRotated = onScaleRotateLayer,
+                                onLayerDeleted = { id ->
+                                    onDeleteLayer(id)
+                                    selectedLayerId = null
+                                },
+                            )
+                        }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    // Taps that reach here (off the picture) deselect; layers consume their own taps.
-                    .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) }
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                when {
-                    template != null && assets != null -> Box(
-                        modifier = Modifier.aspectRatio(assets.frame.width.toFloat() / assets.frame.height),
-                    ) {
-                        PipCanvas(
-                            template = template,
-                            assets = assets,
-                            backdrop = uiState.backdrop,
-                            edit = edit,
-                            onSlotTap = { index ->
-                                selectedLayerId = null
-                                // An empty window has nothing to reframe; go straight to filling it.
-                                if (index != null && index !in edit.photos) onPickSlotPhoto(index)
-                            },
-                            onSlotDoubleTap = { index ->
-                                selectedLayerId = null
-                                onPickSlotPhoto(index)
-                            },
-                            onSlotTransform = onTransformSlot,
+                        uiState.error != null -> Text(
+                            text = uiState.error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
                         )
-                        FreestyleCanvas(
-                            stickerFlights = stickerFlights,
-                            layers = edit.layers,
-                            chrome = chrome,
-                            selectedLayerId = selectedLayerId,
-                            onCanvasSizeChanged = { previewSizePx = it },
-                            onTextLayerDoubleTapped = { layer ->
-                                selectedLayerId = layer.id
-                                onSelectLayer(layer.id)
-                                tool = PipTool.Text
-                                openTextEntry(layer)
-                            },
-                            onLayerSelected = { id ->
-                                selectedLayerId = id
-                                onSelectLayer(id)
-                                // Selecting a label opens the panel that edits it (font, color, retyping).
-                                val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                                if (isText) tool = PipTool.Text
-                            },
-                            onLayerTransformed = onTransformLayer,
-                            onLayerScaleRotated = onScaleRotateLayer,
-                            onLayerDeleted = { id ->
-                                onDeleteLayer(id)
-                                selectedLayerId = null
-                            },
-                        )
+
+                        else -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
-
-                    uiState.error != null -> Text(
-                        text = uiState.error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                    )
-
-                    else -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            }
-
-            Box(modifier = Modifier.fillMaxWidth().height(ToolPanelHeight)) {
+            },
+            panel = {
                 if (ready) {
                     when (tool) {
                         PipTool.Text -> TextPanel(
@@ -365,31 +365,32 @@ private fun PipEditorContent(
                         )
                     }
                 }
-            }
-
-            Row(
-                modifier = Modifier
-                    // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
-                    .readableWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-            ) {
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_text_editor),
-                    label = tr("Text"),
-                    selected = tool == PipTool.Text,
-                    enabled = ready,
-                    onClick = { tool = PipTool.Text },
-                )
-                BottomTab(
-                    icon = vectorResource(Res.drawable.ic_stickers_editor),
-                    label = tr("Stickers"),
-                    selected = tool == PipTool.Stickers,
-                    enabled = ready,
-                    onClick = { tool = PipTool.Stickers },
-                )
-            }
-        }
+            },
+            tabs = {
+                Row(
+                    modifier = Modifier
+                        // Capped, so on a tablet the tabs stay grouped instead of spreading across the screen.
+                        .readableWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                ) {
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_text_editor),
+                        label = tr("Text"),
+                        selected = tool == PipTool.Text,
+                        enabled = ready,
+                        onClick = { tool = PipTool.Text },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_stickers_editor),
+                        label = tr("Stickers"),
+                        selected = tool == PipTool.Stickers,
+                        enabled = ready,
+                        onClick = { tool = PipTool.Stickers },
+                    )
+                }
+            },
+        )
 
         textEntry?.let { entry ->
             TextEntryBar(
