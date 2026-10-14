@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.example.project.i18n.tr
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplatesUiState
+import org.example.project.ui.templates.withInitialCategory
 
 /**
  * The Frames browser's counterpart of [org.example.project.ui.templates.TemplatesViewModel], with
@@ -18,12 +19,18 @@ import org.example.project.ui.templates.TemplatesUiState
  */
 class FramesViewModel(
     private val repository: FramesRepository,
+    private val initialCategory: TemplateCategory? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TemplatesUiState())
     val uiState: StateFlow<TemplatesUiState> = _uiState.asStateFlow()
 
     init {
+        // Opened from a Home row: show that category straight away, while the rest load.
+        initialCategory?.let {
+            _uiState.update { state -> state.copy(categories = listOf(it)) }
+            selectCategory(it)
+        }
         loadCategories()
     }
 
@@ -31,9 +38,12 @@ class FramesViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingCategories = true, error = null) }
             runCatching { repository.getCategories() }
-                .onSuccess { categories ->
+                .onSuccess { loaded ->
+                    val categories = withInitialCategory(loaded, initialCategory)
                     _uiState.update { it.copy(categories = categories, isLoadingCategories = false) }
-                    categories.firstOrNull()?.let { selectCategory(it) }
+                    // Keep the category already shown (the initial one, or one tapped meanwhile).
+                    val selectedId = _uiState.value.selectedCategoryId
+                    (categories.firstOrNull { it.id == selectedId } ?: categories.firstOrNull())?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
                     _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load frames")) }
@@ -42,7 +52,8 @@ class FramesViewModel(
     }
 
     fun selectCategory(category: TemplateCategory) {
-        if (_uiState.value.selectedCategoryId == category.id && _uiState.value.frames.isNotEmpty()) return
+        val state = _uiState.value
+        if (state.selectedCategoryId == category.id && (state.frames.isNotEmpty() || state.isLoadingFrames)) return
         _uiState.update { it.copy(selectedCategoryId = category.id, isLoadingFrames = true, frames = emptyList(), error = null) }
         viewModelScope.launch {
             runCatching { repository.getFrames(category.id) }

@@ -60,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
@@ -70,6 +71,8 @@ import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.common.TopBarHeight
 import org.example.project.ui.common.TopBarPremiumIconSize
 import org.example.project.ui.preview.ThemePreviews
+import org.example.project.ui.templates.TemplateCategory
+import org.example.project.ui.templates.TemplateFrame
 import org.example.project.ui.projects.ProjectsTabContent
 import org.example.project.ui.projects.ProjectsViewModel
 import org.jetbrains.compose.resources.DrawableResource
@@ -107,16 +110,25 @@ internal const val FreestyleMaxSelection = 12
 @Composable
 fun HomeScreen(
     onOpenGallery: (maxSelection: Int, target: GalleryTarget) -> Unit,
-    onOpenTemplates: () -> Unit,
-    onOpenFrames: () -> Unit,
+    onOpenTemplates: (category: TemplateCategory?) -> Unit,
+    onOpenFrames: (category: TemplateCategory?) -> Unit,
+    onOpenTemplateEditor: (TemplateFrame) -> Unit,
+    onOpenFrameEditor: (TemplateFrame) -> Unit,
     onOpenPip: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     onOpenProject: (imagePath: String) -> Unit,
     modifier: Modifier = Modifier,
     projectsViewModel: ProjectsViewModel = koinViewModel(),
+    feedViewModel: HomeFeedViewModel = koinViewModel(),
 ) {
     val projects by projectsViewModel.projects.collectAsStateWithLifecycle()
+    val feed by feedViewModel.uiState.collectAsStateWithLifecycle()
+    // Rows that failed to load (offline at launch) are tried again each time Home comes back.
+    LifecycleResumeEffect(feedViewModel) {
+        feedViewModel.refresh()
+        onPauseOrDispose {}
+    }
     val thumbnails by projectsViewModel.thumbnails.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val openEditor = { onOpenGallery(1, GalleryTarget.Editor) }
@@ -124,14 +136,28 @@ fun HomeScreen(
         snackbarHostState = snackbarHostState,
         onCreateCollage = { onOpenGallery(CollageMaxSelection, GalleryTarget.Collage) },
         onOpenFreestyle = { onOpenGallery(FreestyleMaxSelection, GalleryTarget.Freestyle) },
-        onOpenTemplates = onOpenTemplates,
+        onOpenTemplates = { onOpenTemplates(null) },
         onOpenEditor = openEditor,
         // Filters is a tool inside the photo editor, so it starts from a photo pick and opens the
         // Filter tool over the editor straight away.
         onOpenFilters = { onOpenGallery(1, GalleryTarget.EditorFilter) },
-        onOpenFrames = onOpenFrames,
+        onOpenFrames = { onOpenFrames(null) },
         onOpenPip = onOpenPip,
         onOpenBgRemove = { onOpenGallery(1, GalleryTarget.BackgroundRemover) },
+        feed = feed,
+        // View All opens the row's catalog on its category; a thumbnail opens its editor.
+        onViewAllFeedSection = { section ->
+            when (section.kind) {
+                HomeSectionKind.Templates -> onOpenTemplates(section.category)
+                HomeSectionKind.Frames -> onOpenFrames(section.category)
+            }
+        },
+        onOpenFeedFrame = { section, frame ->
+            when (section.kind) {
+                HomeSectionKind.Templates -> onOpenTemplateEditor(frame)
+                HomeSectionKind.Frames -> onOpenFrameEditor(frame)
+            }
+        },
         onOpenSettings = onOpenSettings,
         onOpenPremium = onOpenPremium,
         projects = projects,
@@ -153,6 +179,9 @@ private fun HomeContent(
     onOpenFrames: () -> Unit,
     onOpenPip: () -> Unit,
     onOpenBgRemove: () -> Unit,
+    feed: HomeFeedUiState,
+    onViewAllFeedSection: (HomeSection) -> Unit,
+    onOpenFeedFrame: (HomeSection, TemplateFrame) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     projects: List<String>?,
@@ -192,6 +221,9 @@ private fun HomeContent(
                     onOpenBgRemove = onOpenBgRemove,
                     onOpenFilters = onOpenFilters,
                     onOpenFrames = onOpenFrames,
+                    feed = feed,
+                    onViewAllFeedSection = onViewAllFeedSection,
+                    onOpenFeedFrame = onOpenFeedFrame,
                     modifier = Modifier.weight(1f),
                 )
                 HomeTab.Projects -> ProjectsTabContent(
@@ -261,6 +293,9 @@ private fun HomeTabContent(
     onOpenBgRemove: () -> Unit,
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
+    feed: HomeFeedUiState,
+    onViewAllFeedSection: (HomeSection) -> Unit,
+    onOpenFeedFrame: (HomeSection, TemplateFrame) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // The cards are sized for a phone. On a wider screen (a tablet) they grow with the width, so
@@ -344,12 +379,19 @@ private fun HomeTabContent(
                     HomeTool(tr("Frames"), Res.drawable.ic_frame_icon, onOpenFrames),
                 ),
             )
+
+            HomeFeedSections(
+                uiState = feed,
+                scale = softScale,
+                onViewAll = onViewAllFeedSection,
+                onFrameClick = onOpenFeedFrame,
+            )
         }
     }
 }
 
 /** The Home content's side padding. */
-private val HomeContentPadding = 20.dp
+internal val HomeContentPadding = 20.dp
 
 /** The content width the Home cards were designed at (a 412dp phone less its padding). */
 private val HomePhoneContentWidth = 372.dp
@@ -533,6 +575,9 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenFrames = {},
             onOpenPip = {},
             onOpenBgRemove = {},
+            feed = HomeFeedUiState(),
+            onViewAllFeedSection = {},
+            onOpenFeedFrame = { _, _ -> },
             onOpenSettings = {},
             onOpenPremium = {},
             projects = emptyList(),

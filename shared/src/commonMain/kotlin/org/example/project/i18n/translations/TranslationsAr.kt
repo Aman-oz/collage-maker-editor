@@ -720,4 +720,10 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "تعديل",
     "Try this Pro feature for free" to
         "جرّب ميزة Pro مجانًا",
+    "{0} Templates" to
+        "قوالب {0}",
+    "{0} Frames" to
+        "إطارات {0}",
+    "View All" to
+        "عرض الكل",
 )

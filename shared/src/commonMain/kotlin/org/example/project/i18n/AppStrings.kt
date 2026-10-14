@@ -364,4 +364,7 @@ internal val AppStrings: List<String> = listOf(
     "More tools",
     "Edit",
     "Try this Pro feature for free",
+    "{0} Templates",
+    "{0} Frames",
+    "View All",
 )

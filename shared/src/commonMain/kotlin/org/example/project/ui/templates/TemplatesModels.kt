@@ -13,7 +13,11 @@ enum class TemplateLayout(val aspectRatio: Float) {
     Square(1f),
 }
 
-/** A selectable category shown as a pill in the category row (rvCategory). */
+/**
+ * A selectable category shown as a pill in the category row (rvCategory). [Serializable] because
+ * Home's View All passes the category to open in the Templates / Frames nav key.
+ */
+@Serializable
 data class TemplateCategory(val id: String, val name: String)
 
 /** One photo slot on a template, in frame-image pixel space; [x]/[y] are the slot center. */

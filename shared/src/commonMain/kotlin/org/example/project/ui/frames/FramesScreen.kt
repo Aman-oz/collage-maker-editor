@@ -12,6 +12,7 @@ import org.example.project.ui.templates.TemplateFrame
 import org.example.project.ui.templates.TemplatesContent
 import org.example.project.ui.templates.TemplatesUiState
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
  * The Frames catalog browser. It looks and behaves exactly like the Templates screen — same
@@ -24,7 +25,8 @@ fun FramesScreen(
     onOpenEditor: (TemplateFrame) -> Unit,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: FramesViewModel = koinViewModel(),
+    initialCategory: TemplateCategory? = null,
+    viewModel: FramesViewModel = koinViewModel { parametersOf(initialCategory) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

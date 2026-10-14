@@ -144,8 +144,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 onOpenGallery = { maxSelection, target ->
                                     backStack.add(Destination.Gallery(maxSelection, target))
                                 },
-                                onOpenTemplates = { backStack.add(Destination.Templates) },
-                                onOpenFrames = { backStack.add(Destination.Frames) },
+                                onOpenTemplates = { category -> backStack.add(Destination.Templates(category)) },
+                                onOpenFrames = { category -> backStack.add(Destination.Frames(category)) },
+                                onOpenTemplateEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
+                                onOpenFrameEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
                                 onOpenPip = { backStack.add(Destination.Pip) },
                                 onOpenSettings = { backStack.add(Destination.Settings) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
@@ -186,9 +188,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         ProEditorScreen(onBack = { backStack.removeLastOrNull() })
                     }
 
-                    entry<Destination.Templates>(metadata = slideUpMetadata()) {
+                    entry<Destination.Templates>(metadata = slideUpMetadata()) { key ->
                         WithNavAnimatedScope {
                             TemplatesScreen(
+                                initialCategory = key.category,
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
@@ -230,9 +233,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         )
                     }
 
-                    entry<Destination.Frames>(metadata = slideUpMetadata()) {
+                    entry<Destination.Frames>(metadata = slideUpMetadata()) { key ->
                         WithNavAnimatedScope {
                             FramesScreen(
+                                initialCategory = key.category,
                                 onBack = { backStack.removeLastOrNull() },
                                 onOpenEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },

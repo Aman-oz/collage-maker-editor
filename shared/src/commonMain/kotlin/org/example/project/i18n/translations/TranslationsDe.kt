@@ -720,4 +720,10 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Bearbeiten",
     "Try this Pro feature for free" to
         "Diese Pro-Funktion kostenlos testen",
+    "{0} Templates" to
+        "{0}-Vorlagen",
+    "{0} Frames" to
+        "{0}-Rahmen",
+    "View All" to
+        "Alle anzeigen",
 )

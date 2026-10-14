@@ -87,6 +87,7 @@ import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_premium_icon
 
@@ -98,7 +99,8 @@ fun TemplatesScreen(
     onOpenEditor: (TemplateFrame) -> Unit,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TemplatesViewModel = koinViewModel(),
+    initialCategory: TemplateCategory? = null,
+    viewModel: TemplatesViewModel = koinViewModel { parametersOf(initialCategory) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

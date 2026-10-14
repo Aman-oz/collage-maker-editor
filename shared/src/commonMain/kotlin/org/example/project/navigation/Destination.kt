@@ -123,9 +123,15 @@ sealed interface Destination : NavKey {
     @Serializable
     data object ProEditor : Destination
 
-    /** Server-driven template browser (categories + templates masonry grid). */
+    /**
+     * Server-driven template browser (categories + templates masonry grid).
+     *
+     * @param category the category to open on, from a Home row's View All. A Home category isn't
+     * one of the Templates catalog's own, so the browser adds it to its category row. `null` opens
+     * the first category.
+     */
     @Serializable
-    data object Templates : Destination
+    data class Templates(val category: org.example.project.ui.templates.TemplateCategory? = null) : Destination
 
     /**
      * Template editor for a chosen [frame]: its decorative image with photo slots the user fills.
@@ -149,9 +155,13 @@ sealed interface Destination : NavKey {
     @Serializable
     data class PipEditor(val templateName: String, val imagePaths: List<String>) : Destination
 
-    /** Frames catalog browser; the same UI as [Templates], fed by the server frames endpoints. */
+    /**
+     * Frames catalog browser; the same UI as [Templates], fed by the server frames endpoints.
+     *
+     * @param category the category to open on, as in [Templates.category].
+     */
     @Serializable
-    data object Frames : Destination
+    data class Frames(val category: org.example.project.ui.templates.TemplateCategory? = null) : Destination
 
     /** Editor for a frame picked in [Frames]. Carries the whole frame, like [TemplatesEditor]. */
     @Serializable

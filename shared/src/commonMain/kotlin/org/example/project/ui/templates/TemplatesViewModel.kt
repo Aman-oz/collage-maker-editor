@@ -30,12 +30,18 @@ data class TemplatesUiState(
  */
 class TemplatesViewModel(
     private val repository: TemplatesRepository,
+    private val initialCategory: TemplateCategory? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TemplatesUiState())
     val uiState: StateFlow<TemplatesUiState> = _uiState.asStateFlow()
 
     init {
+        // Opened from a Home row: show that category straight away, while the rest load.
+        initialCategory?.let {
+            _uiState.update { state -> state.copy(categories = listOf(it)) }
+            selectCategory(it)
+        }
         loadCategories()
     }
 
@@ -43,9 +49,12 @@ class TemplatesViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingCategories = true, error = null) }
             runCatching { repository.getCategories() }
-                .onSuccess { categories ->
+                .onSuccess { loaded ->
+                    val categories = withInitialCategory(loaded, initialCategory)
                     _uiState.update { it.copy(categories = categories, isLoadingCategories = false) }
-                    categories.firstOrNull()?.let { selectCategory(it) }
+                    // Keep the category already shown (the initial one, or one tapped meanwhile).
+                    val selectedId = _uiState.value.selectedCategoryId
+                    (categories.firstOrNull { it.id == selectedId } ?: categories.firstOrNull())?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
                     _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load templates")) }
@@ -54,7 +63,8 @@ class TemplatesViewModel(
     }
 
     fun selectCategory(category: TemplateCategory) {
-        if (_uiState.value.selectedCategoryId == category.id && _uiState.value.frames.isNotEmpty()) return
+        val state = _uiState.value
+        if (state.selectedCategoryId == category.id && (state.frames.isNotEmpty() || state.isLoadingFrames)) return
         _uiState.update { it.copy(selectedCategoryId = category.id, isLoadingFrames = true, frames = emptyList(), error = null) }
         viewModelScope.launch {
             runCatching { repository.getTemplates(category.id) }
@@ -74,3 +84,10 @@ class TemplatesViewModel(
 
     fun retry() = loadCategories()
 }
+
+/**
+ * The catalog's [categories] with [initial] (from a Home row) first, unless the catalog already
+ * has it. Home's categories are a catalog of their own, so usually it doesn't.
+ */
+internal fun withInitialCategory(categories: List<TemplateCategory>, initial: TemplateCategory?): List<TemplateCategory> =
+    if (initial == null || categories.any { it.id == initial.id }) categories else listOf(initial) + categories

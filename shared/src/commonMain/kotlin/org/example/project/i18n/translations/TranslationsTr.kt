@@ -720,4 +720,10 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Düzenle",
     "Try this Pro feature for free" to
         "Bu Pro özelliği ücretsiz deneyin",
+    "{0} Templates" to
+        "{0} Şablonları",
+    "{0} Frames" to
+        "{0} Çerçeveleri",
+    "View All" to
+        "Tümünü gör",
 )

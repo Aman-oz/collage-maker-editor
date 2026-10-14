@@ -720,4 +720,10 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Edit",
     "Try this Pro feature for free" to
         "Coba fitur Pro ini gratis",
+    "{0} Templates" to
+        "Template {0}",
+    "{0} Frames" to
+        "Bingkai {0}",
+    "View All" to
+        "Lihat semua",
 )

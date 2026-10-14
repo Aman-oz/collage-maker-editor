@@ -21,6 +21,8 @@ import org.example.project.ui.collage.CollageEditorViewModel
 import org.example.project.ui.editor.EditorViewModel
 import org.example.project.ui.frames.FramesRepository
 import org.example.project.ui.frames.FramesViewModel
+import org.example.project.ui.home.HomeFeedRepository
+import org.example.project.ui.home.HomeFeedViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
@@ -65,6 +67,7 @@ val coreModule: Module = module {
     // Fetch the template and frame catalogs (sub-categories + assets) from the central-data server.
     single { TemplatesRepository(get()) }
     single { FramesRepository(get()) }
+    single { HomeFeedRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -96,8 +99,10 @@ val viewModelModule: Module = module {
     // The exported file path comes from the navigation key, passed in as a runtime parameter.
     viewModel { (imagePath: String) -> ShareImageViewModel(imagePath, get()) }
     // Shared by the Splash / s-Blur / s-Splash reveal tools (one scoped instance per destination).
-    viewModelOf(::TemplatesViewModel)
-    viewModelOf(::FramesViewModel)
+    // The category to open on comes from the navigation key (Home's View All), or is null.
+    viewModel { params -> TemplatesViewModel(get(), params.getOrNull()) }
+    viewModel { params -> FramesViewModel(get(), params.getOrNull()) }
+    viewModelOf(::HomeFeedViewModel)
     viewModelOf(::PremiumViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }

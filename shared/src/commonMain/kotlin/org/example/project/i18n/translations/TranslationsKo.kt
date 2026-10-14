@@ -720,4 +720,10 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "편집",
     "Try this Pro feature for free" to
         "이 Pro 기능을 무료로 사용해 보세요",
+    "{0} Templates" to
+        "{0} 템플릿",
+    "{0} Frames" to
+        "{0} 프레임",
+    "View All" to
+        "모두 보기",
 )

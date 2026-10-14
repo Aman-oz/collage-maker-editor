@@ -720,4 +720,10 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Chỉnh sửa",
     "Try this Pro feature for free" to
         "Dùng thử miễn phí tính năng Pro này",
+    "{0} Templates" to
+        "Mẫu {0}",
+    "{0} Frames" to
+        "Khung {0}",
+    "View All" to
+        "Xem tất cả",
 )

@@ -43,7 +43,7 @@ abstract class GenerateBgRemoverConfig : DefaultTask() {
 
 /**
  * Generates `CentralDataConfig` (the central-data server behind the collage, template and frame
- * catalogs: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
+ * catalogs and Home's template/frame rows: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
  * way as [GenerateBgRemoverConfig]. A missing key generates "": collages then fall back to the
  * bundled `collages.json`, and Templates / Frames report the error.
  */
@@ -53,6 +53,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
     @get:Input abstract val collagesCategoryId: Property<String>
     @get:Input abstract val templatesCategoryId: Property<String>
     @get:Input abstract val framesCategoryId: Property<String>
+    @get:Input abstract val homeCategoryId: Property<String>
     @get:Input abstract val apiKey: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
@@ -72,6 +73,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
             |    const val COLLAGES_CATEGORY_ID: String = ${literal(collagesCategoryId.get())}
             |    const val TEMPLATES_CATEGORY_ID: String = ${literal(templatesCategoryId.get())}
             |    const val FRAMES_CATEGORY_ID: String = ${literal(framesCategoryId.get())}
+            |    const val HOME_CATEGORY_ID: String = ${literal(homeCategoryId.get())}
             |    const val API_KEY: String = ${literal(apiKey.get())}
             |}
             |""".trimMargin(),
@@ -107,6 +109,7 @@ val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("gener
     collagesCategoryId = withDefault("CENTRAL_DATA_COLLAGES_CATEGORY_ID", "6abb9538e25e70de3bfd816b")
     templatesCategoryId = withDefault("CENTRAL_DATA_TEMPLATES_CATEGORY_ID", "6ac5e1b1d78628e67e4bb760")
     framesCategoryId = withDefault("CENTRAL_DATA_FRAMES_CATEGORY_ID", "6ac5e234d78628e67e4bb7e7")
+    homeCategoryId = withDefault("CENTRAL_DATA_HOME_CATEGORY_ID", "6acf5d131495d93ad6f8d49b")
     apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }
