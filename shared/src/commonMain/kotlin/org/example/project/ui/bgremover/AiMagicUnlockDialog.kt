@@ -73,62 +73,111 @@ internal fun AiMagicCloseButton(onClick: () -> Unit) {
     }
 }
 
+/** How wide the host may make the panel when [AiMagicUnlockDialog] is [wide]. */
+internal val AiMagicWideDialogWidth = 600.dp
+
 /**
  * Ai Magic's unlock panel for free users, shown inside a
  * [org.example.project.ui.common.GlassDialogHost] over the eraser: a before/after banner, then
  * "Unlock free" (one free removal) or "Get PRO" (the paywall).
+ *
+ * @param wide puts the banner beside the text and buttons rather than above them, for a phone on
+ * its side: stacked, the banner alone takes most of the screen's height and pushes the buttons off it.
  */
 @Composable
-internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit) {
+internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit, wide: Boolean = false) {
+    if (wide) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // The host's glass panel clips its corners, so the banner runs edge to edge under them.
+            AiMagicBanner(modifier = Modifier.weight(1f))
+            AiMagicOffer(
+                onUnlockFree = onUnlockFree,
+                onGetPro = onGetPro,
+                stackButtons = true,
+                modifier = Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 16.dp),
+            )
+        }
+    } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AiMagicBanner(modifier = Modifier.fillMaxWidth())
+            AiMagicOffer(
+                onUnlockFree = onUnlockFree,
+                onGetPro = onGetPro,
+                stackButtons = false,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiMagicBanner(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(Res.drawable.img_remove_bg_image),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier.aspectRatio(BannerAspectRatio),
+    )
+}
+
+/** The title, the pitch and the two buttons, side by side or (in the narrow wide-layout column) stacked. */
+@Composable
+private fun AiMagicOffer(
+    onUnlockFree: () -> Unit,
+    onGetPro: () -> Unit,
+    stackButtons: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.colorScheme
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // The host's glass panel clips its corners, so the banner runs edge to edge under them.
-        Image(
-            painter = painterResource(Res.drawable.img_remove_bg_image),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(BannerAspectRatio),
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = tr("Ai Magic Remover"),
+            color = colors.onSurface,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
         )
-        Column(
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = tr("Ai Magic Remover"),
-                color = colors.onSurface,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = tr("Unlock BG Remover by watching an ad,\nor upgrade to premium."),
-                color = colors.onSurface.copy(alpha = 0.7f),
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = tr("Unlock BG Remover by watching an ad,\nor upgrade to premium."),
+            color = colors.onSurface.copy(alpha = 0.7f),
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(if (stackButtons) 16.dp else 24.dp))
+        val unlockFree: @Composable (Modifier) -> Unit = { buttonModifier ->
+            OutlinedButton(
+                onClick = onUnlockFree,
+                modifier = buttonModifier,
+                shape = CircleShape,
+                border = BorderStroke(1.dp, colors.onSurface.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
+            ) {
+                Text(text = tr("Unlock free"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        val getPro: @Composable (Modifier) -> Unit = { buttonModifier ->
+            Button(
+                onClick = onGetPro,
+                modifier = buttonModifier,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary,
+                ),
+            ) {
+                Text(text = tr("Get PRO"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        if (stackButtons) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                unlockFree(Modifier.fillMaxWidth().height(44.dp))
+                getPro(Modifier.fillMaxWidth().height(44.dp))
+            }
+        } else {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = onUnlockFree,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, colors.onSurface.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
-                ) {
-                    Text(text = tr("Unlock free"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Button(
-                    onClick = onGetPro,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.primary,
-                        contentColor = colors.onPrimary,
-                    ),
-                ) {
-                    Text(text = tr("Get PRO"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                }
+                unlockFree(Modifier.weight(1f).height(52.dp))
+                getPro(Modifier.weight(1f).height(52.dp))
             }
         }
     }

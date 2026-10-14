@@ -337,17 +337,18 @@ private fun BackgroundRemoverEditorContent(
     // The unlock dialog is Liquid Glass over the eraser, so the eraser is its liquefiable backdrop.
     val liquidState = rememberLiquidState()
 
-    Box(modifier = modifier.fillMaxSize()) {
-        BoxWithConstraints(
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        // A phone on its side has no height for the photo above three rows of controls, so there
+        // the photo takes the left and the controls stack in a column on the right. The unlock
+        // dialog goes wide there too.
+        val sideBySide = isSideBySideEditor(maxWidth, maxHeight)
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(scheme.surface)
                 .liquefiable(liquidState)
                 .safeDrawingPadding(),
         ) {
-            // A phone on its side has no height for the photo above three rows of controls, so
-            // there the photo takes the left and the controls stack in a column on the right.
-            val sideBySide = isSideBySideEditor(maxWidth, maxHeight)
             // One layer offset shared by the control rows, so they travel as a single panel: up
             // from the bottom, or in from the right edge beside the photo. Read in the layer block,
             // so the slide redraws the rows without recomposing the screen.
@@ -659,6 +660,7 @@ private fun BackgroundRemoverEditorContent(
             // As in the LAS app, only the X closes it, and turning the offer down that way lands
             // on the free Auto tool instead.
             dismissOnScrimClick = false,
+            panelMaxWidth = if (sideBySide) AiMagicWideDialogWidth else 420.dp,
             footer = {
                 AiMagicCloseButton(
                     onClick = {
@@ -679,6 +681,7 @@ private fun BackgroundRemoverEditorContent(
                     showAiPremiumDialog = false
                     onOpenPremium()
                 },
+                wide = sideBySide,
             )
         }
     }

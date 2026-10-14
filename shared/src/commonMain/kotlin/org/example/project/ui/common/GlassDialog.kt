@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.fletchmckee.liquid.LiquidState
 import io.github.fletchmckee.liquid.liquid
@@ -42,7 +43,8 @@ internal val DialogShape = RoundedCornerShape(28.dp)
  * the `liquefiable(liquidState)` screen content, never inside it.
  *
  * [footer] sits below the panel, outside the glass (e.g. a close button). Pass
- * `dismissOnScrimClick = false` when the dialog must be closed explicitly through it.
+ * `dismissOnScrimClick = false` when the dialog must be closed explicitly through it. A panel laid
+ * out wide for a phone on its side can raise [panelMaxWidth].
  *
  * The panel animates with fade + slide only. Both are placement/alpha changes, whereas a
  * `graphicsLayer` scale would make Liquid sample the backdrop from the unscaled bounds.
@@ -53,6 +55,7 @@ internal fun GlassDialogHost(
     liquidState: LiquidState,
     onDismiss: () -> Unit,
     dismissOnScrimClick: Boolean = true,
+    panelMaxWidth: Dp = 420.dp,
     footer: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -83,7 +86,7 @@ internal fun GlassDialogHost(
         ) {
             Box(
                 modifier = Modifier
-                    .widthIn(max = 420.dp)
+                    .widthIn(max = panelMaxWidth)
                     .fillMaxWidth()
                     .glassPanel(liquidState)
                     // Swallows taps so touching the panel doesn't reach the dismissing scrim.
