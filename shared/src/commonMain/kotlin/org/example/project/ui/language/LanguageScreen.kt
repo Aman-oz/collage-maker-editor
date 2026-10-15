@@ -12,21 +12,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -54,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
@@ -100,31 +109,58 @@ private fun LanguageContent(
 ) {
     val background = MaterialTheme.colorScheme.background
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(background)
-            .statusBarsPadding(),
+            // Horizontal too: on its side, a phone's notch is at the left or right edge.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().selectableGroup(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 4.dp,
-                bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item(key = "header") {
-                LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+        val listPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 4.dp,
+            bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+        )
+        if (isSideBySideEditor(maxWidth, maxHeight)) {
+            // A phone on its side shows only a few rows at a time, so the languages go in two
+            // columns, and the header (with Done) stays put rather than scrolling away with them.
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxWidth().weight(1f).selectableGroup(),
+                    contentPadding = listPadding,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    gridItems(languages, key = { it.code }) { language ->
+                        LanguageRow(
+                            language = language,
+                            selected = language.code == selectedCode,
+                            onClick = { onSelect(language.code) },
+                        )
+                    }
+                }
             }
-            items(languages, key = { it.code }) { language ->
-                LanguageRow(
-                    language = language,
-                    selected = language.code == selectedCode,
-                    onClick = { onSelect(language.code) },
-                )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().selectableGroup(),
+                contentPadding = listPadding,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item(key = "header") {
+                    LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+                }
+                items(languages, key = { it.code }) { language ->
+                    LanguageRow(
+                        language = language,
+                        selected = language.code == selectedCode,
+                        onClick = { onSelect(language.code) },
+                    )
+                }
             }
         }
 
