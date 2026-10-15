@@ -28,6 +28,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -139,6 +142,10 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier,
     // scrolling screen can press and release within one frame, so the press is never observed and
     // the tap has to bounce the card itself; a held press must not bounce it a second time.
     var pressBounced by remember { mutableStateOf(false) }
+    // Where the tools row sits in the card: at the top, or lower when the card is given more
+    // height than the row needs (beside the feature cards on a phone on its side). The backdrop's
+    // lights follow it, so a light stays behind its tool.
+    var toolsTop by remember { mutableFloatStateOf(0f) }
     val bounceOnPress: () -> Unit = {
         pressBounced = true
         bounceCard()
@@ -187,7 +194,7 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier,
         ) {
             drawRect(scheme.surface)
             val cellWidth = size.width / tools.size
-            val centerY = toolCircleCenterY(circleSize).toPx()
+            val centerY = toolsTop + toolCircleCenterY(circleSize).toPx()
             tools.indices.forEach { i ->
                 if (pressProgress[i].value <= 0f) return@forEach
                 val center = Offset(cellWidth * (i + 0.5f), centerY)
@@ -224,7 +231,13 @@ internal fun HomeToolsCard(tools: List<HomeTool>, modifier: Modifier = Modifier,
                 }
                 .border(1.dp, scheme.outlineVariant, CardShape),
         )
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .onPlaced { toolsTop = it.positionInParent().y }
+                .fillMaxWidth()
+                .padding(vertical = 14.dp, horizontal = 8.dp),
+        ) {
             tools.forEachIndexed { i, tool ->
                 ToolItem(
                     tool = tool,

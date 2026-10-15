@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
 import org.example.project.i18n.tr
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.common.TopBarHeight
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.TopBarPremiumIconSize
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.templates.TemplateCategory
@@ -301,77 +302,32 @@ private fun HomeTabContent(
     // The cards are sized for a phone. On a wider screen (a tablet) they grow with the width, so
     // they keep the phone's proportions instead of only stretching sideways.
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val scale = ((maxWidth - HomeContentPadding * 2) / HomePhoneContentWidth).coerceIn(1f, HomeMaxScale)
+        // A phone on its side is wide but short: grown with the width, the cards alone would be
+        // taller than the screen. There they keep the phone's size and the tools card moves up
+        // beside them, so the template rows start within the first screen.
+        val landscapePhone = isSideBySideEditor(maxWidth, maxHeight)
+        val scale = if (landscapePhone) {
+            1f
+        } else {
+            ((maxWidth - HomeContentPadding * 2) / HomePhoneContentWidth).coerceIn(1f, HomeMaxScale)
+        }
         // Text and the small tool circles grow more gently than the cards, or they would look bloated.
         val softScale = 1f + (scale - 1f) * 0.5f
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                // Leave room for the bottom bar that floats over this content.
-                .padding(start = HomeContentPadding, end = HomeContentPadding, top = 16.dp, bottom = 120.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(160.dp * scale),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FeatureCard(
-                    title = tr("Create Collages"),
-                    icon = Res.drawable.ic_collage_icon,
-                    iconSize = 60.dp * scale,
-                    gradient = CollageGradient,
-                    vertical = true,
-                    textScale = softScale,
-                    onClick = onCreateCollage,
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                )
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FeatureCard(
-                        title = tr("Free Style"),
-                        icon = Res.drawable.ic_freestyle_icon,
-                        iconSize = 36.dp * scale,
-                        gradient = FreestyleGradient,
-                        vertical = false,
-                        textScale = softScale,
-                        onClick = onOpenFreestyle,
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().weight(1.1f),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FeatureCard(
-                            title = tr("Templates"),
-                            icon = Res.drawable.ic_template_icon,
-                            iconSize = 34.dp * scale,
-                            gradient = TemplatesGradient,
-                            vertical = true,
-                            iconGap = 2.dp * scale,
-                            textScale = softScale,
-                            onClick = onOpenTemplates,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                        FeatureCard(
-                            title = tr("Editor"),
-                            icon = Res.drawable.ic_editor_icon,
-                            iconSize = 34.dp * scale,
-                            gradient = EditorGradient,
-                            vertical = true,
-                            iconGap = 2.dp * scale,
-                            textScale = softScale,
-                            onClick = onOpenEditor,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                    }
-                }
-            }
-
+        val featureCards: @Composable (Modifier) -> Unit = { cardsModifier ->
+            HomeFeatureCards(
+                scale = scale,
+                softScale = softScale,
+                onCreateCollage = onCreateCollage,
+                onOpenFreestyle = onOpenFreestyle,
+                onOpenTemplates = onOpenTemplates,
+                onOpenEditor = onOpenEditor,
+                modifier = cardsModifier,
+            )
+        }
+        val toolsCard: @Composable (Modifier) -> Unit = { cardModifier ->
             HomeToolsCard(
                 scale = softScale,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = cardModifier,
                 tools = listOf(
                     HomeTool(tr("PIP"), Res.drawable.ic_pip_icon, onOpenPip),
                     HomeTool(tr("BG Remove"), Res.drawable.ic_bg_remover_icon, onOpenBgRemove),
@@ -379,6 +335,26 @@ private fun HomeTabContent(
                     HomeTool(tr("Frames"), Res.drawable.ic_frame_icon, onOpenFrames),
                 ),
             )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                // Leave room for the bottom bar that floats over this content.
+                .padding(start = HomeContentPadding, end = HomeContentPadding, top = 16.dp, bottom = 120.dp),
+        ) {
+            if (landscapePhone) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(HomeFeatureCardsHeight),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    featureCards(Modifier.weight(1f).fillMaxHeight())
+                    toolsCard(Modifier.weight(1f).fillMaxHeight())
+                }
+            } else {
+                featureCards(Modifier.fillMaxWidth().height(HomeFeatureCardsHeight * scale))
+                toolsCard(Modifier.padding(top = 16.dp))
+            }
 
             HomeFeedSections(
                 uiState = feed,
@@ -389,6 +365,76 @@ private fun HomeTabContent(
         }
     }
 }
+
+/** The four gradient cards: Create Collages on the left; Free Style, Templates and Editor on the right. */
+@Composable
+private fun HomeFeatureCards(
+    scale: Float,
+    softScale: Float,
+    onCreateCollage: () -> Unit,
+    onOpenFreestyle: () -> Unit,
+    onOpenTemplates: () -> Unit,
+    onOpenEditor: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FeatureCard(
+            title = tr("Create Collages"),
+            icon = Res.drawable.ic_collage_icon,
+            iconSize = 60.dp * scale,
+            gradient = CollageGradient,
+            vertical = true,
+            textScale = softScale,
+            onClick = onCreateCollage,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FeatureCard(
+                title = tr("Free Style"),
+                icon = Res.drawable.ic_freestyle_icon,
+                iconSize = 36.dp * scale,
+                gradient = FreestyleGradient,
+                vertical = false,
+                textScale = softScale,
+                onClick = onOpenFreestyle,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1.1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FeatureCard(
+                    title = tr("Templates"),
+                    icon = Res.drawable.ic_template_icon,
+                    iconSize = 34.dp * scale,
+                    gradient = TemplatesGradient,
+                    vertical = true,
+                    iconGap = 2.dp * scale,
+                    textScale = softScale,
+                    onClick = onOpenTemplates,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+                FeatureCard(
+                    title = tr("Editor"),
+                    icon = Res.drawable.ic_editor_icon,
+                    iconSize = 34.dp * scale,
+                    gradient = EditorGradient,
+                    vertical = true,
+                    iconGap = 2.dp * scale,
+                    textScale = softScale,
+                    onClick = onOpenEditor,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+            }
+        }
+    }
+}
+
+/** The feature cards' height on a phone; a tablet scales it. */
+private val HomeFeatureCardsHeight = 160.dp
 
 /** The Home content's side padding. */
 internal val HomeContentPadding = 20.dp
