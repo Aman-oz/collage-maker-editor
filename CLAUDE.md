@@ -83,7 +83,9 @@ On a phone on its side (`isSideBySideEditor`, `ui/common/EditorPanelLayout.kt`) 
 left side at full height and the controls move to an `EditorSidePanelWidth` column on the right:
 the editor's top bar and a grid of every tool, then the tool's panel, which slides in from the right
 edge instead of up from the bottom. `ToolScaffold` does that for every tool, which is why it finds
-the stage by its `toolStage()` layout id rather than being a plain `Column`. The Collage, Freestyle,
+the stage by its `toolStage()` layout id rather than being a plain `Column`. There the panel fills the
+column with its controls at the bottom; a tool checks `ToolScaffoldScope.sideBySide` to reorder
+them or to turn a strip of options into a vertical grid with `Modifier.weight(1f)`. The Collage, Freestyle,
 PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The save and
 share screens, the background remover's crop step (`CropContent`) and its eraser switch at the
 same size too: the picture on the left, their bars and buttons in the column.

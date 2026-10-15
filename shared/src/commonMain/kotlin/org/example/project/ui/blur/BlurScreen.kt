@@ -220,37 +220,49 @@ private fun BlurContent(
             onDone = { onDone(edit.blurLevel, edit.strokes) },
             doneEnabled = sourceImage != null,
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            val levelAndHistory = @Composable {
+                BlurLevelStepper(
+                    value = edit.blurLevel,
+                    onValueChange = { commit(edit.copy(blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax))) },
+                )
 
-            BlurLevelStepper(
-                value = edit.blurLevel,
-                onValueChange = { commit(edit.copy(blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax))) },
-            )
-
-            UndoRedoRow(
-                undoEnabled = undoStack.isNotEmpty(),
-                redoEnabled = redoStack.isNotEmpty(),
-                onUndo = ::undo,
-                onRedo = ::redo,
-            )
-
-            BrushSizeLabelRow(value = brushSize)
-            CenterFillSlider(
-                value = brushSize,
-                onValueChange = { brushSize = it },
-                range = BrushSizeRange,
-                referenceValue = BrushSizeRange.start,
-                onDraggingChange = { isAdjustingBrush = it },
-                trackColor = scheme.onSurface.copy(alpha = 0.12f),
-                fillColor = scheme.primary,
-                thumbColor = scheme.primary,
-                thumbWidth = 32.dp,
-                thumbHeight = 18.dp,
-                horizontalPadding = 12.dp,
-                glassThumb = true,
-                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-                valueLabel = ::wholeNumberLabel,
-            )
+                UndoRedoRow(
+                    undoEnabled = undoStack.isNotEmpty(),
+                    redoEnabled = redoStack.isNotEmpty(),
+                    onUndo = ::undo,
+                    onRedo = ::redo,
+                )
+            }
+            val brushSlider = @Composable {
+                BrushSizeLabelRow(value = brushSize)
+                CenterFillSlider(
+                    value = brushSize,
+                    onValueChange = { brushSize = it },
+                    range = BrushSizeRange,
+                    referenceValue = BrushSizeRange.start,
+                    onDraggingChange = { isAdjustingBrush = it },
+                    trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                    fillColor = scheme.primary,
+                    thumbColor = scheme.primary,
+                    thumbWidth = 32.dp,
+                    thumbHeight = 18.dp,
+                    horizontalPadding = 12.dp,
+                    glassThumb = true,
+                    glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                    valueLabel = ::wholeNumberLabel,
+                )
+            }
+            // Beside the photo the slider comes first and the stepper and undo / redo sit at the
+            // bottom of the column, under the thumb.
+            if (sideBySide) {
+                brushSlider()
+                Spacer(modifier = Modifier.height(12.dp))
+                levelAndHistory()
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+                levelAndHistory()
+                brushSlider()
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
         }

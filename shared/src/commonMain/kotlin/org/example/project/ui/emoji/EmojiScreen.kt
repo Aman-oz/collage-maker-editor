@@ -265,6 +265,12 @@ private fun EmojiContent(
                         }
                         recentEmojis = (listOf(emoji) + (recentEmojis - emoji)).take(MaxRecentEmojis)
                     },
+                    // Beside the photo the grid takes the whole column under the tabs.
+                    modifier = if (sideBySide) {
+                        Modifier.fillMaxWidth().weight(1f)
+                    } else {
+                        Modifier.fillMaxWidth().height(180.dp)
+                    },
                 )
             }
         }

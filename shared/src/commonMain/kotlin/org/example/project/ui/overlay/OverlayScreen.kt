@@ -175,7 +175,8 @@ private fun OverlayContent(
             onDone = { onApply(selectedPreset, intensity) },
             doneEnabled = sourceImage != null,
         ) {
-            // The tabs scroll; the compare button stays pinned at the row's end.
+            // The tabs scroll; the compare button stays pinned at the row's end. Beside the photo it
+            // moves to the column's bottom-right corner instead.
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -185,7 +186,7 @@ private fun OverlayContent(
                     onSelected = { selectedCategory = it },
                     modifier = Modifier.weight(1f),
                 )
-                CompareIconButton(onComparingChange = { comparing = it })
+                if (!sideBySide) CompareIconButton(onComparingChange = { comparing = it })
             }
 
             CenterFillSlider(
@@ -209,6 +210,12 @@ private fun OverlayContent(
                 selected = selectedPreset,
                 onSelected = { selectedPresetKey = it?.key },
             )
+            if (sideBySide) {
+                CompareIconButton(
+                    onComparingChange = { comparing = it },
+                    modifier = Modifier.align(Alignment.End).padding(end = 12.dp, bottom = 12.dp),
+                )
+            }
         }
     }
 }

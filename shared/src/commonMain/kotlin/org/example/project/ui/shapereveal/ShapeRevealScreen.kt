@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -143,67 +147,125 @@ private fun ShapeRevealContent(
             onDone = { if (baseImage != null && revealImage != null) onDone(bakeShapeReveal(baseImage, revealImage, placement, textMeasurer)) },
             doneEnabled = baseImage != null && revealImage != null,
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // Beside the photo the shapes fill the column as a grid, with the blur stepper under them.
+            if (sideBySide) {
+                ShapePicker(
+                    base = baseImage,
+                    reveal = revealImage,
+                    textMeasurer = textMeasurer,
+                    selected = placement.shape,
+                    onSelected = { placement = placement.copy(shape = it) },
+                    vertical = true,
+                    modifier = Modifier.weight(1f),
+                )
+                if (effect == RevealEffect.Blur) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
 
-            if (effect == RevealEffect.Blur) {
-                BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+                if (effect == RevealEffect.Blur) {
+                    BlurLevelStepper(value = blurLevel, onValueChange = { blurLevel = it.coerceIn(BlurLevelMin, BlurLevelMax) })
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                ShapePicker(
+                    base = baseImage,
+                    reveal = revealImage,
+                    textMeasurer = textMeasurer,
+                    selected = placement.shape,
+                    onSelected = { placement = placement.copy(shape = it) },
+                    vertical = false,
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
             }
-
-            ShapePickerRow(
-                base = baseImage,
-                reveal = revealImage,
-                textMeasurer = textMeasurer,
-                selected = placement.shape,
-                onSelected = { placement = placement.copy(shape = it) },
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
 private val ThumbnailShape = RoundedCornerShape(8.dp)
 
-/** One thumbnail per shape, each previewing the actual photo revealed through that shape. */
+/**
+ * One thumbnail per shape, each previewing the actual photo revealed through that shape: a row, or
+ * when [vertical] a grid that scrolls vertically, for the side column of a phone on its side.
+ */
 @Composable
-private fun ShapePickerRow(
+private fun ShapePicker(
     base: ImageBitmap?,
     reveal: ImageBitmap?,
     textMeasurer: TextMeasurer,
     selected: RevealShape,
     onSelected: (RevealShape) -> Unit,
+    vertical: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val thumbnail = @Composable { shape: RevealShape ->
+        ShapeThumbnail(
+            base = base,
+            reveal = reveal,
+            textMeasurer = textMeasurer,
+            shape = shape,
+            selected = shape == selected,
+            onClick = { onSelected(shape) },
+        )
+    }
+    if (vertical) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(64.dp),
+            modifier = modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            gridItems(RevealShape.entries) { shape ->
+                Box(contentAlignment = Alignment.Center) { thumbnail(shape) }
+            }
+        }
+    } else {
+        LazyRow(
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(RevealShape.entries) { shape -> thumbnail(shape) }
+        }
+    }
+}
+
+@Composable
+private fun ShapeThumbnail(
+    base: ImageBitmap?,
+    reveal: ImageBitmap?,
+    textMeasurer: TextMeasurer,
+    shape: RevealShape,
+    selected: Boolean,
+    onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .then(if (selected) Modifier.border(2.dp, scheme.primary, ThumbnailShape) else Modifier)
+            .padding(if (selected) 3.dp else 0.dp)
+            .clip(ThumbnailShape)
+            .background(scheme.onSurface.copy(alpha = 0.08f))
+            .clickable(onClick = onClick),
     ) {
-        items(RevealShape.entries) { shape ->
-            val isSelected = shape == selected
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .then(if (isSelected) Modifier.border(2.dp, scheme.primary, ThumbnailShape) else Modifier)
-                    .padding(if (isSelected) 3.dp else 0.dp)
-                    .clip(ThumbnailShape)
-                    .background(scheme.onSurface.copy(alpha = 0.08f))
-                    .clickable { onSelected(shape) },
-            ) {
-                if (base != null && reveal != null) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Center-crop the photo into the square thumbnail (the Box clip trims the
-                        // overflow) and size the shape to the visible square, not the image width.
-                        val fill = max(size.width / base.width, size.height / base.height)
-                        val imageSize = Size(base.width * fill, base.height * fill)
-                        val imageOffset = Offset((size.width - imageSize.width) / 2f, (size.height - imageSize.height) / 2f)
-                        val thumbPlacement = ShapePlacement(
-                            shape = shape,
-                            sizeFraction = 0.8f * min(size.width, size.height) / imageSize.width,
-                        )
-                        drawShapeReveal(base = base, reveal = reveal, placement = thumbPlacement, imageOffset = imageOffset, imageSize = imageSize, textMeasurer = textMeasurer)
-                    }
-                }
+        if (base != null && reveal != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Center-crop the photo into the square thumbnail (the Box clip trims the
+                // overflow) and size the shape to the visible square, not the image width.
+                val fill = max(size.width / base.width, size.height / base.height)
+                val imageSize = Size(base.width * fill, base.height * fill)
+                val imageOffset = Offset((size.width - imageSize.width) / 2f, (size.height - imageSize.height) / 2f)
+                val thumbPlacement = ShapePlacement(
+                    shape = shape,
+                    sizeFraction = 0.8f * min(size.width, size.height) / imageSize.width,
+                )
+                drawShapeReveal(base = base, reveal = reveal, placement = thumbPlacement, imageOffset = imageOffset, imageSize = imageSize, textMeasurer = textMeasurer)
             }
         }
     }

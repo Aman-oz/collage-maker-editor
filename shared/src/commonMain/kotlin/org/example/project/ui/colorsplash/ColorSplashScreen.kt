@@ -192,68 +192,79 @@ private fun ColorSplashContent(
             onDone = { if (grayImage != null && colorImage != null) onDone(grayImage, colorImage, strokes) },
             doneEnabled = sourceImage != null,
         ) {
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_undo),
-                    contentDescription = tr("Undo"),
-                    enabled = strokes.isNotEmpty(),
-                    onClick = {
-                        val last = strokes.lastOrNull() ?: return@UndoRedoButton
-                        redoStack = redoStack + last
-                        strokes = strokes.dropLast(1)
-                    },
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_redo),
-                    contentDescription = tr("Redo"),
-                    enabled = redoStack.isNotEmpty(),
-                    onClick = {
-                        val next = redoStack.lastOrNull() ?: return@UndoRedoButton
-                        strokes = strokes + next
-                        redoStack = redoStack.dropLast(1)
-                    },
+            val history = @Composable {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_undo),
+                        contentDescription = tr("Undo"),
+                        enabled = strokes.isNotEmpty(),
+                        onClick = {
+                            val last = strokes.lastOrNull() ?: return@UndoRedoButton
+                            redoStack = redoStack + last
+                            strokes = strokes.dropLast(1)
+                        },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_redo),
+                        contentDescription = tr("Redo"),
+                        enabled = redoStack.isNotEmpty(),
+                        onClick = {
+                            val next = redoStack.lastOrNull() ?: return@UndoRedoButton
+                            strokes = strokes + next
+                            redoStack = redoStack.dropLast(1)
+                        },
+                    )
+                }
+            }
+            val brushSlider = @Composable {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = tr("Brush Size"),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = scheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "${brushSize.roundToInt()}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = scheme.primary,
+                    )
+                }
+                CenterFillSlider(
+                    value = brushSize,
+                    onValueChange = { brushSize = it },
+                    range = MaskBrushSizeRange,
+                    referenceValue = MaskBrushSizeRange.start,
+                    onDraggingChange = { isAdjustingBrush = it },
+                    trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                    fillColor = scheme.primary,
+                    thumbColor = scheme.primary,
+                    thumbWidth = 32.dp,
+                    thumbHeight = 18.dp,
+                    horizontalPadding = 12.dp,
+                    glassThumb = true,
+                    glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                    valueLabel = ::wholeNumberLabel,
                 )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = tr("Brush Size"),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = scheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "${brushSize.roundToInt()}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = scheme.primary,
-                )
+            // Beside the photo the slider comes first and undo / redo sits at the bottom of the
+            // column, under the thumb.
+            if (sideBySide) {
+                brushSlider()
+                Spacer(modifier = Modifier.height(16.dp))
+                history()
+            } else {
+                Spacer(modifier = Modifier.height(28.dp))
+                history()
+                Spacer(modifier = Modifier.height(12.dp))
+                brushSlider()
             }
-            CenterFillSlider(
-                value = brushSize,
-                onValueChange = { brushSize = it },
-                range = MaskBrushSizeRange,
-                referenceValue = MaskBrushSizeRange.start,
-                onDraggingChange = { isAdjustingBrush = it },
-                trackColor = scheme.onSurface.copy(alpha = 0.12f),
-                fillColor = scheme.primary,
-                thumbColor = scheme.primary,
-                thumbWidth = 32.dp,
-                thumbHeight = 18.dp,
-                horizontalPadding = 12.dp,
-                glassThumb = true,
-                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-                valueLabel = ::wholeNumberLabel,
-            )
 
             Spacer(modifier = Modifier.height(20.dp))
         }

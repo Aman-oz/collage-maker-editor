@@ -48,21 +48,18 @@ import org.example.project.ui.preview.ThemePreviews
 /** One face per star, worst to best. The index + 1 is the rating reported to [RateUsDialog]'s onRate. */
 private val RatingEmojis = listOf("😵", "😑", "🙂", "😀", "😍")
 
-/** "How's your experience so far?" panel, shown inside a [GlassDialogHost]: pick a face (best preselected), then Rate Us. */
+/** "How's your experience so far?" panel, shown inside a [GlassDialogHost]: pick a face (best preselected), then Rate Us.
+ * [wide] lays it out side by side for a phone on its side. */
 @Composable
 internal fun RateUsDialog(
     onRate: (rating: Int) -> Unit,
     onDismiss: () -> Unit,
+    wide: Boolean = false,
 ) {
     var rating by remember { mutableIntStateOf(RatingEmojis.size) }
     val colors = MaterialTheme.colorScheme
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    val heading: @Composable () -> Unit = {
         Text(
             text = tr("How’s your experience so far?"),
             color = colors.onSurface,
@@ -78,7 +75,8 @@ internal fun RateUsDialog(
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(22.dp))
+    }
+    val faces: @Composable () -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth().selectableGroup(),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -92,7 +90,8 @@ internal fun RateUsDialog(
                 )
             }
         }
-        Spacer(Modifier.height(30.dp))
+    }
+    val buttons: @Composable () -> Unit = {
         Button(
             onClick = { onRate(rating) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -104,6 +103,37 @@ internal fun RateUsDialog(
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onDismiss) {
             Text(text = tr("Maybe later"), color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    if (wide) {
+        // A phone on its side is too short for the stack: the question goes left of the faces and buttons.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                heading()
+            }
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                faces()
+                Spacer(Modifier.height(20.dp))
+                buttons()
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            heading()
+            Spacer(Modifier.height(22.dp))
+            faces()
+            Spacer(Modifier.height(30.dp))
+            buttons()
         }
     }
 }

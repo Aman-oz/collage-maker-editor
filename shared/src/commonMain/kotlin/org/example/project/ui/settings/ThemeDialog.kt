@@ -58,23 +58,19 @@ private val ThemeOptions = listOf(
 
 /**
  * Theme picker panel, shown inside a [GlassDialogHost]. The choice is only applied on Apply, so browsing the options (or dismissing)
- * leaves the current theme untouched.
+ * leaves the current theme untouched. [wide] lays it out side by side for a phone on its side.
  */
 @Composable
 internal fun ThemeDialog(
     current: ThemeMode,
     onApply: (ThemeMode) -> Unit,
     onDismiss: () -> Unit,
+    wide: Boolean = false,
 ) {
     var selected by remember(current) { mutableStateOf(current) }
     val colors = MaterialTheme.colorScheme
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    val heading: @Composable () -> Unit = {
         Text(
             text = tr("Choose Theme"),
             color = colors.onSurface,
@@ -89,7 +85,8 @@ internal fun ThemeDialog(
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(20.dp))
+    }
+    val options: @Composable () -> Unit = {
         Column(
             modifier = Modifier.selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -102,7 +99,8 @@ internal fun ThemeDialog(
                 )
             }
         }
-        Spacer(Modifier.height(24.dp))
+    }
+    val buttons: @Composable () -> Unit = {
         Button(
             onClick = { onApply(selected) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -114,6 +112,35 @@ internal fun ThemeDialog(
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onDismiss) {
             Text(text = tr("Cancel"), color = colors.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    if (wide) {
+        // A phone on its side is too short for the stack: the heading and buttons go left of the options.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                heading()
+                Spacer(Modifier.height(20.dp))
+                buttons()
+            }
+            Box(modifier = Modifier.weight(1f)) { options() }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            heading()
+            Spacer(Modifier.height(20.dp))
+            options()
+            Spacer(Modifier.height(24.dp))
+            buttons()
         }
     }
 }

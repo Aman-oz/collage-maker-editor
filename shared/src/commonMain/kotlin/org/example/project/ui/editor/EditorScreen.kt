@@ -299,9 +299,10 @@ private fun EditorContent(
         onBackCompleted = { session = null },
     )
 
-    val topBar = @Composable {
+    val topBar = @Composable { titleAtStart: Boolean ->
         EditorTopBar(
             chrome = chrome,
+            titleAtStart = titleAtStart,
             canUndo = ready?.canUndo == true,
             canRedo = ready?.canRedo == true,
             onClose = onClose,
@@ -334,7 +335,7 @@ private fun EditorContent(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                     EditorSideColumn(host = host) {
-                        topBar()
+                        topBar(true)
                         EditorToolGrid(chrome = chrome, onToolSelected = onToolSelected, modifier = Modifier.weight(1f))
                     }
                 }
@@ -351,7 +352,7 @@ private fun EditorContent(
                             }
                             .graphicsLayer { alpha = 1f - host.editorBars.value },
                     ) {
-                        topBar()
+                        topBar(false)
                     }
 
                     EditorCanvas(
@@ -493,9 +494,14 @@ private fun EditorToolGrid(chrome: EditorChrome, onToolSelected: (EditorTool) ->
     }
 }
 
+/**
+ * @param titleAtStart puts the title just after the back button instead of centred. The landscape
+ * column is too narrow to centre it clear of the undo / redo / done group, which cut it to "Edit P…".
+ */
 @Composable
 private fun EditorTopBar(
     chrome: EditorChrome,
+    titleAtStart: Boolean,
     canUndo: Boolean,
     canRedo: Boolean,
     onClose: () -> Unit,
@@ -503,28 +509,30 @@ private fun EditorTopBar(
     onRedo: () -> Unit,
     onDone: () -> Unit,
 ) {
-    // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
-    // for the widest button group so a long title ellipsizes instead of running under it.
-    Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
+    val backButton = @Composable { buttonModifier: Modifier ->
         GlassTopBarButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             contentDescription = tr("Back"),
             onClick = onClose,
             contentColor = chrome.icon,
-            modifier = Modifier.align(Alignment.CenterStart),
+            modifier = buttonModifier,
         )
+    }
+    val title = @Composable { titleModifier: Modifier ->
         Text(
             text = tr("Edit Photo"),
             color = chrome.icon,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
+            textAlign = if (titleAtStart) TextAlign.Start else TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = UndoRedoDoneWidth),
+            modifier = titleModifier,
         )
+    }
+    val actions = @Composable { actionsModifier: Modifier ->
         Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
+            modifier = actionsModifier,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -548,6 +556,21 @@ private fun EditorTopBar(
                 onClick = onDone,
                 style = GlassButtonStyle.Primary,
             )
+        }
+    }
+    if (titleAtStart) {
+        Row(modifier = Modifier.topBar(), verticalAlignment = Alignment.CenterVertically) {
+            backButton(Modifier)
+            title(Modifier.weight(1f).padding(horizontal = 10.dp))
+            actions(Modifier)
+        }
+    } else {
+        // A Box like ToolTopBar keeps the title centered on the screen; its side padding reserves room
+        // for the widest button group so a long title ellipsizes instead of running under it.
+        Box(modifier = Modifier.topBar(), contentAlignment = Alignment.Center) {
+            backButton(Modifier.align(Alignment.CenterStart))
+            title(Modifier.padding(horizontal = UndoRedoDoneWidth))
+            actions(Modifier.align(Alignment.CenterEnd))
         }
     }
 }

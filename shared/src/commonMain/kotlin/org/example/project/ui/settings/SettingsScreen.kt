@@ -6,21 +6,26 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,6 +70,7 @@ import org.example.project.data.ThemeMode
 import org.example.project.i18n.tr
 import org.example.project.ui.common.GlassDialogHost
 import org.example.project.ui.common.GlassTopBarButton
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
@@ -90,6 +96,9 @@ private val PremiumCardShape = RoundedCornerShape(16.dp)
 
 /** Width / height of `img_premium_card.png` (1050 × 420). */
 private const val PremiumCardAspectRatio = 2.5f
+
+/** How wide a settings dialog may be when it is laid out wide, beside a phone on its side. */
+private val SettingsWideDialogWidth = 600.dp
 
 /** Which settings dialog is open. Saved by name, since an enum is not saveable on every platform. */
 private enum class SettingsDialog { None, Theme, RateUs }
@@ -168,42 +177,68 @@ private fun SettingsContent(
         onBackCompleted = closeDialog,
     )
 
-    Box(modifier = modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        // A phone on its side: the 2.5:1 premium card alone would fill the first screen, so it
+        // moves to the left and the rows scroll beside it. The dialogs go wide there too, since
+        // stacked they are taller than the screen.
+        val landscape = isSideBySideEditor(maxWidth, maxHeight)
+        val sections: @Composable () -> Unit = {
+            SectionHeader(tr("General"))
+            SettingsRow(Res.drawable.ic_language, tr("Languages"), onOpenLanguage)
+            SettingsRow(Res.drawable.ic_theme, tr("Theme")) { dialogName = SettingsDialog.Theme.name }
+
+            SectionHeader(tr("About"))
+            SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
+            SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
+            SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
+
+            SectionHeader(tr("Legal"))
+            SettingsRow(Res.drawable.ic_privacy_policy, tr("Privacy Policy"), onPrivacyPolicy)
+            SettingsRow(Res.drawable.ic_terms_and_conditions, tr("Terms of Use"), onTermsOfUse)
+
+            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
         // The glass dialogs refract this layer, so it must not contain them (see GlassDialogHost).
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .liquefiable(liquidState)
                 .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding(),
+                // Horizontal too: on its side, a phone's notch is at the left or right edge.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             SettingsTopBar(onBack = onBack)
-            // Scrolls from anywhere on the screen, but the card and rows stay phone-width on a tablet,
-            // where full-width pills would be long thin bars and the 2.5:1 card would be very tall.
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Column(modifier = Modifier.readableWidth().padding(horizontal = 16.dp)) {
-                    Spacer(Modifier.height(4.dp))
-                    PremiumCard(onClick = onPremium)
-
-                    SectionHeader(tr("General"))
-                    SettingsRow(Res.drawable.ic_language, tr("Languages"), onOpenLanguage)
-                    SettingsRow(Res.drawable.ic_theme, tr("Theme")) { dialogName = SettingsDialog.Theme.name }
-
-                    SectionHeader(tr("About"))
-                    SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
-                    SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
-                    SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
-
-                    SectionHeader(tr("Legal"))
-                    SettingsRow(Res.drawable.ic_privacy_policy, tr("Privacy Policy"), onPrivacyPolicy)
-                    SettingsRow(Res.drawable.ic_terms_and_conditions, tr("Terms of Use"), onTermsOfUse)
-
-                    Spacer(Modifier.height(24.dp))
-                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            if (landscape) {
+                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                    // Level with the first section header's text on the right.
+                    Column(modifier = Modifier.weight(1f).padding(top = 20.dp)) {
+                        PremiumCard(onClick = onPremium)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        sections()
+                    }
+                }
+            } else {
+                // Scrolls from anywhere on the screen, but the card and rows stay phone-width on a
+                // tablet, where full-width pills would be long thin bars and the 2.5:1 card would be
+                // very tall.
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Column(modifier = Modifier.readableWidth().padding(horizontal = 16.dp)) {
+                        Spacer(Modifier.height(4.dp))
+                        PremiumCard(onClick = onPremium)
+                        sections()
+                    }
                 }
             }
         }
@@ -217,6 +252,7 @@ private fun SettingsContent(
             visible = dialog != SettingsDialog.None,
             liquidState = liquidState,
             onDismiss = closeDialog,
+            panelMaxWidth = if (landscape) SettingsWideDialogWidth else 420.dp,
         ) {
             when (shownDialog) {
                 SettingsDialog.None -> Unit
@@ -227,6 +263,7 @@ private fun SettingsContent(
                         closeDialog()
                     },
                     onDismiss = closeDialog,
+                    wide = landscape,
                 )
                 SettingsDialog.RateUs -> RateUsDialog(
                     onRate = { rating ->
@@ -234,6 +271,7 @@ private fun SettingsContent(
                         onRate(rating)
                     },
                     onDismiss = closeDialog,
+                    wide = landscape,
                 )
             }
         }

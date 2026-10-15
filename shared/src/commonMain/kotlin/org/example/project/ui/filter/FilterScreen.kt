@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -151,6 +154,15 @@ private fun FilterContent(
             onDone = { onApply(selectedFilter, intensity) },
             doneEnabled = sourceImage != null,
         ) {
+            // Beside the photo the filters fill the column as a grid, the compare and slider under them.
+            if (sideBySide) {
+                FilterGrid(
+                    sourceImage = sourceImage,
+                    selected = selectedFilter,
+                    onSelected = { selectedLabel = it.label },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             CompareIconButton(
                 onComparingChange = { comparing = it },
                 modifier = Modifier
@@ -171,13 +183,16 @@ private fun FilterContent(
                 glassThumb = true,
                 glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
                 valueLabel = { wholeNumberLabel(it * 100f) },
+                modifier = if (sideBySide) Modifier.padding(bottom = 16.dp) else Modifier,
             )
 
-            FilterStrip(
-                sourceImage = sourceImage,
-                selected = selectedFilter,
-                onSelected = { selectedLabel = it.label },
-            )
+            if (!sideBySide) {
+                FilterStrip(
+                    sourceImage = sourceImage,
+                    selected = selectedFilter,
+                    onSelected = { selectedLabel = it.label },
+                )
+            }
         }
     }
 }
@@ -226,6 +241,34 @@ private fun FilterStrip(
                 selected = filter == selected,
                 onClick = { onSelected(filter) },
             )
+        }
+    }
+}
+
+/** [FilterStrip]'s chips as a grid that scrolls vertically, for the side column of a phone on its side. */
+@Composable
+private fun FilterGrid(
+    sourceImage: ImageBitmap?,
+    selected: PhotoFilter,
+    onSelected: (PhotoFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(62.dp),
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        gridItems(PhotoFilters) { filter ->
+            Box(contentAlignment = Alignment.Center) {
+                FilterChip(
+                    filter = filter,
+                    sourceImage = sourceImage,
+                    selected = filter == selected,
+                    onClick = { onSelected(filter) },
+                )
+            }
         }
     }
 }

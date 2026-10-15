@@ -29,6 +29,7 @@ import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.crop.AspectRatioOptions
+import org.example.project.ui.crop.AspectRatioGrid
 import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.preview.ThemePreviews
 
@@ -95,6 +96,15 @@ private fun RatioContent(
             doneEnabled = reframed != null,
             onDone = { reframed?.let { onApply(padImage(it, paddingPercent)) } },
         ) {
+            // Beside the photo the ratios fill the column as a grid, with the slider under them.
+            if (sideBySide) {
+                AspectRatioGrid(
+                    options = AspectRatioOptions,
+                    selected = selected,
+                    onSelected = { selected = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             CenterFillSlider(
                 value = paddingPercent,
                 onValueChange = { paddingPercent = it },
@@ -109,14 +119,16 @@ private fun RatioContent(
                 glassThumb = true,
                 glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
                 valueLabel = ::wholeNumberLabel,
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 12.dp, bottom = if (sideBySide) 16.dp else 0.dp),
             )
 
-            AspectRatioStrip(
-                options = AspectRatioOptions,
-                selected = selected,
-                onSelected = { selected = it },
-            )
+            if (!sideBySide) {
+                AspectRatioStrip(
+                    options = AspectRatioOptions,
+                    selected = selected,
+                    onSelected = { selected = it },
+                )
+            }
         }
     }
 }

@@ -6,10 +6,12 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawing
@@ -186,11 +188,12 @@ internal fun ToolScaffold(
             val stage = measurables.firstOrNull { it.layoutId == ToolStageId }
             val others = measurables.filter { it !== stage }
             if (sideBySide) {
-                // The stage on the left at full height; the panel (and anything else) stacked from the
-                // top of the column on the right.
+                // The stage on the left at full height; the panel on the right, as tall as the
+                // column so its controls can sit at the bottom (anything else stacks from the top).
                 val columnWidth = EditorSidePanelWidth.roundToPx().coerceAtMost(width)
                 val stagePlaceable = stage?.measure(Constraints.fixed(width - columnWidth, height))
-                val placeables = others.map { it.measure(Constraints(columnWidth, columnWidth, 0, height)) }
+                val minHeight = if (others.size == 1) height else 0
+                val placeables = others.map { it.measure(Constraints(columnWidth, columnWidth, minHeight, height)) }
                 layout(width, height) {
                     stagePlaceable?.place(0, 0)
                     var y = 0
@@ -225,13 +228,16 @@ private object ToolStageId
  * What a tool lays out in [ToolScaffold]: its stage and its [ToolPanel].
  *
  * @param sideBySide the stage and panel sit side by side (a phone on its side) rather than one over
- * the other; the panel then slides in from the right edge instead of up from the bottom.
+ * the other; the panel then slides in from the right edge instead of up from the bottom, and fills
+ * the column's height. Its controls sit at the bottom of it, under the title bar's free space; a tool
+ * with a list of options can give that list `Modifier.weight(1f)` there (a vertical grid, say) to
+ * use the space instead.
  */
 @Stable
 internal class ToolScaffoldScope(
     private val host: InlineToolHostState<*>?,
     private val surface: Color,
-    private val sideBySide: Boolean,
+    val sideBySide: Boolean,
 ) {
 
     /** Marks the tool's stage: it takes all the room the panel leaves. Add the stage's own look after it. */
@@ -259,6 +265,7 @@ internal class ToolScaffoldScope(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(if (sideBySide) Modifier.fillMaxHeight() else Modifier)
                 .then(
                     if (host != null) {
                         Modifier
@@ -282,9 +289,17 @@ internal class ToolScaffoldScope(
         ) {
             // The panel's background spans the screen, but its controls stay phone-width and centred:
             // a slider or chip row stretched across a tablet is hard to use and reads as empty.
-            Column(modifier = Modifier.readableWidth()) {
+            Column(modifier = Modifier.readableWidth().then(if (sideBySide) Modifier.fillMaxHeight() else Modifier)) {
                 ToolTopBar(title = title, onClose = onClose, onDone = onDone, doneEnabled = doneEnabled)
-                content()
+                if (sideBySide) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.Bottom,
+                        content = content,
+                    )
+                } else {
+                    content()
+                }
             }
         }
     }

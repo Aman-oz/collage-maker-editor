@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -211,12 +214,21 @@ internal fun CropTool(
             onDone = { state.crop()?.let(onApply) },
             doneEnabled = state.canCrop,
         ) {
-            AspectRatioStrip(
-                options = AspectRatioOptions,
-                selected = state.selectedOption,
-                onSelected = state::selectOption,
-                contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
-            )
+            if (sideBySide) {
+                AspectRatioGrid(
+                    options = AspectRatioOptions,
+                    selected = state.selectedOption,
+                    onSelected = state::selectOption,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                AspectRatioStrip(
+                    options = AspectRatioOptions,
+                    selected = state.selectedOption,
+                    onSelected = state::selectOption,
+                    contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
+                )
+            }
         }
     }
 }
@@ -449,6 +461,35 @@ internal fun AspectRatioStrip(
         }
     }
 }
+
+/**
+ * [AspectRatioStrip]'s options as a grid that scrolls vertically, for the tall side column of a
+ * phone on its side, where a single row would leave most of the column empty.
+ */
+@Composable
+internal fun AspectRatioGrid(
+    options: List<AspectRatioOption>,
+    selected: AspectRatioOption,
+    onSelected: (AspectRatioOption) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(AspectRatioGridCellWidth),
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        gridItems(options) { option ->
+            Box(contentAlignment = Alignment.Center) {
+                AspectRatioChip(option = option, selected = option == selected, onClick = { onSelected(option) })
+            }
+        }
+    }
+}
+
+/** Wide enough for the widest chip frame and its label. */
+private val AspectRatioGridCellWidth = 72.dp
 
 /**
  * A rounded frame shaped like the ratio it stands for, with the platform glyph inside (or "Free"

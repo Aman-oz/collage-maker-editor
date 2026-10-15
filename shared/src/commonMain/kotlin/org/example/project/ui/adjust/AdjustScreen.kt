@@ -185,27 +185,32 @@ private fun AdjustContent(
             },
             doneEnabled = sourceImage != null,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, top = 8.dp, end = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_undo),
-                    contentDescription = tr("Undo"),
-                    enabled = undoStack.isNotEmpty(),
-                    onClick = ::undo,
-                )
-                UndoRedoButton(
-                    icon = vectorResource(Res.drawable.ic_redo),
-                    contentDescription = tr("Redo"),
-                    enabled = redoStack.isNotEmpty(),
-                    onClick = ::redo,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                CompareIconButton(onComparingChange = { comparing = it })
+            // Undo / redo and compare: above the slider under the photo, at the bottom of the column
+            // beside it, with the adjustments and then the slider stacked above.
+            val historyRow = @Composable {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = if (sideBySide) 12.dp else 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_undo),
+                        contentDescription = tr("Undo"),
+                        enabled = undoStack.isNotEmpty(),
+                        onClick = ::undo,
+                    )
+                    UndoRedoButton(
+                        icon = vectorResource(Res.drawable.ic_redo),
+                        contentDescription = tr("Redo"),
+                        enabled = redoStack.isNotEmpty(),
+                        onClick = ::redo,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    CompareIconButton(onComparingChange = { comparing = it })
+                }
             }
+            if (!sideBySide) historyRow()
 
             CenterFillSlider(
                 value = values[selected],
@@ -241,6 +246,7 @@ private fun AdjustContent(
                 values = values,
                 onSelected = { selected = it },
             )
+            if (sideBySide) historyRow()
         }
     }
 }
