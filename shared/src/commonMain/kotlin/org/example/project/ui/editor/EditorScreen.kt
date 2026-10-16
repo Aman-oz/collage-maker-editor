@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -76,6 +77,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -125,6 +127,8 @@ import org.example.project.ui.ratio.RatioTool
 import org.example.project.ui.rotate.RotateTool
 import org.example.project.ui.shapereveal.SelectiveBlurTool
 import org.example.project.ui.shapereveal.SelectiveSplashTool
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextTool
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -180,9 +184,17 @@ private val CanvasVerticalPadding = 12.dp
  * tool keeps editing that snapshot even after its result has gone to the session, so it doesn't
  * re-apply its edit to its own result while it slides away. Identity matters (not a data class):
  * each opening is its own session.
+ *
+ * The Text tool also gets the [texts] live over the photo, to open with, and the one tapped in the
+ * editor ([selectedTextId]) when that is what opened it.
  */
 @Stable
-internal class ToolSession(val tool: EditorTool, val image: ImageBitmap)
+internal class ToolSession(
+    val tool: EditorTool,
+    val image: ImageBitmap,
+    val texts: TextLayers? = null,
+    val selectedTextId: Long? = null,
+)
 
 /**
  * Chrome colors for the photo editor. It follows the app's light/dark [MaterialTheme] like the
@@ -225,7 +237,10 @@ fun EditorScreen(
     viewModel: EditorViewModel = koinViewModel { parametersOf(imagePath) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val texts by viewModel.texts.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
+    // Bakes the live texts into the photo when something needs it as pixels.
+    val textMeasurer = rememberTextMeasurer()
 
     val discard = rememberDiscardChangesState(
         hasChanges = (uiState as? EditorUiState.Ready)?.canUndo == true,
@@ -237,14 +252,25 @@ fun EditorScreen(
     Box(modifier = modifier.fillMaxSize()) {
         EditorContent(
             uiState = uiState,
+            texts = texts,
             toolSession = viewModel.toolSession,
             isPremium = isPremium,
             openFilterOnLoad = openFilterOnLoad,
             onClose = discard::requestBack,
-            onDone = { if (viewModel.consumePremiumOffer()) onOpenPremium() else onDone() },
+            onDone = {
+                if (viewModel.consumePremiumOffer()) {
+                    onOpenPremium()
+                } else {
+                    // The save screen reads the session, so the texts go into the photo first.
+                    viewModel.flattenTexts(textMeasurer)
+                    onDone()
+                }
+            },
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onApplyEdit = viewModel::applyEdit,
+            onApplyTexts = viewModel::applyTexts,
+            onFlattenTexts = { viewModel.flattenTexts(textMeasurer) },
             onOpenPremium = onOpenPremium,
             modifier = Modifier.liquefiable(liquidState),
         )
@@ -258,12 +284,18 @@ fun EditorScreen(
  * [InlineToolHostState] for the choreography). ✓ commits the tool's bitmap through [onApplyEdit],
  * ✕ and system back just close it.
  *
+ * The Text tool commits [texts] instead ([onApplyTexts]), which stay live over the photo: a tap on
+ * one opens the tool again on it. Any other tool opens on the photo with them baked in
+ * ([onFlattenTexts]), since it edits pixels and texts left floating over a cropped or turned photo
+ * would no longer sit where they were put.
+ *
  * @param toolSession the tool the user asked for. It is handed in as the state itself (the
  * ViewModel's, see [EditorViewModel.toolSession]) so the tool's callbacks read it at call time.
  */
 @Composable
 private fun EditorContent(
     uiState: EditorUiState,
+    texts: TextLayers?,
     toolSession: MutableState<ToolSession?>,
     isPremium: Boolean,
     openFilterOnLoad: Boolean,
@@ -272,6 +304,8 @@ private fun EditorContent(
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onApplyEdit: (ImageBitmap) -> Unit,
+    onApplyTexts: (TextLayers) -> Unit,
+    onFlattenTexts: () -> ImageBitmap?,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -313,7 +347,16 @@ private fun EditorContent(
     }
     val onToolSelected = { tool: EditorTool ->
         // Taps that land while the toolbar is already on its way out are ignored.
-        if (session == null && ready != null) session = ToolSession(tool, ready.image)
+        if (session == null && ready != null) {
+            session = if (tool == EditorTool.Text) {
+                ToolSession(tool, ready.image, texts)
+            } else {
+                ToolSession(tool, onFlattenTexts() ?: ready.image)
+            }
+        }
+    }
+    val onTextTapped = { id: Long ->
+        if (session == null && ready != null) session = ToolSession(EditorTool.Text, ready.image, texts, selectedTextId = id)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -331,6 +374,8 @@ private fun EditorContent(
                     EditorCanvas(
                         chrome = chrome,
                         uiState = uiState,
+                        texts = texts,
+                        onTextTapped = onTextTapped,
                         host = host,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
@@ -358,6 +403,8 @@ private fun EditorContent(
                     EditorCanvas(
                         chrome = chrome,
                         uiState = uiState,
+                        texts = texts,
+                        onTextTapped = onTextTapped,
                         host = host,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -392,6 +439,12 @@ private fun EditorContent(
                                 session = null
                             }
                         },
+                        onApplyTexts = { layers ->
+                            if (session === mounted) {
+                                onApplyTexts(layers)
+                                session = null
+                            }
+                        },
                     )
                 }
             }
@@ -405,6 +458,7 @@ private fun EditorToolContent(
     isPremium: Boolean,
     onClose: () -> Unit,
     onApply: (ImageBitmap) -> Unit,
+    onApplyTexts: (TextLayers) -> Unit,
     onOpenPremium: () -> Unit,
 ) {
     val image = session.image
@@ -415,7 +469,7 @@ private fun EditorToolContent(
         EditorTool.Adjust -> AdjustTool(image, isPremium, onClose, onApply, onOpenPremium)
         EditorTool.Overlay -> OverlayTool(image, isPremium, onClose, onApply, onOpenPremium)
         EditorTool.Ratio -> RatioTool(image, onClose, onApply)
-        EditorTool.Text -> TextTool(image, isPremium, onClose, onApply, onOpenPremium)
+        EditorTool.Text -> TextTool(image, session.texts, session.selectedTextId, isPremium, onClose, onApplyTexts, onOpenPremium)
         EditorTool.Sticker -> EmojiTool(image, isPremium, onClose, onApply, onOpenPremium)
         EditorTool.Blur -> BlurTool(image, onClose, onApply)
         EditorTool.SelectiveBlur -> SelectiveBlurTool(image, onClose, onApply)
@@ -584,6 +638,8 @@ private fun EditorTopBar(
 private fun EditorCanvas(
     chrome: EditorChrome,
     uiState: EditorUiState,
+    texts: TextLayers?,
+    onTextTapped: (Long) -> Unit,
     host: InlineToolHostState<*>,
     modifier: Modifier = Modifier,
 ) {
@@ -597,17 +653,28 @@ private fun EditorCanvas(
         when (uiState) {
             EditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
-            is EditorUiState.Ready -> Image(
-                bitmap = uiState.image,
-                contentDescription = tr("Selected photo"),
+            is EditorUiState.Ready -> Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .insetBy {
                         val inset = lerp(0, host.photoInset.roundToPx(), host.layout.value)
                         IntOffset(inset, inset)
                     },
-                contentScale = ContentScale.Fit,
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                // Sized to the photo itself, so the texts over it land where they were put on it.
+                Box(modifier = Modifier.aspectRatio(uiState.image.width.toFloat() / uiState.image.height)) {
+                    Image(
+                        bitmap = uiState.image,
+                        contentDescription = tr("Selected photo"),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                    if (texts != null) {
+                        TextLayersOverlay(layers = texts, onTextTapped = onTextTapped, modifier = Modifier.fillMaxSize())
+                    }
+                }
+            }
 
             is EditorUiState.Error -> Text(
                 text = uiState.message,
@@ -808,6 +875,7 @@ private fun EditorScreenPreview() {
     ThemePreviews {
         EditorContent(
             uiState = EditorUiState.Loading,
+            texts = null,
             toolSession = remember { mutableStateOf(null) },
             isPremium = false,
             openFilterOnLoad = false,
@@ -816,6 +884,8 @@ private fun EditorScreenPreview() {
             onUndo = {},
             onRedo = {},
             onApplyEdit = {},
+            onApplyTexts = {},
+            onFlattenTexts = { null },
             onOpenPremium = {},
         )
     }

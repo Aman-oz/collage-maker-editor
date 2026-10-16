@@ -802,4 +802,72 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "حدود",
     "Corner" to
         "الزاوية",
+    "Alignment" to
+        "المحاذاة",
+    "Capitalized" to
+        "الأحرف الكبيرة",
+    "Italic" to
+        "مائل",
+    "Underline" to
+        "تسطير",
+    "Strikethrough" to
+        "يتوسطه خط",
+    "Uppercase" to
+        "أحرف كبيرة",
+    "Capitalize words" to
+        "أول حرف كبير",
+    "Lowercase" to
+        "أحرف صغيرة",
+    "Letter spacing" to
+        "تباعد الأحرف",
+    "Line spacing" to
+        "تباعد الأسطر",
+    "Distance" to
+        "المسافة",
+    "Angle" to
+        "الزاوية",
+    "Angle {0}°" to
+        "الزاوية {0}°",
+    "Move up" to
+        "تحريك لأعلى",
+    "Move down" to
+        "تحريك لأسفل",
+    "Move left" to
+        "تحريك لليسار",
+    "Move right" to
+        "تحريك لليمين",
+    "Nudge {0}°" to
+        "تحريك دقيق {0}°",
+    "Arrange" to
+        "ترتيب",
+    "Align" to
+        "محاذاة",
+    "Forward" to
+        "للأمام",
+    "Backward" to
+        "للخلف",
+    "To front" to
+        "إلى المقدمة",
+    "To back" to
+        "إلى الخلف",
+    "Top" to
+        "أعلى",
+    "Middle" to
+        "منتصف",
+    "Bottom" to
+        "أسفل",
+    "Left" to
+        "يسار",
+    "Center" to
+        "وسط",
+    "Right" to
+        "يمين",
+    "Padding" to
+        "الحشو",
+    "Vertical" to
+        "عمودي",
+    "Horizontal" to
+        "أفقي",
+    "Padding shows around a background color" to
+        "يظهر الحشو حول لون الخلفية",
 )

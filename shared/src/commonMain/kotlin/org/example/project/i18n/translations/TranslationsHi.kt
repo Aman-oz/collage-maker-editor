@@ -802,4 +802,72 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "स्ट्रोक",
     "Corner" to
         "कोना",
+    "Alignment" to
+        "संरेखण",
+    "Capitalized" to
+        "कैपिटलाइज़ेशन",
+    "Italic" to
+        "इटैलिक",
+    "Underline" to
+        "रेखांकित",
+    "Strikethrough" to
+        "काटा हुआ",
+    "Uppercase" to
+        "बड़े अक्षर",
+    "Capitalize words" to
+        "हर शब्द का पहला अक्षर बड़ा",
+    "Lowercase" to
+        "छोटे अक्षर",
+    "Letter spacing" to
+        "अक्षर अंतराल",
+    "Line spacing" to
+        "पंक्ति अंतराल",
+    "Distance" to
+        "दूरी",
+    "Angle" to
+        "कोण",
+    "Angle {0}°" to
+        "कोण {0}°",
+    "Move up" to
+        "ऊपर ले जाएँ",
+    "Move down" to
+        "नीचे ले जाएँ",
+    "Move left" to
+        "बाएँ ले जाएँ",
+    "Move right" to
+        "दाएँ ले जाएँ",
+    "Nudge {0}°" to
+        "खिसकाएँ {0}°",
+    "Arrange" to
+        "क्रम",
+    "Align" to
+        "संरेखित करें",
+    "Forward" to
+        "आगे",
+    "Backward" to
+        "पीछे",
+    "To front" to
+        "सबसे आगे",
+    "To back" to
+        "सबसे पीछे",
+    "Top" to
+        "ऊपर",
+    "Middle" to
+        "मध्य",
+    "Bottom" to
+        "नीचे",
+    "Left" to
+        "बाएँ",
+    "Center" to
+        "केंद्र",
+    "Right" to
+        "दाएँ",
+    "Padding" to
+        "पैडिंग",
+    "Vertical" to
+        "लंबवत",
+    "Horizontal" to
+        "क्षैतिज",
+    "Padding shows around a background color" to
+        "पैडिंग पृष्ठभूमि रंग के चारों ओर दिखती है",
 )

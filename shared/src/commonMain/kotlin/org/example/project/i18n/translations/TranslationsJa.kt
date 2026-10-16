@@ -802,4 +802,72 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "縁取り",
     "Corner" to
         "角",
+    "Alignment" to
+        "配置",
+    "Capitalized" to
+        "大文字・小文字",
+    "Italic" to
+        "斜体",
+    "Underline" to
+        "下線",
+    "Strikethrough" to
+        "取り消し線",
+    "Uppercase" to
+        "すべて大文字",
+    "Capitalize words" to
+        "単語の先頭を大文字",
+    "Lowercase" to
+        "すべて小文字",
+    "Letter spacing" to
+        "文字間隔",
+    "Line spacing" to
+        "行間",
+    "Distance" to
+        "距離",
+    "Angle" to
+        "角度",
+    "Angle {0}°" to
+        "角度 {0}°",
+    "Move up" to
+        "上へ移動",
+    "Move down" to
+        "下へ移動",
+    "Move left" to
+        "左へ移動",
+    "Move right" to
+        "右へ移動",
+    "Nudge {0}°" to
+        "微調整 {0}°",
+    "Arrange" to
+        "配置順",
+    "Align" to
+        "整列",
+    "Forward" to
+        "前面へ",
+    "Backward" to
+        "背面へ",
+    "To front" to
+        "最前面へ",
+    "To back" to
+        "最背面へ",
+    "Top" to
+        "上",
+    "Middle" to
+        "中央（縦）",
+    "Bottom" to
+        "下",
+    "Left" to
+        "左",
+    "Center" to
+        "中央",
+    "Right" to
+        "右",
+    "Padding" to
+        "余白",
+    "Vertical" to
+        "上下",
+    "Horizontal" to
+        "左右",
+    "Padding shows around a background color" to
+        "余白は背景色の周りに表示されます",
 )

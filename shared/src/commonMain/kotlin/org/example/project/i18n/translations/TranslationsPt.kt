@@ -802,4 +802,72 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Contorno",
     "Corner" to
         "Canto",
+    "Alignment" to
+        "Alinhamento",
+    "Capitalized" to
+        "Maiúsculas",
+    "Italic" to
+        "Itálico",
+    "Underline" to
+        "Sublinhado",
+    "Strikethrough" to
+        "Tachado",
+    "Uppercase" to
+        "Maiúsculas",
+    "Capitalize words" to
+        "Iniciais maiúsculas",
+    "Lowercase" to
+        "Minúsculas",
+    "Letter spacing" to
+        "Espaçamento entre letras",
+    "Line spacing" to
+        "Espaçamento entre linhas",
+    "Distance" to
+        "Distância",
+    "Angle" to
+        "Ângulo",
+    "Angle {0}°" to
+        "Ângulo {0}°",
+    "Move up" to
+        "Mover para cima",
+    "Move down" to
+        "Mover para baixo",
+    "Move left" to
+        "Mover para a esquerda",
+    "Move right" to
+        "Mover para a direita",
+    "Nudge {0}°" to
+        "Ajuste fino {0}°",
+    "Arrange" to
+        "Organizar",
+    "Align" to
+        "Alinhar",
+    "Forward" to
+        "Avançar",
+    "Backward" to
+        "Recuar",
+    "To front" to
+        "Para a frente",
+    "To back" to
+        "Para trás",
+    "Top" to
+        "Topo",
+    "Middle" to
+        "Meio",
+    "Bottom" to
+        "Base",
+    "Left" to
+        "Esquerda",
+    "Center" to
+        "Centro",
+    "Right" to
+        "Direita",
+    "Padding" to
+        "Preenchimento",
+    "Vertical" to
+        "Vertical",
+    "Horizontal" to
+        "Horizontal",
+    "Padding shows around a background color" to
+        "O preenchimento aparece ao redor de uma cor de fundo",
 )

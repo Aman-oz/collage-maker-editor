@@ -73,6 +73,15 @@ tool's panel slides up in the toolbar's place while the photo moves — once —
 stage shows it, and the stage fades in on top. Closing runs it in reverse. ✓ hands the baked bitmap
 to `EditorViewModel.applyEdit` (a `session.set`), ✕ and system back just close the tool.
 
+The Text tool is the exception: it doesn't bake. It hands back `TextLayers` (the texts with their
+loaded fonts and the stage width/density they were laid out at), which `EditorViewModel.applyTexts`
+pushes as a history step; the history is of `EditorFrame`s (photo + live texts), so undo covers
+them. The editor draws them over the photo with `TextLayersOverlay` (`drawMeasuredTexts`, the same
+code the bake uses), and a tap on one opens the Text tool on it (`ToolSession.selectedTextId`).
+They become pixels only through `flattenTexts`, which replaces the current step rather than adding
+one: before any other tool opens (it edits pixels; a crop or turn would strand floating texts) and
+on the editor's Done (the save screen reads the session).
+
 Every tool is laid out with `ToolScaffold { Box(Modifier.toolStage()…) { … }; ToolPanel(title,
 onClose, onDone) { controls } }`. Inside the editor the scaffold reads `LocalInlineToolHost` and
 lets the host drive the stage's alpha and the panel's slide; on its own (previews) it is an
@@ -159,7 +168,30 @@ from the back stack.
   then `settleSpec` delayed by `ToolDropMillis`); the panel keeps one height for both, so the photo
   never moves. Its title is the main-category picker (`FontCategoryMenu`). The Color option opens
   `TextColorPanel` (Text / Background / Stroke tabs, each with its own opacity; the background a
-  corner too); the plate and outline are drawn by `drawTextUnderlay` in both preview and bake.
+  corner too); the plate and outline are drawn by `drawTextUnderlay` in both preview and bake. The Curve option
+  (`TextCurvePanel`, 0–100, 50 straight) bends the words onto concentric arcs (`TextCurve.kt`,
+  maths in `TextMath.kt`): each glyph's slice of the one layout is clipped, turned and moved onto
+  the arc, and the plate's outline is bent point by point, alike in preview and bake. Typing shows
+  the words straight. The Format option (`TextFormatPanel`) sets bold / italic / underline /
+  strikethrough, alignment and a `TextCase`; both preview and bake take their style from
+  `TextItem.textStyle(font)` and their words from `shownContent`, and `content` keeps the letters
+  as typed (the field shows the case through a length-keeping `VisualTransformation`). The Opacity option fades
+  the whole text (`TextItem.opacity`) as one layer: `graphicsLayer { alpha }` in the preview, a
+  `saveLayer` in the bake, so outline, plate and words don't show through each other. Font size, Opacity and
+  Spacing share `TextSliderPanel` (a list of `PanelSlider`s); Spacing's two sliders sit at 50 for
+  the font's own spacing (`letterSpacingEm`, `lineHeightEm`). Shadow (`TextShadowPanel`, tabs for
+  opacity, distance arrows, angle, blur and colour) is `TextStyle.shadow`, sized in em of the font so
+  it scales; its pixels come from the preview's density, which is why `textStyle` and
+  `bakeTextItems` take one. Nudge (`TextNudgePanel`) moves the text a step and turns it a degree;
+  its buttons and the Shadow panel's arrows are `RepeatingIconButton`s, which keep firing while held. Every panel but Font is framed by `TextPanelColumn`: under the photo the
+  ✕ / title / ✓ bar sits right over the controls; beside it (`LocalTextPanelSideBySide`) the bar
+  goes to the column's top and the controls go where its `TextPanelPlacement` says (bottom,
+  centred, or filling the rest: swatches become a vertical `TextSwatchGrid`, arrows a `DirectionPad`). Padding (`TextPaddingPanel`) sets
+  the plate's reach past the words per side, in em (`textPlateRect`); a plate reaching past the
+  text box grows the box (`plateOverflow`), which is measured unbounded so it isn't squeezed to the photo. Position
+  (`TextPositionPanel`) arranges the texts (`arrangeTextItems`: the list order is the stacking
+  order, later on top) and aligns the active one to the photo (`alignTextItem`, using its turned
+  box's bounds); its ✕ also restores the order, which the panels' per-text revert wouldn't.
   The tool holds any number of texts: a list of immutable `TextItem`s (`TextItems.kt`, saved as
   JSON through `TextItemsSaver`, pure edits like `resizeTextBox` / `scaleTextItem` tested in
   commonTest), all baked by `bakeTextItems`. The options and panels edit the *active* text (the one

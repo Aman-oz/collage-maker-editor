@@ -19,8 +19,22 @@ import kotlinx.serialization.json.Json
  * centred in it. Null (or less than the words need) fits the words.
  * @param locked a locked text can be selected (to unlock it) but not moved, resized, turned or typed in.
  * @param backgroundArgb the plate behind the words ([drawTextPlate]); null for none.
- * @param backgroundCorner the plate's roundness on the Color panel's 0–100 slider ([textPlateCornerFraction]).
+ * @param backgroundCorner the plate's roundness on the Color panel's 0–100 slider ([textPlateCornerRadius]).
+ * @param paddingLeft/[paddingTop]/[paddingRight]/[paddingBottom] how far the plate reaches past the
+ * words on each side, on the Padding panel's 0–100 sliders ([textPaddingEm]: in em of the font size,
+ * so the plate keeps its shape as the text is scaled).
  * @param strokeArgb the outline around the letters; null for none.
+ * @param bold/[italic]/[underline]/[strikethrough] the Format panel's toggles, over whatever the font is.
+ * @param case how the words' letters are cased when shown ([applyTextCase]); [content] keeps them as typed.
+ * @param opacity the whole text's 0–1 opacity (the Opacity panel): words, plate and outline faded
+ * together as one layer, on top of each colour's own opacity.
+ * @param letterSpacing/[lineSpacing] the Spacing panel's 0–100 sliders, [TextSpacingNormal] being the
+ * font's own spacing ([letterSpacingEm], [lineHeightEm]).
+ * @param shadowOpacity the Shadow panel's 0–1 opacity; 0 is no shadow. [shadowDx]/[shadowDy] are its
+ * offset and [shadowBlur] its 0–100 blur ([shadowBlurEm]), in em of the font size so the shadow
+ * scales with the words.
+ * @param curve the Curve panel's 0–100 slider: [TextCurveStraight] runs the words straight, less
+ * arches them and more sags them ([textCurvature]).
  * Each colour has its own 0–1 opacity, kept apart from the colour so a swatch pick doesn't reset it.
  */
 @Serializable
@@ -43,8 +57,29 @@ internal data class TextItem(
     val backgroundCorner: Float = DefaultTextPlateCorner,
     val strokeArgb: Int? = null,
     val strokeOpacity: Float = 1f,
+    val curve: Float = TextCurveStraight,
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    val underline: Boolean = false,
+    val strikethrough: Boolean = false,
+    val case: TextCase = TextCase.None,
+    val opacity: Float = 1f,
+    val letterSpacing: Float = TextSpacingNormal,
+    val lineSpacing: Float = TextSpacingNormal,
+    val shadowArgb: Int = DefaultShadowArgb,
+    val shadowOpacity: Float = 0f,
+    val shadowDx: Float = DefaultShadowOffsetEm,
+    val shadowDy: Float = DefaultShadowOffsetEm,
+    val shadowBlur: Float = DefaultShadowBlur,
+    val paddingLeft: Float = DefaultTextPaddingX,
+    val paddingTop: Float = DefaultTextPaddingY,
+    val paddingRight: Float = DefaultTextPaddingX,
+    val paddingBottom: Float = DefaultTextPaddingY,
 ) {
     val center: Offset get() = Offset(centerX, centerY)
+
+    /** The words as shown on the photo and baked: [content] in its [case]. */
+    val shownContent: String get() = applyTextCase(content, case)
 
     fun withCenter(center: Offset): TextItem =
         copy(centerX = center.x.coerceIn(0f, 1f), centerY = center.y.coerceIn(0f, 1f))
@@ -68,9 +103,69 @@ internal fun duplicateTextItem(item: TextItem, newId: Long): TextItem {
     return item.copy(id = newId, centerX = nudged(item.centerX), centerY = nudged(item.centerY), locked = false)
 }
 
-/** Back to the size, turn and text area a new text has; the words, look and position stay. */
+/** Back to the size, turn, curve and text area a new text has; the words, look and position stay. */
 internal fun resetTextItem(item: TextItem): TextItem =
-    item.copy(sizeSp = TextSizeDefault, rotationDegrees = 0f, boxWidth = null, boxHeight = null)
+    item.copy(sizeSp = TextSizeDefault, rotationDegrees = 0f, boxWidth = null, boxHeight = null, curve = TextCurveStraight)
+
+/** How far one step of the Nudge panel's arrows moves a text, as a fraction of the photo's width/height. */
+internal const val TextNudgeStep = 0.005f
+
+/** How far one step of the Nudge panel's turn buttons turns a text. */
+internal const val TextNudgeDegrees = 1f
+
+/** [item] moved by [step] (fractions of the photo), kept on the photo. */
+internal fun nudgeTextItem(item: TextItem, step: Offset): TextItem = item.withCenter(item.center + step)
+
+/** [item] turned [degrees] clockwise, its rotation kept within (-180°, 180°] so the Nudge title reads sensibly. */
+internal fun turnTextItem(item: TextItem, degrees: Float): TextItem =
+    item.copy(rotationDegrees = normalizeDegrees(item.rotationDegrees + degrees))
+
+internal fun normalizeDegrees(degrees: Float): Float {
+    val turned = degrees % 360f
+    return when {
+        turned > 180f -> turned - 360f
+        turned <= -180f -> turned + 360f
+        else -> turned
+    }
+}
+
+/** The Position panel's Arrange moves: a text one place up or down the stack, or to its top or bottom. */
+internal enum class TextLayerMove { Forward, Backward, ToFront, ToBack }
+
+/**
+ * [items] with the text [id] moved by [move]. Later texts draw on top, so forward is one place later
+ * in the list and to the front is last. Unchanged if [id] isn't there or is already at that end.
+ */
+internal fun arrangeTextItems(items: List<TextItem>, id: Long, move: TextLayerMove): List<TextItem> {
+    val index = items.indexOfFirst { it.id == id }
+    if (index < 0) return items
+    val target = when (move) {
+        TextLayerMove.Forward -> index + 1
+        TextLayerMove.Backward -> index - 1
+        TextLayerMove.ToFront -> items.lastIndex
+        TextLayerMove.ToBack -> 0
+    }.coerceIn(0, items.lastIndex)
+    if (target == index) return items
+    return items.toMutableList().apply { add(target, removeAt(index)) }
+}
+
+/** The Position panel's Align targets: an edge or the middle of the photo, across or down. */
+internal enum class TextPhotoAlign { Top, Middle, Bottom, Left, Center, Right }
+
+/**
+ * [item] moved against [align]'s edge of the photo, or onto its middle line. [halfWidth]/[halfHeight]
+ * are half the (turned) text box's upright bounds, as fractions of the photo's width/height, so the
+ * box itself touches the edge. Only the one axis changes.
+ */
+internal fun alignTextItem(item: TextItem, align: TextPhotoAlign, halfWidth: Float, halfHeight: Float): TextItem =
+    when (align) {
+        TextPhotoAlign.Top -> item.withCenter(Offset(item.centerX, halfHeight))
+        TextPhotoAlign.Middle -> item.withCenter(Offset(item.centerX, 0.5f))
+        TextPhotoAlign.Bottom -> item.withCenter(Offset(item.centerX, 1f - halfHeight))
+        TextPhotoAlign.Left -> item.withCenter(Offset(halfWidth, item.centerY))
+        TextPhotoAlign.Center -> item.withCenter(Offset(0.5f, item.centerY))
+        TextPhotoAlign.Right -> item.withCenter(Offset(1f - halfWidth, item.centerY))
+    }
 
 /** Which edge of the text area a side handle drags. */
 internal enum class TextBoxEdge { Left, Top, Right, Bottom }

@@ -802,4 +802,72 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Contorno",
     "Corner" to
         "Angolo",
+    "Alignment" to
+        "Allineamento",
+    "Capitalized" to
+        "Maiuscole",
+    "Italic" to
+        "Corsivo",
+    "Underline" to
+        "Sottolineato",
+    "Strikethrough" to
+        "Barrato",
+    "Uppercase" to
+        "Maiuscolo",
+    "Capitalize words" to
+        "Iniziali maiuscole",
+    "Lowercase" to
+        "Minuscolo",
+    "Letter spacing" to
+        "Spaziatura lettere",
+    "Line spacing" to
+        "Interlinea",
+    "Distance" to
+        "Distanza",
+    "Angle" to
+        "Angolo",
+    "Angle {0}°" to
+        "Angolo {0}°",
+    "Move up" to
+        "Sposta su",
+    "Move down" to
+        "Sposta giù",
+    "Move left" to
+        "Sposta a sinistra",
+    "Move right" to
+        "Sposta a destra",
+    "Nudge {0}°" to
+        "Sposta {0}°",
+    "Arrange" to
+        "Disponi",
+    "Align" to
+        "Allinea",
+    "Forward" to
+        "Avanti",
+    "Backward" to
+        "Indietro",
+    "To front" to
+        "In primo piano",
+    "To back" to
+        "In secondo piano",
+    "Top" to
+        "Alto",
+    "Middle" to
+        "Metà",
+    "Bottom" to
+        "Basso",
+    "Left" to
+        "Sinistra",
+    "Center" to
+        "Centro",
+    "Right" to
+        "Destra",
+    "Padding" to
+        "Spaziatura interna",
+    "Vertical" to
+        "Verticale",
+    "Horizontal" to
+        "Orizzontale",
+    "Padding shows around a background color" to
+        "La spaziatura interna si vede intorno a un colore di sfondo",
 )

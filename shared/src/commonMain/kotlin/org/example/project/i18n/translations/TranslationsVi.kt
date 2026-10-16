@@ -802,4 +802,72 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Viền",
     "Corner" to
         "Góc",
+    "Alignment" to
+        "Căn chỉnh",
+    "Capitalized" to
+        "Viết hoa",
+    "Italic" to
+        "Nghiêng",
+    "Underline" to
+        "Gạch chân",
+    "Strikethrough" to
+        "Gạch ngang",
+    "Uppercase" to
+        "Chữ hoa",
+    "Capitalize words" to
+        "Viết hoa chữ đầu",
+    "Lowercase" to
+        "Chữ thường",
+    "Letter spacing" to
+        "Khoảng cách chữ",
+    "Line spacing" to
+        "Khoảng cách dòng",
+    "Distance" to
+        "Khoảng cách",
+    "Angle" to
+        "Góc",
+    "Angle {0}°" to
+        "Góc {0}°",
+    "Move up" to
+        "Di chuyển lên",
+    "Move down" to
+        "Di chuyển xuống",
+    "Move left" to
+        "Di chuyển sang trái",
+    "Move right" to
+        "Di chuyển sang phải",
+    "Nudge {0}°" to
+        "Dịch chuyển {0}°",
+    "Arrange" to
+        "Sắp xếp",
+    "Align" to
+        "Căn",
+    "Forward" to
+        "Lên trên",
+    "Backward" to
+        "Xuống dưới",
+    "To front" to
+        "Lên trên cùng",
+    "To back" to
+        "Xuống dưới cùng",
+    "Top" to
+        "Trên",
+    "Middle" to
+        "Giữa",
+    "Bottom" to
+        "Dưới",
+    "Left" to
+        "Trái",
+    "Center" to
+        "Chính giữa",
+    "Right" to
+        "Phải",
+    "Padding" to
+        "Khoảng đệm",
+    "Vertical" to
+        "Dọc",
+    "Horizontal" to
+        "Ngang",
+    "Padding shows around a background color" to
+        "Khoảng đệm hiện quanh màu nền",
 )

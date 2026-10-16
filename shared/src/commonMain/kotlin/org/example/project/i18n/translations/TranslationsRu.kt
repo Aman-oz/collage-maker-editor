@@ -802,4 +802,72 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Обводка",
     "Corner" to
         "Угол",
+    "Alignment" to
+        "Выравнивание",
+    "Capitalized" to
+        "Регистр",
+    "Italic" to
+        "Курсив",
+    "Underline" to
+        "Подчёркнутый",
+    "Strikethrough" to
+        "Зачёркнутый",
+    "Uppercase" to
+        "Прописные",
+    "Capitalize words" to
+        "Каждое слово с заглавной",
+    "Lowercase" to
+        "Строчные",
+    "Letter spacing" to
+        "Межбуквенный интервал",
+    "Line spacing" to
+        "Межстрочный интервал",
+    "Distance" to
+        "Расстояние",
+    "Angle" to
+        "Угол",
+    "Angle {0}°" to
+        "Угол {0}°",
+    "Move up" to
+        "Вверх",
+    "Move down" to
+        "Вниз",
+    "Move left" to
+        "Влево",
+    "Move right" to
+        "Вправо",
+    "Nudge {0}°" to
+        "Сдвиг {0}°",
+    "Arrange" to
+        "Порядок",
+    "Align" to
+        "Выровнять",
+    "Forward" to
+        "Вперёд",
+    "Backward" to
+        "Назад",
+    "To front" to
+        "На передний план",
+    "To back" to
+        "На задний план",
+    "Top" to
+        "Сверху",
+    "Middle" to
+        "Посередине",
+    "Bottom" to
+        "Снизу",
+    "Left" to
+        "Слева",
+    "Center" to
+        "По центру",
+    "Right" to
+        "Справа",
+    "Padding" to
+        "Отступы",
+    "Vertical" to
+        "По вертикали",
+    "Horizontal" to
+        "По горизонтали",
+    "Padding shows around a background color" to
+        "Отступы видны вокруг цвета фона",
 )

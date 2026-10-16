@@ -113,4 +113,51 @@ class TextItemsTest {
         val saved = with(TextItemsSaver) { scope.save(items) }!!
         assertEquals(items, TextItemsSaver.restore(saved))
     }
+
+    @Test
+    fun nudgeAndTurn_moveAStepStayOnThePhotoAndKeepTheTurnReadable() {
+        val item = TextItem(id = 1, centerX = 0.5f, centerY = 0.998f)
+        val moved = nudgeTextItem(item, Offset(TextNudgeStep, TextNudgeStep))
+        assertNear(0.5f + TextNudgeStep, moved.centerX)
+        assertEquals(1f, moved.centerY)
+
+        assertEquals(-179f, turnTextItem(TextItem(id = 1, rotationDegrees = 180f), TextNudgeDegrees).rotationDegrees)
+        assertEquals(180f, turnTextItem(TextItem(id = 1, rotationDegrees = -179f), -TextNudgeDegrees).rotationDegrees)
+        assertEquals(10f, normalizeDegrees(370f))
+        assertEquals(-90f, normalizeDegrees(270f))
+    }
+
+    @Test
+    fun arrangeTextItems_movesUpAndDownTheStack() {
+        val items = (1L..4L).map { TextItem(id = it) }
+        fun ids(list: List<TextItem>) = list.map { it.id }
+        assertEquals(listOf(1L, 3L, 2L, 4L), ids(arrangeTextItems(items, 2, TextLayerMove.Forward)))
+        assertEquals(listOf(2L, 1L, 3L, 4L), ids(arrangeTextItems(items, 2, TextLayerMove.Backward)))
+        assertEquals(listOf(1L, 3L, 4L, 2L), ids(arrangeTextItems(items, 2, TextLayerMove.ToFront)))
+        assertEquals(listOf(3L, 1L, 2L, 4L), ids(arrangeTextItems(items, 3, TextLayerMove.ToBack)))
+        // Already at that end, or not there at all.
+        assertEquals(items, arrangeTextItems(items, 4, TextLayerMove.Forward))
+        assertEquals(items, arrangeTextItems(items, 1, TextLayerMove.ToBack))
+        assertEquals(items, arrangeTextItems(items, 9, TextLayerMove.ToFront))
+    }
+
+    @Test
+    fun alignTextItem_putsTheBoxAgainstAnEdgeOrOnTheMiddle() {
+        val item = TextItem(id = 1, centerX = 0.3f, centerY = 0.7f)
+        assertNear(0.1f, alignTextItem(item, TextPhotoAlign.Top, 0.2f, 0.1f).centerY)
+        assertNear(0.9f, alignTextItem(item, TextPhotoAlign.Bottom, 0.2f, 0.1f).centerY)
+        assertNear(0.2f, alignTextItem(item, TextPhotoAlign.Left, 0.2f, 0.1f).centerX)
+        assertNear(0.8f, alignTextItem(item, TextPhotoAlign.Right, 0.2f, 0.1f).centerX)
+        val centered = alignTextItem(item, TextPhotoAlign.Center, 0.2f, 0.1f)
+        assertNear(0.5f, centered.centerX)
+        assertNear(0.7f, centered.centerY)
+        assertNear(0.5f, alignTextItem(item, TextPhotoAlign.Middle, 0.2f, 0.1f).centerY)
+    }
+
+    @Test
+    fun rotatedHalfSize_swapsOnAQuarterTurn() {
+        val turned = rotatedHalfSize(100f, 40f, 90f)
+        assertNear(20f, turned.width, 1e-3f)
+        assertNear(50f, turned.height, 1e-3f)
+    }
 }

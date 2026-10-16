@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -49,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -90,11 +93,14 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -130,16 +136,25 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import org.koin.compose.koinInject
 
+/**
+ * The Text tool. It doesn't bake: it hands back its texts as [TextLayers] for the editor to keep
+ * live over the photo, so they can be opened again.
+ *
+ * @param initialTexts the texts already on the photo, which the tool opens with.
+ * @param selectedTextId the one of them tapped in the editor, opened selected. Without one, the tool
+ * starts typing a new text after them.
+ */
 @Composable
 internal fun TextTool(
     sourceImage: ImageBitmap,
+    initialTexts: TextLayers?,
+    selectedTextId: Long?,
     isPremium: Boolean,
     onClose: () -> Unit,
-    onApply: (ImageBitmap) -> Unit,
+    onApply: (TextLayers) -> Unit,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val textMeasurer = rememberTextMeasurer()
     val library = koinInject<FontLibrary>()
     // Parsed as the tool opens, so the catalog is ready by the time the Font panel is.
     val catalog by produceState<FontCatalog?>(null) { value = library.catalog() }
@@ -147,35 +162,20 @@ internal fun TextTool(
     val recent by library.recent.collectAsState()
     TextContent(
         sourceImage = sourceImage,
+        initialTexts = initialTexts,
+        selectedTextId = selectedTextId,
         isPremium = isPremium,
         fonts = TextFonts(catalog, favorites, recent, library::toggleFavorite, library::markUsed),
         onBack = onClose,
         onOpenPremium = onOpenPremium,
-        onDone = { edit ->
-            onApply(
-                bakeTextItems(
-                    source = sourceImage,
-                    textMeasurer = textMeasurer,
-                    texts = edit.texts,
-                    previewCanvasWidthPx = edit.canvasWidthPx,
-                    previewMaxTextWidthPx = edit.maxTextWidthPx,
-                ),
-            )
-        },
+        onDone = onApply,
         modifier = modifier,
     )
 }
 
-/** Everything [bakeTextItems] needs from the preview, handed over on finish. */
-private class TextEdit(
-    val texts: List<BakeableText>,
-    val canvasWidthPx: Float,
-    val maxTextWidthPx: Int,
-)
-
 /** The padding around the words on the photo; the bake wraps lines at the photo's width less this. */
-private val TextLayerPaddingX = 14.dp
-private val TextLayerPaddingY = 6.dp
+internal val TextLayerPaddingX = 14.dp
+internal val TextLayerPaddingY = 6.dp
 
 /** The gap between the selected text and its toolbar. */
 private val ToolbarGap = 10.dp
@@ -201,31 +201,38 @@ private class TextMetrics(val outer: IntSize, val area: IntSize, val wordsHeight
  * types in it. The options bar, the Font and Font size panels and the keyboard bar all edit the
  * active text: the one selected or being typed in, else the last one.
  *
- * Opening the tool goes straight into typing a first text, the keyboard coming up with
+ * Opening the tool from the toolbar goes straight into typing a new text, the keyboard coming up with
  * [TextKeyboardBar] riding on top of it. The keyboard bar's ⌄, or the Font option, slides the
- * keyboard down and the [TextFontPanel] up; Font size slides up [TextSizePanel]. The panel keeps one
- * height whichever it shows, so the photo never moves between them.
+ * keyboard down and the [TextFontPanel] up; Font size, Opacity and Spacing slide up a
+ * [TextSliderPanel], Padding [TextPaddingPanel], Format [TextFormatPanel], Shadow [TextShadowPanel], Curve
+ * [TextCurvePanel], Position [TextPositionPanel], Nudge [TextNudgePanel]. The panel keeps one height
+ * whichever it shows, so the photo never moves between them.
  */
 @Composable
 private fun TextContent(
     sourceImage: ImageBitmap?,
+    initialTexts: TextLayers?,
+    selectedTextId: Long?,
     isPremium: Boolean,
     fonts: TextFonts,
     onBack: () -> Unit,
     onOpenPremium: () -> Unit,
-    onDone: (TextEdit) -> Unit,
+    onDone: (TextLayers) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     // The edit itself is saveable, unlike most tools': the paywall covers the editor, which drops
     // plain `remember` state, and the texts made before it have to still be there after. Typing is
-    // not: coming back, the texts are simply there. A fresh tool starts out typing its first text.
+    // not: coming back, the texts are simply there. The tool opens on the texts already on the photo;
+    // opened from the toolbar rather than a tap on one of them, it starts typing a new one after them.
+    val firstNewId = (initialTexts?.items?.maxOfOrNull { it.id } ?: -1L) + 1L
     var items by rememberSaveable(stateSaver = TextItemsSaver) {
-        mutableStateOf(if (sourceImage != null) listOf(TextItem(id = 0)) else emptyList())
+        val existing = initialTexts?.items.orEmpty()
+        mutableStateOf(if (sourceImage != null && selectedTextId == null) existing + TextItem(id = firstNewId) else existing)
     }
-    var nextId by rememberSaveable { mutableLongStateOf(1L) }
-    var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var editingId by remember { mutableStateOf(items.singleOrNull()?.takeIf { it.content.isEmpty() }?.id) }
+    var nextId by rememberSaveable { mutableLongStateOf(firstNewId + 1L) }
+    var selectedId by rememberSaveable { mutableStateOf(selectedTextId) }
+    var editingId by remember { mutableStateOf(items.lastOrNull()?.takeIf { it.content.isEmpty() }?.id) }
     // Set once text that was already written is gone back into (a tap on the selected text, or Edit).
     var reEdited by rememberSaveable { mutableStateOf(false) }
     // The paywall is an offer, not a gate: it is shown once per edit, on the first finish with a
@@ -234,14 +241,33 @@ private fun TextContent(
     var photoSizePx by remember { mutableStateOf(IntSize.Zero) }
     val metrics = remember { mutableStateMapOf<Long, TextMetrics>() }
 
+    // The texts already on the photo were sized against the photo as the tool showed it then; shown
+    // at another width now (the phone turned since), they are scaled once to keep their size on it.
+    // Saveable, so they aren't scaled again after the paywall.
+    var initialTextsFitted by rememberSaveable { mutableStateOf(initialTexts == null) }
+    LaunchedEffect(photoSizePx.width) {
+        val initial = initialTexts ?: return@LaunchedEffect
+        if (initialTextsFitted || photoSizePx.width <= 0 || initial.canvasWidthPx <= 0f) return@LaunchedEffect
+        initialTextsFitted = true
+        val factor = photoSizePx.width / initial.canvasWidthPx
+        if (abs(factor - 1f) < 0.01f) return@LaunchedEffect
+        val ids = initial.items.map { it.id }.toSet()
+        items = items.map { if (it.id in ids) scaleTextItem(it, factor) else it }
+    }
+
     val activeId = editingId ?: selectedId ?: items.lastOrNull()?.id
     val active = items.firstOrNull { it.id == activeId }
     fun update(id: Long?, change: (TextItem) -> TextItem) {
         if (id != null) items = items.map { if (it.id == id) change(it) else it }
     }
 
-    // Every family in use, downloaded once (FontLoader caches it); the default font until then.
-    val loadedFonts = remember { mutableStateMapOf<String, FontFamily>() }
+    // Every family in use, downloaded once (FontLoader caches it); the default font until then. The
+    // texts already on the photo bring theirs loaded.
+    val loadedFonts = remember {
+        mutableStateMapOf<String, FontFamily>().apply {
+            initialTexts?.texts?.forEach { text -> text.item.fontFamily?.let { put(it, text.font.fontFamily) } }
+        }
+    }
     val families = items.mapNotNull { it.fontFamily }.toSet()
     LaunchedEffect(families, fonts.catalog) {
         for (family in families) {
@@ -258,6 +284,8 @@ private fun TextContent(
     var panelChanged by remember { mutableStateOf(false) }
     // The text the Font or Font size panel is editing, as it was when the panel opened: its ✕ puts it back.
     var beforePanel by remember { mutableStateOf<TextItem?>(null) }
+    // And the order of the texts then, which the Position panel's Arrange changes.
+    var orderBeforePanel by remember { mutableStateOf(emptyList<Long>()) }
     val fontBrowser = remember { FontBrowserState() }
     // Where the Font panel's category title / the toolbar's ⋯ is, in root coordinates, while its menu is open.
     var categoryMenuAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -297,12 +325,18 @@ private fun TextContent(
         // Puts the keyboard away as the panel rises in its place.
         focusManager.clearFocus()
         beforePanel = active
+        orderBeforePanel = items.map { it.id }
         panelChanged = true
         panel = target
     }
     val closePanel = { revert: Boolean ->
         val before = beforePanel
         if (revert && before != null) update(before.id) { before }
+        if (revert) {
+            // A text duplicated meanwhile (from the selection toolbar) stays on top.
+            val order = orderBeforePanel
+            items = items.sortedBy { item -> order.indexOf(item.id).let { if (it < 0) Int.MAX_VALUE else it } }
+        }
         categoryMenuAnchor = null
         beforePanel = null
         panel = TextPanel.Options
@@ -310,11 +344,14 @@ private fun TextContent(
     val pickFont = { font: FontEntry -> update(activeId) { it.copy(fontFamily = font.family) } }
     // The Color panel's tab, kept while the panel closes and opens again.
     var colorTab by remember { mutableStateOf(TextColorTab.Text) }
-    // The keyboard bar's colour wheel always colours the words; the Color panel's, its tab's colour.
+    // The keyboard bar's colour wheel always colours the words; the Color panel's, its tab's colour;
+    // the Shadow panel's, the shadow.
     val pickingPanelColor = panel == TextPanel.Color
+    val pickingShadowColor = panel == TextPanel.Shadow
     val pickColor = rememberColorPickerLauncher(
         initial = Color(
             when {
+                pickingShadowColor -> active?.shadowArgb
                 !pickingPanelColor || colorTab == TextColorTab.Text -> active?.colorArgb
                 colorTab == TextColorTab.Background -> active?.backgroundArgb
                 else -> active?.strokeArgb
@@ -324,6 +361,7 @@ private fun TextContent(
             val argb = color.toArgb()
             update(activeId) {
                 when {
+                    pickingShadowColor -> it.copy(shadowArgb = argb)
                     !pickingPanelColor || colorTab == TextColorTab.Text -> it.copy(colorArgb = argb)
                     colorTab == TextColorTab.Background -> it.copy(backgroundArgb = argb)
                     else -> it.copy(strokeArgb = argb)
@@ -360,16 +398,18 @@ private fun TextContent(
         val written = items.filter { it.content.isNotBlank() }
         val premiumEdit = written.any { isPremiumTextEdit(fontOf(it), Color(it.colorArgb), it.sizeSp, reEdited) }
         when {
-            written.isEmpty() || sourceImage == null -> onBack()
+            // Nothing written, and nothing there before to take away.
+            (written.isEmpty() && initialTexts?.items.isNullOrEmpty()) || sourceImage == null -> onBack()
             premiumEdit && !isPremium && !paywallShown -> {
                 paywallShown = true
                 onOpenPremium()
             }
             else -> onDone(
-                TextEdit(
+                TextLayers(
                     texts = written.map { BakeableText(it, fontOf(it)) },
                     canvasWidthPx = photoSizePx.width.toFloat(),
                     maxTextWidthPx = photoSizePx.width - with(density) { (TextLayerPaddingX * 2).roundToPx() },
+                    density = density,
                 ),
             )
         }
@@ -448,14 +488,7 @@ private fun TextContent(
                                     val font = fontOf(item)
                                     TextLayer(
                                         item = item,
-                                        style = TextStyle(
-                                            fontFamily = font.fontFamily,
-                                            fontWeight = font.fontWeight,
-                                            fontStyle = font.fontStyle,
-                                            fontSize = item.sizeSp.sp,
-                                            color = item.textColor,
-                                            textAlign = item.alignment.textAlign,
-                                        ),
+                                        style = item.textStyle(font, density),
                                         editing = editingId == item.id,
                                         onContentChange = { text -> update(item.id) { it.copy(content = text) } },
                                         onEditingEnd = {
@@ -467,8 +500,18 @@ private fun TextContent(
                                         maxTextWidthPx = maxTextWidthPx,
                                         onMeasured = { metrics[item.id] = it },
                                         modifier = Modifier
+                                            // Measured free of the photo's bounds: a box grown past them
+                                            // by its plate keeps its own size (and its words their room
+                                            // to wrap, which the text area sets) rather than being
+                                            // squeezed to the photo and shifted off its place.
+                                            .wrapContentSize(Alignment.TopStart, unbounded = true)
                                             .offset { topLeftOf(item) }
-                                            .graphicsLayer { rotationZ = item.rotationDegrees },
+                                            // Alpha on the layer fades the text as one picture (as the bake's
+                                            // layer does), so the outline doesn't show through the words.
+                                            .graphicsLayer {
+                                                rotationZ = item.rotationDegrees
+                                                alpha = item.opacity
+                                            },
                                     )
                                 }
                             }
@@ -536,7 +579,11 @@ private fun TextContent(
                                     .offset {
                                         // Over the turned text's bounding box, or under it when there's
                                         // no room above.
-                                        val halfHeight = rotatedHalfHeight(selectedMetrics.outer, selected.rotationDegrees)
+                                        val halfHeight = rotatedHalfSize(
+                                            selectedMetrics.outer.width.toFloat(),
+                                            selectedMetrics.outer.height.toFloat(),
+                                            selected.rotationDegrees,
+                                        ).height
                                         val centerX = selected.centerX * photoSizePx.width
                                         val centerY = selected.centerY * photoSizePx.height
                                         val above = centerY - halfHeight - gapPx - toolbarHeightPx
@@ -560,70 +607,155 @@ private fun TextContent(
             }
 
             ToolPanel {
-                AnimatedContent(
-                    targetState = panel,
-                    // The editor's two beats: the outgoing view drops away first (and so does the
-                    // keyboard, when it is what the Font panel replaces), then the incoming one rises.
-                    transitionSpec = {
-                        (slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it } +
-                            fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
-                            (slideOutVertically(dropSpec()) { it } + fadeOut(dropSpec()))
-                    },
-                    contentAlignment = Alignment.BottomCenter,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clipToBounds()
-                        .then(if (sideBySide) Modifier.fillMaxHeight() else Modifier.height(TextPanelHeight)),
-                ) { shown ->
-                    when (shown) {
-                        TextPanel.Options -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                            TextOptionsBar(
-                                onOptionSelected = { option ->
-                                    when (option) {
-                                        TextOption.Edit -> startEditing(activeId)
-                                        TextOption.Font -> openPanel(TextPanel.Fonts)
-                                        TextOption.FontSize -> if (active != null) openPanel(TextPanel.FontSize)
-                                        TextOption.Color -> if (active != null) openPanel(TextPanel.Color)
-                                        // Their panels come next.
-                                        else -> Unit
+                CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
+                    AnimatedContent(
+                        targetState = panel,
+                        // The editor's two beats: the outgoing view drops away first (and so does the
+                        // keyboard, when it is what the Font panel replaces), then the incoming one rises.
+                        transitionSpec = {
+                            (slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it } +
+                                fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
+                                (slideOutVertically(dropSpec()) { it } + fadeOut(dropSpec()))
+                        },
+                        contentAlignment = Alignment.BottomCenter,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clipToBounds()
+                            .then(if (sideBySide) Modifier.fillMaxHeight() else Modifier.height(TextPanelHeight)),
+                    ) { shown ->
+                        when (shown) {
+                            TextPanel.Options -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                                TextOptionsBar(
+                                    onOptionSelected = { option ->
+                                        when (option) {
+                                            TextOption.Edit -> startEditing(activeId)
+                                            TextOption.Font -> openPanel(TextPanel.Fonts)
+                                            TextOption.FontSize -> if (active != null) openPanel(TextPanel.FontSize)
+                                            TextOption.Color -> if (active != null) openPanel(TextPanel.Color)
+                                            TextOption.Curve -> if (active != null) openPanel(TextPanel.Curve)
+                                            TextOption.Format -> if (active != null) openPanel(TextPanel.Format)
+                                            TextOption.Opacity -> if (active != null) openPanel(TextPanel.Opacity)
+                                            TextOption.Spacing -> if (active != null) openPanel(TextPanel.Spacing)
+                                            TextOption.Padding -> if (active != null) openPanel(TextPanel.Padding)
+                                            TextOption.Nudge -> if (active != null) openPanel(TextPanel.Nudge)
+                                            TextOption.Position -> if (active != null) openPanel(TextPanel.Position)
+                                            TextOption.Shadow -> if (active != null) {
+                                                openPanel(TextPanel.Shadow)
+                                                // A text without a shadow gets one to work on; the ✕ takes it away again.
+                                                if (active.shadowOpacity <= 0f) update(activeId) { it.copy(shadowOpacity = DefaultShadowOpacity) }
+                                            }
+                                        }
+                                    },
+                                    onClose = finish,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                    // Back from a panel the bar waits out the first beat before it rises.
+                                    cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
+                                )
+                            }
+                            TextPanel.Fonts -> TextFontPanel(
+                                fonts = fonts,
+                                browser = fontBrowser,
+                                categoryMenuOpen = categoryMenuAnchor != null,
+                                onOpenCategoryMenu = { categoryMenuAnchor = it },
+                                selectedFamily = active?.fontFamily,
+                                onFontSelected = pickFont,
+                                onClose = { closePanel(true) },
+                                onDone = {
+                                    active?.fontFamily?.let(fonts.onUsed)
+                                    closePanel(false)
+                                },
+                            )
+                            TextPanel.FontSize -> TextSliderPanel(
+                                title = tr("Font size"),
+                                sliders = listOf(
+                                    PanelSlider(tr("Size"), textSizeToSlider(active?.sizeSp ?: TextSizeDefault)) { value ->
+                                        update(activeId) { scaleTextItem(it, sliderToTextSize(value) / it.sizeSp) }
+                                    },
+                                ),
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Opacity -> TextSliderPanel(
+                                title = tr("Opacity"),
+                                sliders = listOf(
+                                    PanelSlider(tr("Opacity"), (active?.opacity ?: 1f) * 100f) { value ->
+                                        update(activeId) { it.copy(opacity = value / 100f) }
+                                    },
+                                ),
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Spacing -> TextSliderPanel(
+                                title = tr("Spacing"),
+                                sliders = listOf(
+                                    PanelSlider(tr("Letter spacing"), active?.letterSpacing ?: TextSpacingNormal) { value ->
+                                        update(activeId) { it.copy(letterSpacing = value) }
+                                    },
+                                    PanelSlider(tr("Line spacing"), active?.lineSpacing ?: TextSpacingNormal) { value ->
+                                        update(activeId) { it.copy(lineSpacing = value) }
+                                    },
+                                ),
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Shadow -> TextShadowPanel(
+                                item = active,
+                                onChange = { change -> update(activeId, change) },
+                                onPickCustom = pickColor,
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Nudge -> TextNudgePanel(
+                                item = active,
+                                // A locked text stays where it is.
+                                onChange = { change -> update(activeId) { if (it.locked) it else change(it) } },
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Position -> TextPositionPanel(
+                                onArrange = { move -> activeId?.let { id -> items = arrangeTextItems(items, id, move) } },
+                                onAlign = { align ->
+                                    val measured = activeId?.let { metrics[it] }
+                                    if (measured != null && photoSizePx.width > 0 && photoSizePx.height > 0) {
+                                        // A locked text stays where it is.
+                                        update(activeId) {
+                                            if (it.locked) return@update it
+                                            val half = rotatedHalfSize(measured.outer.width.toFloat(), measured.outer.height.toFloat(), it.rotationDegrees)
+                                            alignTextItem(it, align, half.width / photoSizePx.width, half.height / photoSizePx.height)
+                                        }
                                     }
                                 },
-                                onClose = finish,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                                // Back from a panel the bar waits out the first beat before it rises.
-                                cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Padding -> TextPaddingPanel(
+                                item = active,
+                                onChange = { change -> update(activeId, change) },
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Format -> TextFormatPanel(
+                                item = active,
+                                onChange = { change -> update(activeId, change) },
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Curve -> TextCurvePanel(
+                                value = active?.curve ?: TextCurveStraight,
+                                onValueChange = { value -> update(activeId) { it.copy(curve = value) } },
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
+                            )
+                            TextPanel.Color -> TextColorPanel(
+                                item = active,
+                                tab = colorTab,
+                                onTabSelected = { colorTab = it },
+                                onChange = { change -> update(activeId, change) },
+                                onPickCustom = pickColor,
+                                onClose = { closePanel(true) },
+                                onDone = { closePanel(false) },
                             )
                         }
-                        TextPanel.Fonts -> TextFontPanel(
-                            fonts = fonts,
-                            browser = fontBrowser,
-                            categoryMenuOpen = categoryMenuAnchor != null,
-                            onOpenCategoryMenu = { categoryMenuAnchor = it },
-                            selectedFamily = active?.fontFamily,
-                            onFontSelected = pickFont,
-                            onClose = { closePanel(true) },
-                            onDone = {
-                                active?.fontFamily?.let(fonts.onUsed)
-                                closePanel(false)
-                            },
-                        )
-                        TextPanel.FontSize -> TextSizePanel(
-                            value = textSizeToSlider(active?.sizeSp ?: TextSizeDefault),
-                            onValueChange = { value ->
-                                update(activeId) { scaleTextItem(it, sliderToTextSize(value) / it.sizeSp) }
-                            },
-                            onClose = { closePanel(true) },
-                            onDone = { closePanel(false) },
-                        )
-                        TextPanel.Color -> TextColorPanel(
-                            item = active,
-                            tab = colorTab,
-                            onTabSelected = { colorTab = it },
-                            onChange = { change -> update(activeId, change) },
-                            onPickCustom = pickColor,
-                            onClose = { closePanel(true) },
-                            onDone = { closePanel(false) },
-                        )
                     }
                 }
             }
@@ -687,14 +819,8 @@ private fun TextContent(
     }
 }
 
-/** Half the height of the upright box around a [size] box turned by [degrees]. */
-private fun rotatedHalfHeight(size: IntSize, degrees: Float): Float {
-    val radians = degrees * kotlin.math.PI.toFloat() / 180f
-    return abs(size.width / 2f * sin(radians)) + abs(size.height / 2f * cos(radians))
-}
-
-/** What the tool's panel shows: the floating options bar, or the Font, Font size or Color panel. */
-private enum class TextPanel { Options, Fonts, FontSize, Color }
+/** What the tool's panel shows: the floating options bar, or one of the options' panels. */
+private enum class TextPanel { Options, Fonts, FontSize, Color, Opacity, Format, Spacing, Padding, Shadow, Curve, Position, Nudge }
 
 /** Tall enough for the Font panel's title, four rows of fonts and its category bar. */
 private val TextPanelHeight = 292.dp
@@ -730,6 +856,17 @@ private fun TextLayer(
     val currentOnMeasured by rememberUpdatedState(onMeasured)
     LaunchedEffect(outer, area, wordsHeight) { currentOnMeasured(TextMetrics(outer, area, wordsHeight)) }
 
+    val bend = remember(wordsLayout, item.curve, editing) { if (editing) null else wordsLayout?.let { textBendOf(it, item.curve) } }
+    // A bent text is taller than its straight words; the box grows to take it in, evenly above and
+    // below so its centre doesn't move. Only the height: a wider box would leave the words less room
+    // to wrap in than the bake gives them.
+    val bendPaddingY = with(density) { ((bend?.extraHeight ?: 0f) / 2f).toDp() }
+    // So does a plate whose padding reaches past the box's own, on every side alike.
+    val plateOverflow = with(density) {
+        item.plateOverflow(item.sizeSp.sp.toPx(), TextLayerPaddingX.toPx(), TextLayerPaddingY.toPx())
+    }
+    val platePaddingX = with(density) { plateOverflow.width.toDp() }
+    val platePaddingY = with(density) { plateOverflow.height.toDp() }
     val boxWidthDp = item.boxWidth?.let { with(density) { (it * photoWidthPx).toDp() } }
     val boxHeightDp = item.boxHeight?.let { with(density) { (it * photoWidthPx).toDp() } }
     val areaModifier = Modifier
@@ -738,8 +875,19 @@ private fun TextLayer(
         .onSizeChanged { area = it }
     // Fills a set text area, so the lines' alignment is within it, as the bake measures them.
     val wordsModifier = (if (boxWidthDp != null) Modifier.fillMaxWidth() else Modifier)
-        // The plate and outline, from the words' own layout, exactly as the bake draws them.
-        .drawBehind { wordsLayout?.takeIf { item.content.isNotBlank() }?.let { drawTextUnderlay(item, it, Offset.Zero) } }
+        // The plate, outline and words from the words' own layout, exactly as the bake draws them.
+        // Typing shows them straight: a text field can't be bent.
+        .drawWithContent {
+            val layout = wordsLayout?.takeIf { item.content.isNotBlank() }
+            when {
+                layout == null -> drawContent()
+                bend == null -> {
+                    drawTextUnderlay(item, layout, Offset.Zero)
+                    drawContent()
+                }
+                else -> drawTextItem(item, layout, Offset.Zero, bend)
+            }
+        }
     val onWordsLayout = { layout: TextLayoutResult ->
         wordsHeight = layout.size.height
         wordsLayout = layout
@@ -749,7 +897,7 @@ private fun TextLayer(
         modifier = modifier
             .onSizeChanged { outer = it }
             .then(if (editing) Modifier.dashedPill(color = Color.White.copy(alpha = 0.9f)) else Modifier)
-            .padding(horizontal = TextLayerPaddingX, vertical = TextLayerPaddingY)
+            .padding(horizontal = TextLayerPaddingX + platePaddingX, vertical = TextLayerPaddingY + bendPaddingY + platePaddingY)
             .then(areaModifier),
         contentAlignment = Alignment.Center,
     ) {
@@ -771,6 +919,9 @@ private fun TextLayer(
                 value = item.content,
                 onValueChange = onContentChange,
                 textStyle = style,
+                // Typed as they come, shown in the text's case: the field holds what was typed, so
+                // changing the case later still has the original letters to work from.
+                visualTransformation = if (item.case == TextCase.None) VisualTransformation.None else TextCaseTransformation(item.case),
                 cursorBrush = SolidColor(style.color),
                 onTextLayout = onWordsLayout,
                 // Return starts a new line; the keyboard bar's ⌄ or a tap off the text ends typing.
@@ -794,13 +945,22 @@ private fun TextLayer(
             )
         } else {
             Text(
-                text = item.content,
+                text = item.shownContent,
                 style = style,
                 onTextLayout = onWordsLayout,
                 modifier = wordsModifier,
             )
         }
     }
+}
+
+/** Shows a text field's words in [case]; [applyTextCase] keeps their length, so offsets map one to one. */
+private class TextCaseTransformation(private val case: TextCase) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText =
+        TransformedText(AnnotatedString(applyTextCase(text.text, case)), OffsetMapping.Identity)
+
+    override fun equals(other: Any?): Boolean = other is TextCaseTransformation && other.case == case
+    override fun hashCode(): Int = case.hashCode()
 }
 
 @Composable
@@ -1001,6 +1161,8 @@ private fun TextScreenPreview() {
     ThemePreviews {
         TextContent(
             sourceImage = ImageBitmap(360, 480),
+            initialTexts = null,
+            selectedTextId = null,
             isPremium = false,
             fonts = TextFonts.Empty,
             onBack = {},

@@ -802,4 +802,72 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Kontur",
     "Corner" to
         "Ecke",
+    "Alignment" to
+        "Ausrichtung",
+    "Capitalized" to
+        "Groß-/Kleinschreibung",
+    "Italic" to
+        "Kursiv",
+    "Underline" to
+        "Unterstrichen",
+    "Strikethrough" to
+        "Durchgestrichen",
+    "Uppercase" to
+        "Großbuchstaben",
+    "Capitalize words" to
+        "Wörter großschreiben",
+    "Lowercase" to
+        "Kleinbuchstaben",
+    "Letter spacing" to
+        "Zeichenabstand",
+    "Line spacing" to
+        "Zeilenabstand",
+    "Distance" to
+        "Abstand",
+    "Angle" to
+        "Winkel",
+    "Angle {0}°" to
+        "Winkel {0}°",
+    "Move up" to
+        "Nach oben",
+    "Move down" to
+        "Nach unten",
+    "Move left" to
+        "Nach links",
+    "Move right" to
+        "Nach rechts",
+    "Nudge {0}°" to
+        "Feinjustieren {0}°",
+    "Arrange" to
+        "Anordnen",
+    "Align" to
+        "Ausrichten",
+    "Forward" to
+        "Nach vorne",
+    "Backward" to
+        "Nach hinten",
+    "To front" to
+        "Ganz nach vorne",
+    "To back" to
+        "Ganz nach hinten",
+    "Top" to
+        "Oben",
+    "Middle" to
+        "Mitte",
+    "Bottom" to
+        "Unten",
+    "Left" to
+        "Links",
+    "Center" to
+        "Zentriert",
+    "Right" to
+        "Rechts",
+    "Padding" to
+        "Innenabstand",
+    "Vertical" to
+        "Vertikal",
+    "Horizontal" to
+        "Horizontal",
+    "Padding shows around a background color" to
+        "Der Innenabstand zeigt sich um eine Hintergrundfarbe",
 )

@@ -802,4 +802,72 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "테두리",
     "Corner" to
         "모서리",
+    "Alignment" to
+        "정렬",
+    "Capitalized" to
+        "대소문자",
+    "Italic" to
+        "기울임꼴",
+    "Underline" to
+        "밑줄",
+    "Strikethrough" to
+        "취소선",
+    "Uppercase" to
+        "대문자",
+    "Capitalize words" to
+        "단어 첫 글자 대문자",
+    "Lowercase" to
+        "소문자",
+    "Letter spacing" to
+        "자간",
+    "Line spacing" to
+        "행간",
+    "Distance" to
+        "거리",
+    "Angle" to
+        "각도",
+    "Angle {0}°" to
+        "각도 {0}°",
+    "Move up" to
+        "위로 이동",
+    "Move down" to
+        "아래로 이동",
+    "Move left" to
+        "왼쪽으로 이동",
+    "Move right" to
+        "오른쪽으로 이동",
+    "Nudge {0}°" to
+        "미세 이동 {0}°",
+    "Arrange" to
+        "정렬 순서",
+    "Align" to
+        "맞춤",
+    "Forward" to
+        "앞으로",
+    "Backward" to
+        "뒤로",
+    "To front" to
+        "맨 앞으로",
+    "To back" to
+        "맨 뒤로",
+    "Top" to
+        "위쪽",
+    "Middle" to
+        "가운데",
+    "Bottom" to
+        "아래쪽",
+    "Left" to
+        "왼쪽",
+    "Center" to
+        "중앙",
+    "Right" to
+        "오른쪽",
+    "Padding" to
+        "여백",
+    "Vertical" to
+        "세로",
+    "Horizontal" to
+        "가로",
+    "Padding shows around a background color" to
+        "여백은 배경색 주위에 표시됩니다",
 )

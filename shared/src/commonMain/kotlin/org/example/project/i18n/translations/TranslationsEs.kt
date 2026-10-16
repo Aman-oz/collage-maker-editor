@@ -802,4 +802,72 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Contorno",
     "Corner" to
         "Esquina",
+    "Alignment" to
+        "Alineación",
+    "Capitalized" to
+        "Mayúsculas",
+    "Italic" to
+        "Cursiva",
+    "Underline" to
+        "Subrayado",
+    "Strikethrough" to
+        "Tachado",
+    "Uppercase" to
+        "Mayúsculas",
+    "Capitalize words" to
+        "Primera letra en mayúscula",
+    "Lowercase" to
+        "Minúsculas",
+    "Letter spacing" to
+        "Espaciado entre letras",
+    "Line spacing" to
+        "Interlineado",
+    "Distance" to
+        "Distancia",
+    "Angle" to
+        "Ángulo",
+    "Angle {0}°" to
+        "Ángulo {0}°",
+    "Move up" to
+        "Mover arriba",
+    "Move down" to
+        "Mover abajo",
+    "Move left" to
+        "Mover a la izquierda",
+    "Move right" to
+        "Mover a la derecha",
+    "Nudge {0}°" to
+        "Ajuste fino {0}°",
+    "Arrange" to
+        "Organizar",
+    "Align" to
+        "Alinear",
+    "Forward" to
+        "Adelante",
+    "Backward" to
+        "Atrás",
+    "To front" to
+        "Al frente",
+    "To back" to
+        "Al fondo",
+    "Top" to
+        "Arriba",
+    "Middle" to
+        "Medio",
+    "Bottom" to
+        "Abajo",
+    "Left" to
+        "Izquierda",
+    "Center" to
+        "Centro",
+    "Right" to
+        "Derecha",
+    "Padding" to
+        "Relleno",
+    "Vertical" to
+        "Vertical",
+    "Horizontal" to
+        "Horizontal",
+    "Padding shows around a background color" to
+        "El relleno se ve alrededor de un color de fondo",
 )

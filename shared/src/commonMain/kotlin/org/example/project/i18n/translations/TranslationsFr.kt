@@ -802,4 +802,72 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Contour",
     "Corner" to
         "Coin",
+    "Alignment" to
+        "Alignement",
+    "Capitalized" to
+        "Majuscules",
+    "Italic" to
+        "Italique",
+    "Underline" to
+        "Souligné",
+    "Strikethrough" to
+        "Barré",
+    "Uppercase" to
+        "Majuscules",
+    "Capitalize words" to
+        "Majuscule à chaque mot",
+    "Lowercase" to
+        "Minuscules",
+    "Letter spacing" to
+        "Espacement des lettres",
+    "Line spacing" to
+        "Interligne",
+    "Distance" to
+        "Distance",
+    "Angle" to
+        "Angle",
+    "Angle {0}°" to
+        "Angle {0}°",
+    "Move up" to
+        "Vers le haut",
+    "Move down" to
+        "Vers le bas",
+    "Move left" to
+        "Vers la gauche",
+    "Move right" to
+        "Vers la droite",
+    "Nudge {0}°" to
+        "Ajuster {0}°",
+    "Arrange" to
+        "Disposer",
+    "Align" to
+        "Aligner",
+    "Forward" to
+        "Avancer",
+    "Backward" to
+        "Reculer",
+    "To front" to
+        "Premier plan",
+    "To back" to
+        "Arrière-plan",
+    "Top" to
+        "Haut",
+    "Middle" to
+        "Milieu",
+    "Bottom" to
+        "Bas",
+    "Left" to
+        "Gauche",
+    "Center" to
+        "Centre",
+    "Right" to
+        "Droite",
+    "Padding" to
+        "Marge intérieure",
+    "Vertical" to
+        "Vertical",
+    "Horizontal" to
+        "Horizontal",
+    "Padding shows around a background color" to
+        "La marge intérieure apparaît autour d'une couleur de fond",
 )

@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -114,8 +116,16 @@ internal fun TextColorPanel(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
-        ToolTopBar(title = tr("Color"), onClose = onClose, onDone = onDone)
+    // Beside the photo, the tabs and sliders go straight under the bar and the swatches fill the rest
+    // of the tall column as a grid that scrolls down; under it, two rows that scroll sideways.
+    val sideBySide = LocalTextPanelSideBySide.current
+    TextPanelColumn(
+        title = tr("Color"),
+        onClose = onClose,
+        onDone = onDone,
+        modifier = modifier,
+        placement = TextPanelPlacement.Fill,
+    ) {
         TextColorTabs(
             selected = tab,
             onSelected = onTabSelected,
@@ -139,25 +149,61 @@ internal fun TextColorPanel(
             }
         }
         Spacer(modifier = Modifier.height(6.dp))
+        TextSwatchGrid(
+            selectedArgb = selectedArgb,
+            onSelected = setColor,
+            onPickCustom = onPickCustom,
+            vertical = sideBySide,
+            modifier = if (sideBySide) Modifier.weight(1f) else Modifier,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+/**
+ * [TextPanelColors], the colour wheel first ([onPickCustom]); the wheel is the one ringed while
+ * [selectedArgb] is a colour outside them. Two rows that scroll sideways, or, [vertical], as many
+ * columns as fit, scrolling down through the room [modifier] gives it. The Color and Shadow panels'
+ * swatches.
+ */
+@Composable
+internal fun TextSwatchGrid(
+    selectedArgb: Int?,
+    onSelected: (Color) -> Unit,
+    onPickCustom: () -> Unit,
+    modifier: Modifier = Modifier,
+    vertical: Boolean = false,
+) {
+    val swatches: LazyGridScope.() -> Unit = {
+        item {
+            ColorSwatch(selected = selectedArgb != null && selectedArgb !in TextPanelColorArgbs, onClick = onPickCustom) {
+                ColorPickerFill(it)
+            }
+        }
+        items(TextPanelColors) { color ->
+            ColorSwatch(selected = color.toArgb() == selectedArgb, onClick = { onSelected(color) }) {
+                Box(modifier = it.background(color))
+            }
+        }
+    }
+    if (vertical) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(SwatchSize),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = modifier.fillMaxWidth(),
+            content = swatches,
+        )
+    } else {
         LazyHorizontalGrid(
             rows = GridCells.Fixed(2),
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.fillMaxWidth().height(SwatchSize * 2 + 6.dp),
-        ) {
-            item {
-                ColorSwatch(selected = selectedArgb != null && selectedArgb !in TextPanelColorArgbs, onClick = onPickCustom) {
-                    ColorPickerFill(it)
-                }
-            }
-            items(TextPanelColors) { color ->
-                ColorSwatch(selected = color.toArgb() == selectedArgb, onClick = { setColor(color) }) {
-                    Box(modifier = it.background(color))
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
+            modifier = modifier.fillMaxWidth().height(SwatchSize * 2 + 6.dp),
+            content = swatches,
+        )
     }
 }
 

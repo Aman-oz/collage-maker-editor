@@ -21,12 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Pending
-import androidx.compose.material.icons.outlined.Recycling
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +57,11 @@ import androidx.compose.ui.unit.sp
 import io.github.fletchmckee.liquid.LiquidState
 import io.github.fletchmckee.liquid.liquid
 import org.example.project.i18n.tr
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_delete
+import photocollagemaker.shared.generated.resources.ic_duplicate
+import photocollagemaker.shared.generated.resources.ic_reset
 
 /** The purple of the selection's handles. */
 private val HandleColor = Color(0xFF8B5CF6)
@@ -268,8 +270,8 @@ internal fun TextSelectionToolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        ToolbarButton(Icons.Outlined.LibraryAdd, tr("Duplicate"), onDuplicate)
-        ToolbarButton(Icons.Outlined.Delete, tr("Delete"), onDelete)
+        ToolbarButton(vectorResource(Res.drawable.ic_duplicate), tr("Duplicate"), onDuplicate)
+        ToolbarButton(vectorResource(Res.drawable.ic_delete), tr("Delete"), onDelete)
         ToolbarButton(
             icon = Icons.Outlined.Pending,
             contentDescription = tr("More"),
@@ -326,12 +328,12 @@ internal fun TextMoreMenu(
     ) { cascade ->
         actions.forEachIndexed { index, action ->
             val (label, icon) = when (action) {
-                TextMoreAction.Duplicate -> tr("Duplicate") to Icons.Outlined.LibraryAdd
-                TextMoreAction.Reset -> tr("Reset") to Icons.Outlined.Recycling
+                TextMoreAction.Duplicate -> tr("Duplicate") to vectorResource(Res.drawable.ic_duplicate)
+                TextMoreAction.Reset -> tr("Reset") to vectorResource(Res.drawable.ic_reset)
                 TextMoreAction.Copy -> tr("Copy") to Icons.Outlined.ContentCopy
                 TextMoreAction.Paste -> tr("Paste") to Icons.Outlined.ContentPaste
                 TextMoreAction.Lock -> if (locked) tr("Unlock") to Icons.Outlined.LockOpen else tr("Lock") to Icons.Outlined.Lock
-                TextMoreAction.Delete -> tr("Delete") to Icons.Outlined.Delete
+                TextMoreAction.Delete -> tr("Delete") to vectorResource(Res.drawable.ic_delete)
             }
             val enabled = open && (action != TextMoreAction.Paste || canPaste)
             val color = if (action == TextMoreAction.Delete) Color(0xFFE53935) else scheme.onSurface

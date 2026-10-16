@@ -802,4 +802,72 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Garis tepi",
     "Corner" to
         "Sudut",
+    "Alignment" to
+        "Perataan",
+    "Capitalized" to
+        "Kapitalisasi",
+    "Italic" to
+        "Miring",
+    "Underline" to
+        "Garis bawah",
+    "Strikethrough" to
+        "Coret",
+    "Uppercase" to
+        "Huruf besar",
+    "Capitalize words" to
+        "Kapitalkan kata",
+    "Lowercase" to
+        "Huruf kecil",
+    "Letter spacing" to
+        "Jarak huruf",
+    "Line spacing" to
+        "Jarak baris",
+    "Distance" to
+        "Jarak",
+    "Angle" to
+        "Sudut",
+    "Angle {0}°" to
+        "Sudut {0}°",
+    "Move up" to
+        "Geser ke atas",
+    "Move down" to
+        "Geser ke bawah",
+    "Move left" to
+        "Geser ke kiri",
+    "Move right" to
+        "Geser ke kanan",
+    "Nudge {0}°" to
+        "Geser {0}°",
+    "Arrange" to
+        "Susun",
+    "Align" to
+        "Ratakan",
+    "Forward" to
+        "Maju",
+    "Backward" to
+        "Mundur",
+    "To front" to
+        "Ke depan",
+    "To back" to
+        "Ke belakang",
+    "Top" to
+        "Atas",
+    "Middle" to
+        "Tengah",
+    "Bottom" to
+        "Bawah",
+    "Left" to
+        "Kiri",
+    "Center" to
+        "Pusat",
+    "Right" to
+        "Kanan",
+    "Padding" to
+        "Padding",
+    "Vertical" to
+        "Vertikal",
+    "Horizontal" to
+        "Horizontal",
+    "Padding shows around a background color" to
+        "Padding terlihat di sekitar warna latar",
 )

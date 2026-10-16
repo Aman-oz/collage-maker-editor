@@ -3,6 +3,7 @@ package org.example.project.ui.text
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,15 +40,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -84,6 +91,7 @@ import photocollagemaker.shared.generated.resources.ic_format
 import photocollagemaker.shared.generated.resources.ic_keyboard
 import photocollagemaker.shared.generated.resources.ic_nudge
 import photocollagemaker.shared.generated.resources.ic_opacity
+import photocollagemaker.shared.generated.resources.ic_padding
 import photocollagemaker.shared.generated.resources.ic_position
 import photocollagemaker.shared.generated.resources.ic_shadow
 import photocollagemaker.shared.generated.resources.ic_spacing
@@ -100,6 +108,7 @@ internal enum class TextOption(private val englishLabel: String, val icon: Drawa
     Opacity("Opacity", Res.drawable.ic_opacity),
     Format("Format", Res.drawable.ic_format),
     Spacing("Spacing", Res.drawable.ic_spacing),
+    Padding("Padding", Res.drawable.ic_padding),
     Shadow("Shadow", Res.drawable.ic_shadow),
     Curve("Curve", Res.drawable.ic_curve),
     Position("Position", Res.drawable.ic_position),
@@ -415,31 +424,83 @@ private fun FontPill(font: FontEntry, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** Whether the Text tool's panels sit beside the photo (a phone on its side) rather than under it. */
+internal val LocalTextPanelSideBySide = staticCompositionLocalOf { false }
+
+/** Where a panel's controls go in the tall column beside the photo (see [TextPanelColumn]). */
+internal enum class TextPanelPlacement {
+    /** At the column's bottom, in reach. */
+    Bottom,
+
+    /** In the middle of the room under the bar. */
+    Center,
+
+    /** Straight under the bar; the controls fill the rest themselves (a scrolling grid, with `weight`). */
+    Fill,
+}
+
 /**
- * The Font size panel: ✕ / Font size / ✓ and a 0–100 slider ([sliderToTextSize]) at the bottom of
- * the tool's panel, which keeps its one height so the photo stays put.
+ * The frame of every Text tool panel but the Font one: ✕ / [title] / ✓ over the panel's controls.
+ * Under the photo the panel is a fixed height, and the bar sits right on top of the controls at its
+ * bottom. Beside the photo ([LocalTextPanelSideBySide]) it fills a tall column: the bar goes to the
+ * column's top, where the editor's own top bar was, and the controls go where [placement] says.
  */
 @Composable
-internal fun TextSizePanel(
-    value: Float,
-    onValueChange: (Float) -> Unit,
+internal fun TextPanelColumn(
+    title: String,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+    placement: TextPanelPlacement = TextPanelPlacement.Bottom,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val sideBySide = LocalTextPanelSideBySide.current
+    Column(modifier = modifier.fillMaxSize()) {
+        if (!sideBySide) Spacer(modifier = Modifier.weight(1f))
+        ToolTopBar(title = title, onClose = onClose, onDone = onDone)
+        if (sideBySide && placement != TextPanelPlacement.Fill) Spacer(modifier = Modifier.weight(1f))
+        content()
+        if (sideBySide && placement == TextPanelPlacement.Center) Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+/** One of a [TextSliderPanel]'s sliders: its label and 0–100 value. */
+internal class PanelSlider(val label: String, val value: Float, val onValueChange: (Float) -> Unit)
+
+/**
+ * A panel of 0–100 sliders: ✕ / [title] / ✓ and each slider under its label, at the bottom of the
+ * tool's panel, which keeps its one height so the photo stays put. The Font size panel
+ * ([sliderToTextSize]), the Opacity panel and the Spacing panel.
+ */
+@Composable
+internal fun TextSliderPanel(
+    title: String,
+    sliders: List<PanelSlider>,
     onClose: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    TextPanelColumn(title = title, onClose = onClose, onDone = onDone, modifier = modifier, placement = TextPanelPlacement.Center) {
+        for (slider in sliders) PanelSliderRow(slider)
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+/** A [PanelSlider]: its label over a 0–100 slider with the range's ends printed above it. */
+@Composable
+internal fun PanelSliderRow(slider: PanelSlider, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
-    Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
-        ToolTopBar(title = tr("Font size"), onClose = onClose, onDone = onDone)
+    Column(modifier = modifier) {
         Text(
-            text = tr("Size"),
+            text = slider.label,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = scheme.onSurface,
             modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
         )
         CenterFillSlider(
-            value = value,
-            onValueChange = onValueChange,
+            value = slider.value,
+            onValueChange = slider.onValueChange,
             range = 0f..100f,
             referenceValue = 0f,
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
@@ -452,6 +513,76 @@ internal fun TextSizePanel(
             glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
             valueLabel = ::wholeNumberLabel,
         )
+    }
+}
+
+/**
+ * The Curve panel: ✕ / Curve / ✓ and a 0–100 slider between an arch and a sag, which bends the active
+ * text live ([TextItem.curve]; the middle, [TextCurveStraight], is straight). Its ✕ puts the curve
+ * back as it was.
+ */
+@Composable
+internal fun TextCurvePanel(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    TextPanelColumn(title = tr("Curve"), onClose = onClose, onDone = onDone, modifier = modifier, placement = TextPanelPlacement.Center) {
+        Text(
+            text = tr("Curve"),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = scheme.onSurface,
+            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
+        )
+        Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.Bottom) {
+            CurveEndIcon(arch = true, color = scheme.onSurface)
+            CenterFillSlider(
+                value = value,
+                onValueChange = onValueChange,
+                range = 0f..100f,
+                referenceValue = 0f,
+                trackColor = scheme.onSurface.copy(alpha = 0.12f),
+                fillColor = scheme.primary,
+                thumbColor = scheme.primary,
+                thumbWidth = 32.dp,
+                thumbHeight = 18.dp,
+                horizontalPadding = 6.dp,
+                glassThumb = true,
+                glassTint = if (scheme.surface.luminance() > 0.5f) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+                valueLabel = ::wholeNumberLabel,
+                modifier = Modifier.weight(1f),
+            )
+            CurveEndIcon(arch = false, color = scheme.onSurface)
+        }
         Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+/**
+ * The quarter circle at an end of the Curve slider: rising into an arch (the start, ╭) or falling
+ * into a sag (the end, ╯), as the text bends that way.
+ */
+@Composable
+private fun CurveEndIcon(arch: Boolean, color: Color) {
+    // As tall as the slider's 40dp track row, so it lines up with the track at the row's bottom.
+    Canvas(modifier = Modifier.width(22.dp).height(40.dp)) {
+        val side = 18.dp.toPx()
+        val top = (size.height - side) / 2f
+        val left = (size.width - side) / 2f
+        drawArc(
+            color = color,
+            // ╭ is the top-left quarter of a circle centred at the box's bottom-right; ╯ the
+            // bottom-right quarter of one centred at its top-left.
+            startAngle = if (arch) 180f else 0f,
+            sweepAngle = 90f,
+            useCenter = false,
+            topLeft = if (arch) Offset(left, top) else Offset(left - side, top - side),
+            size = Size(side * 2f, side * 2f),
+            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round),
+        )
     }
 }

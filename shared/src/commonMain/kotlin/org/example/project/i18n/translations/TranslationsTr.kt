@@ -802,4 +802,72 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Kontur",
     "Corner" to
         "Köşe",
+    "Alignment" to
+        "Hizalama",
+    "Capitalized" to
+        "Büyük harf",
+    "Italic" to
+        "İtalik",
+    "Underline" to
+        "Altı çizili",
+    "Strikethrough" to
+        "Üstü çizili",
+    "Uppercase" to
+        "Büyük harf",
+    "Capitalize words" to
+        "Kelimelerin ilk harfi büyük",
+    "Lowercase" to
+        "Küçük harf",
+    "Letter spacing" to
+        "Harf aralığı",
+    "Line spacing" to
+        "Satır aralığı",
+    "Distance" to
+        "Mesafe",
+    "Angle" to
+        "Açı",
+    "Angle {0}°" to
+        "Açı {0}°",
+    "Move up" to
+        "Yukarı taşı",
+    "Move down" to
+        "Aşağı taşı",
+    "Move left" to
+        "Sola taşı",
+    "Move right" to
+        "Sağa taşı",
+    "Nudge {0}°" to
+        "Kaydır {0}°",
+    "Arrange" to
+        "Düzenle",
+    "Align" to
+        "Hizala",
+    "Forward" to
+        "İleri",
+    "Backward" to
+        "Geri",
+    "To front" to
+        "En öne",
+    "To back" to
+        "En arkaya",
+    "Top" to
+        "Üst",
+    "Middle" to
+        "Orta",
+    "Bottom" to
+        "Alt",
+    "Left" to
+        "Sol",
+    "Center" to
+        "Merkez",
+    "Right" to
+        "Sağ",
+    "Padding" to
+        "İç boşluk",
+    "Vertical" to
+        "Dikey",
+    "Horizontal" to
+        "Yatay",
+    "Padding shows around a background color" to
+        "İç boşluk bir arka plan renginin çevresinde görünür",
 )

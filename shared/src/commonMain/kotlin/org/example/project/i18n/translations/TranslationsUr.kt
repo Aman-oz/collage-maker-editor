@@ -802,4 +802,72 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "آؤٹ لائن",
     "Corner" to
         "کونا",
+    "Alignment" to
+        "سیدھ",
+    "Capitalized" to
+        "بڑے حروف",
+    "Italic" to
+        "ترچھا",
+    "Underline" to
+        "خط کشیدہ",
+    "Strikethrough" to
+        "درمیان سے کٹا ہوا",
+    "Uppercase" to
+        "بڑے حروف",
+    "Capitalize words" to
+        "ہر لفظ کا پہلا حرف بڑا",
+    "Lowercase" to
+        "چھوٹے حروف",
+    "Letter spacing" to
+        "حروف کا فاصلہ",
+    "Line spacing" to
+        "سطروں کا فاصلہ",
+    "Distance" to
+        "فاصلہ",
+    "Angle" to
+        "زاویہ",
+    "Angle {0}°" to
+        "زاویہ {0}°",
+    "Move up" to
+        "اوپر لے جائیں",
+    "Move down" to
+        "نیچے لے جائیں",
+    "Move left" to
+        "بائیں لے جائیں",
+    "Move right" to
+        "دائیں لے جائیں",
+    "Nudge {0}°" to
+        "ہلکا سرکائیں {0}°",
+    "Arrange" to
+        "ترتیب",
+    "Align" to
+        "سیدھ",
+    "Forward" to
+        "آگے",
+    "Backward" to
+        "پیچھے",
+    "To front" to
+        "سب سے آگے",
+    "To back" to
+        "سب سے پیچھے",
+    "Top" to
+        "اوپر",
+    "Middle" to
+        "درمیان",
+    "Bottom" to
+        "نیچے",
+    "Left" to
+        "بائیں",
+    "Center" to
+        "مرکز",
+    "Right" to
+        "دائیں",
+    "Padding" to
+        "پیڈنگ",
+    "Vertical" to
+        "عمودی",
+    "Horizontal" to
+        "افقی",
+    "Padding shows around a background color" to
+        "پیڈنگ پس منظر کے رنگ کے گرد نظر آتی ہے",
 )
