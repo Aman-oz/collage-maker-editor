@@ -19,15 +19,20 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -94,6 +99,7 @@ import org.example.project.i18n.AppLocale
 import org.example.project.i18n.tr
 import org.example.project.ui.common.ReadableContentMaxWidth
 import org.example.project.ui.common.bubbleClick
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.readableWidth
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.preview.ThemePreviews
@@ -283,47 +289,34 @@ private fun PremiumContent(
     val savings = annualSavingsPercent(products[SubscriptionPlan.Weekly], products[SubscriptionPlan.Yearly])
 
     val liquidState = rememberLiquidState()
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .liquefiable(liquidState)
-                .navigationBarsPadding(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                PremiumTop(onClose = onClose, onRestore = { if (!uiState.busy) onRestore() })
-                Spacer(Modifier.height(14.dp))
-                Column(
-                    modifier = Modifier.readableWidth().padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    PremiumPlan.entries.forEach { plan ->
-                        PlanPill(
-                            plan = plan,
-                            product = products[plan.plan],
-                            loading = uiState.billing.status == BillingStatus.Connecting,
-                            badge = when {
-                                plan == activePlan -> tr("CURRENT")
-                                plan == PremiumPlan.Annual && savings != null -> tr("SAVE {0}%", savings)
-                                else -> null
-                            },
-                            selected = plan == selected,
-                            onSelect = { selectedName = plan.name },
-                        )
-                    }
+        // A phone on its side: stacked, the hero alone is taller than the screen, so it takes the
+        // left side with the features card over its faded bottom, and the plans and button sit
+        // beside it, all on the first screen. The launch offer goes wide there for the same reason.
+        val landscape = isSideBySideEditor(maxWidth, maxHeight)
+        val plans: @Composable () -> Unit = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                PremiumPlan.entries.forEach { plan ->
+                    PlanPill(
+                        plan = plan,
+                        product = products[plan.plan],
+                        loading = uiState.billing.status == BillingStatus.Connecting,
+                        badge = when {
+                            plan == activePlan -> tr("CURRENT")
+                            plan == PremiumPlan.Annual && savings != null -> tr("SAVE {0}%", savings)
+                            else -> null
+                        },
+                        selected = plan == selected,
+                        onSelect = { selectedName = plan.name },
+                    )
                 }
-                Spacer(Modifier.height(16.dp))
             }
+        }
+        val footer: @Composable () -> Unit = {
             PremiumFooter(
                 startLabel = when {
                     selected == activePlan -> tr("Current Plan")
@@ -337,6 +330,61 @@ private fun PremiumContent(
                 onTermsAndPrivacy = onTermsAndPrivacy,
             )
         }
+        val onRestoreClick = { if (!uiState.busy) onRestore() }
+        if (landscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .liquefiable(liquidState),
+            ) {
+                PremiumSideHero(
+                    onClose = onClose,
+                    onRestore = onRestoreClick,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        // The notch is at the left or right edge; the hero is under the left one.
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical + WindowInsetsSides.End)),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        plans()
+                    }
+                    footer()
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .liquefiable(liquidState)
+                    .navigationBarsPadding(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    PremiumTop(onClose = onClose, onRestore = onRestoreClick)
+                    Spacer(Modifier.height(14.dp))
+                    Box(modifier = Modifier.readableWidth().padding(horizontal = 20.dp)) { plans() }
+                    Spacer(Modifier.height(16.dp))
+                }
+                footer()
+            }
+        }
 
         LaunchOfferHost(
             endsAt = offerEndsAt,
@@ -346,6 +394,7 @@ private fun PremiumContent(
             busy = uiState.busy,
             onTryNow = onOfferTryNow,
             onClose = onOfferClose,
+            wide = landscape,
         )
 
         SnackbarHost(
@@ -355,9 +404,9 @@ private fun PremiumContent(
     }
 }
 
-/** The swiping hero, with the features card riding up over its faded-out bottom edge. */
+/** The looping hero pager, advancing on its own every [HeroAutoAdvanceMillis]. */
 @Composable
-private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
+private fun rememberHeroPagerState(): PagerState {
     val pagerState = rememberPagerState(
         initialPage = HeroLoopPageCount / 2 - (HeroLoopPageCount / 2) % HeroImages.size,
         pageCount = { HeroLoopPageCount },
@@ -373,7 +422,13 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
             animationSpec = tween(HeroSlideMillis, easing = FastOutSlowInEasing),
         )
     }
+    return pagerState
+}
 
+/** The swiping hero, with the features card riding up over its faded-out bottom edge. */
+@Composable
+private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
+    val pagerState = rememberHeroPagerState()
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // Full width, but no taller than the hero is at the content's capped width: on a tablet the
         // width-derived height would push the plans and the button below the fold.
@@ -400,6 +455,40 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
                 .readableWidth()
                 .padding(horizontal = 20.dp),
         )
+    }
+}
+
+/**
+ * The hero beside the plans, on a phone on its side: the photo at full height, faded at the bottom
+ * where the features card sits over it (the stacked layout's overlap, turned into an overlay), with
+ * close and Restore in its top corners.
+ */
+@Composable
+private fun PremiumSideHero(onClose: () -> Unit, onRestore: () -> Unit, modifier: Modifier = Modifier) {
+    val pagerState = rememberHeroPagerState()
+    // The photo runs under the notch; what sits on it keeps clear of it.
+    val insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start)
+    Box(modifier = modifier) {
+        HeroPager(pagerState, Modifier.fillMaxSize())
+        CloseButton(
+            onClose = onClose,
+            modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(insets).padding(16.dp),
+        )
+        RestoreChip(
+            onClick = onRestore,
+            modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(insets).padding(top = 20.dp, end = 16.dp),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(insets)
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            HeroIndicator(pagerState = pagerState)
+            Spacer(Modifier.height(12.dp))
+            FeaturesCard(compact = true)
+        }
     }
 }
 
@@ -504,7 +593,7 @@ private fun RestoreChip(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun FeaturesCard(modifier: Modifier = Modifier) {
+private fun FeaturesCard(modifier: Modifier = Modifier, compact: Boolean = false) {
     val surface = MaterialTheme.colorScheme.surface
     Box(
         modifier = modifier
@@ -515,17 +604,18 @@ private fun FeaturesCard(modifier: Modifier = Modifier) {
             .border(1.dp, PremiumRed.copy(alpha = 0.7f), CardShape),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
+            // Compact over the side hero, so the photo still shows above it.
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = if (compact) 14.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 13.dp),
         ) {
             PremiumFeatures.forEach { feature ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PremiumRed, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = PremiumRed, modifier = Modifier.size(if (compact) 20.dp else 22.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(
                         text = tr(feature),
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
+                        fontSize = if (compact) 15.sp else 16.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }

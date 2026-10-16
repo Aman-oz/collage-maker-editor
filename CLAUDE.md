@@ -88,7 +88,8 @@ column with its controls at the bottom; a tool checks `ToolScaffoldScope.sideByS
 them or to turn a strip of options into a vertical grid with `Modifier.weight(1f)`. The Collage, Freestyle,
 PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The save and
 share screens, the background remover's crop step (`CropContent`) and its eraser switch at the
-same size too: the picture on the left, their bars and buttons in the column.
+same size too: the picture on the left, their bars and buttons in the column. So does the paywall
+(its hero on the left, the plans and button beside it), and its launch offer goes wide.
 
 The host uses coroutine-driven `Animatable`s rather than `AnimatedContent` on purpose: a tool's
 first composition can be heavy (blurring, desaturating, thumbnails), and an animation started on

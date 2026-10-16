@@ -79,6 +79,9 @@ private val OfferFeatureColumns = listOf(
     listOf("No Ads", "Exclusive Fonts", "All Filters & Stickers"),
 )
 
+/** How wide the offer is laid out wide, beside a phone on its side. */
+private val LaunchOfferWideWidth = 640.dp
+
 private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 /**
@@ -94,6 +97,7 @@ internal fun LaunchOfferHost(
     busy: Boolean,
     onTryNow: () -> Unit,
     onClose: () -> Unit,
+    wide: Boolean = false,
 ) {
     val currentOnClose by rememberUpdatedState(onClose)
     var now by remember { mutableLongStateOf(nowMillis()) }
@@ -116,6 +120,7 @@ internal fun LaunchOfferHost(
         onDismiss = onClose,
         // Only the close button below the panel closes it, as in the design.
         dismissOnScrimClick = false,
+        panelMaxWidth = if (wide) LaunchOfferWideWidth else 420.dp,
         footer = { OfferCloseButton(onClose) },
     ) {
         if (endsAt != null) {
@@ -125,6 +130,7 @@ internal fun LaunchOfferHost(
                 remainingMillis = endsAt - now,
                 busy = busy,
                 onTryNow = onTryNow,
+                wide = wide,
             )
         }
     }
@@ -137,6 +143,7 @@ private fun LaunchOfferContent(
     remainingMillis: Long,
     busy: Boolean,
     onTryNow: () -> Unit,
+    wide: Boolean = false,
 ) {
     val onSurface = MaterialTheme.colorScheme.onSurface
     // The discount is the Annual plan against a year of Weekly, from the store's own prices; the
@@ -148,23 +155,19 @@ private fun LaunchOfferContent(
         null
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    val title: @Composable () -> Unit = {
         Text(
             text = tr("LIMITED TIME OFFER!"),
             style = TextStyle(brush = OfferTitleGradient),
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
         )
-        Spacer(Modifier.height(16.dp))
-        OfferFeatures()
-        Spacer(Modifier.height(8.dp))
+    }
+    val discount: @Composable () -> Unit = {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             FloatingGifts()
             Column(
-                modifier = Modifier.padding(vertical = 18.dp),
+                modifier = Modifier.padding(vertical = if (wide) 6.dp else 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (savings != null) {
@@ -213,9 +216,8 @@ private fun LaunchOfferContent(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
-        CountdownRow(countdown(remainingMillis))
-        Spacer(Modifier.height(24.dp))
+    }
+    val tryNow: @Composable () -> Unit = {
         ContinueButton(
             label = tr("Try Now"),
             enabled = !busy,
@@ -223,6 +225,43 @@ private fun LaunchOfferContent(
             onClick = onTryNow,
             trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
         )
+    }
+    if (wide) {
+        // Beside a phone on its side the stacked offer is taller than the screen: the title,
+        // features and clock on the left, the deal and its button on the right.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                title()
+                Spacer(Modifier.height(12.dp))
+                OfferFeatures()
+                Spacer(Modifier.height(16.dp))
+                CountdownRow(countdown(remainingMillis))
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                discount()
+                Spacer(Modifier.height(16.dp))
+                tryNow()
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            title()
+            Spacer(Modifier.height(16.dp))
+            OfferFeatures()
+            Spacer(Modifier.height(8.dp))
+            discount()
+            Spacer(Modifier.height(4.dp))
+            CountdownRow(countdown(remainingMillis))
+            Spacer(Modifier.height(24.dp))
+            tryNow()
+        }
     }
 }
 
