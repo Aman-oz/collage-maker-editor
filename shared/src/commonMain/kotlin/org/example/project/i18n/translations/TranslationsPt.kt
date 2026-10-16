@@ -726,4 +726,80 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Molduras de {0}",
     "View All" to
         "Ver tudo",
+    "Font size" to
+        "Tamanho da fonte",
+    "Opacity" to
+        "Opacidade",
+    "Format" to
+        "Formato",
+    "Spacing" to
+        "Espaçamento",
+    "Shadow" to
+        "Sombra",
+    "Curve" to
+        "Curva",
+    "Position" to
+        "Posição",
+    "Nudge" to
+        "Ajuste fino",
+    "All fonts" to
+        "Todas as fontes",
+    "Align left" to
+        "Alinhar à esquerda",
+    "Align center" to
+        "Centralizar",
+    "Align right" to
+        "Alinhar à direita",
+    "Feeling" to
+        "Sensação",
+    "Appearance" to
+        "Aparência",
+    "Calligraphy" to
+        "Caligrafia",
+    "Serif" to
+        "Serifa",
+    "Sans Serif" to
+        "Sem serifa",
+    "Seasonal" to
+        "Sazonais",
+    "Featured" to
+        "Destaques",
+    "Favorites" to
+        "Favoritas",
+    "All" to
+        "Todas",
+    "Categories" to
+        "Categorias",
+    "No favorite fonts yet" to
+        "Nenhuma fonte favorita ainda",
+    "No recent fonts yet" to
+        "Nenhuma fonte recente ainda",
+    "Add to favorites" to
+        "Adicionar às favoritas",
+    "Remove from favorites" to
+        "Remover das favoritas",
+    "Technology" to
+        "Tecnologia",
+    "Variable" to
+        "Variável",
+    "Duplicate" to
+        "Duplicar",
+    "Reset" to
+        "Redefinir",
+    "Copy" to
+        "Copiar",
+    "Paste" to
+        "Colar",
+    "Lock" to
+        "Bloquear",
+    "Unlock" to
+        "Desbloquear",
+    "More" to
+        "Mais",
+    "Size" to
+        "Tamanho",
+    "Stroke" to
+        "Contorno",
+    "Corner" to
+        "Canto",
 )

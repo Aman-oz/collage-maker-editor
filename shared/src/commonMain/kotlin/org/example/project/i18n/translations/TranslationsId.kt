@@ -726,4 +726,80 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Bingkai {0}",
     "View All" to
         "Lihat semua",
+    "Font size" to
+        "Ukuran font",
+    "Opacity" to
+        "Opasitas",
+    "Format" to
+        "Format",
+    "Spacing" to
+        "Spasi",
+    "Shadow" to
+        "Bayangan",
+    "Curve" to
+        "Lengkung",
+    "Position" to
+        "Posisi",
+    "Nudge" to
+        "Geser",
+    "All fonts" to
+        "Semua font",
+    "Align left" to
+        "Rata kiri",
+    "Align center" to
+        "Rata tengah",
+    "Align right" to
+        "Rata kanan",
+    "Feeling" to
+        "Nuansa",
+    "Appearance" to
+        "Tampilan",
+    "Calligraphy" to
+        "Kaligrafi",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "Musiman",
+    "Featured" to
+        "Unggulan",
+    "Favorites" to
+        "Favorit",
+    "All" to
+        "Semua",
+    "Categories" to
+        "Kategori",
+    "No favorite fonts yet" to
+        "Belum ada font favorit",
+    "No recent fonts yet" to
+        "Belum ada font terbaru",
+    "Add to favorites" to
+        "Tambahkan ke favorit",
+    "Remove from favorites" to
+        "Hapus dari favorit",
+    "Technology" to
+        "Teknologi",
+    "Variable" to
+        "Variabel",
+    "Duplicate" to
+        "Duplikat",
+    "Reset" to
+        "Atur ulang",
+    "Copy" to
+        "Salin",
+    "Paste" to
+        "Tempel",
+    "Lock" to
+        "Kunci",
+    "Unlock" to
+        "Buka kunci",
+    "More" to
+        "Lainnya",
+    "Size" to
+        "Ukuran",
+    "Stroke" to
+        "Garis tepi",
+    "Corner" to
+        "Sudut",
 )

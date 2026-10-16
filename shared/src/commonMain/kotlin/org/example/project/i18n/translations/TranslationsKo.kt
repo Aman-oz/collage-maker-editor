@@ -726,4 +726,80 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "{0} 프레임",
     "View All" to
         "모두 보기",
+    "Font size" to
+        "글꼴 크기",
+    "Opacity" to
+        "불투명도",
+    "Format" to
+        "서식",
+    "Spacing" to
+        "간격",
+    "Shadow" to
+        "그림자",
+    "Curve" to
+        "곡선",
+    "Position" to
+        "위치",
+    "Nudge" to
+        "미세 이동",
+    "All fonts" to
+        "모든 글꼴",
+    "Align left" to
+        "왼쪽 정렬",
+    "Align center" to
+        "가운데 정렬",
+    "Align right" to
+        "오른쪽 정렬",
+    "Feeling" to
+        "느낌",
+    "Appearance" to
+        "모양",
+    "Calligraphy" to
+        "캘리그라피",
+    "Serif" to
+        "세리프",
+    "Sans Serif" to
+        "산세리프",
+    "Seasonal" to
+        "시즌",
+    "Featured" to
+        "추천",
+    "Favorites" to
+        "즐겨찾기",
+    "All" to
+        "전체",
+    "Categories" to
+        "카테고리",
+    "No favorite fonts yet" to
+        "아직 즐겨찾는 글꼴이 없습니다",
+    "No recent fonts yet" to
+        "아직 최근 글꼴이 없습니다",
+    "Add to favorites" to
+        "즐겨찾기에 추가",
+    "Remove from favorites" to
+        "즐겨찾기에서 삭제",
+    "Technology" to
+        "기술",
+    "Variable" to
+        "가변",
+    "Duplicate" to
+        "복제",
+    "Reset" to
+        "초기화",
+    "Copy" to
+        "복사",
+    "Paste" to
+        "붙여넣기",
+    "Lock" to
+        "잠금",
+    "Unlock" to
+        "잠금 해제",
+    "More" to
+        "더보기",
+    "Size" to
+        "크기",
+    "Stroke" to
+        "테두리",
+    "Corner" to
+        "모서리",
 )

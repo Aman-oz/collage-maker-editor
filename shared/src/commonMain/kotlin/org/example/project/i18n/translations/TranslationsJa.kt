@@ -726,4 +726,80 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "{0}のフレーム",
     "View All" to
         "すべて表示",
+    "Font size" to
+        "フォントサイズ",
+    "Opacity" to
+        "不透明度",
+    "Format" to
+        "書式",
+    "Spacing" to
+        "間隔",
+    "Shadow" to
+        "影",
+    "Curve" to
+        "カーブ",
+    "Position" to
+        "位置",
+    "Nudge" to
+        "微調整",
+    "All fonts" to
+        "すべてのフォント",
+    "Align left" to
+        "左揃え",
+    "Align center" to
+        "中央揃え",
+    "Align right" to
+        "右揃え",
+    "Feeling" to
+        "雰囲気",
+    "Appearance" to
+        "外観",
+    "Calligraphy" to
+        "カリグラフィー",
+    "Serif" to
+        "セリフ",
+    "Sans Serif" to
+        "サンセリフ",
+    "Seasonal" to
+        "季節",
+    "Featured" to
+        "おすすめ",
+    "Favorites" to
+        "お気に入り",
+    "All" to
+        "すべて",
+    "Categories" to
+        "カテゴリ",
+    "No favorite fonts yet" to
+        "お気に入りのフォントはまだありません",
+    "No recent fonts yet" to
+        "最近使ったフォントはまだありません",
+    "Add to favorites" to
+        "お気に入りに追加",
+    "Remove from favorites" to
+        "お気に入りから削除",
+    "Technology" to
+        "テクノロジー",
+    "Variable" to
+        "バリアブル",
+    "Duplicate" to
+        "複製",
+    "Reset" to
+        "リセット",
+    "Copy" to
+        "コピー",
+    "Paste" to
+        "貼り付け",
+    "Lock" to
+        "ロック",
+    "Unlock" to
+        "ロック解除",
+    "More" to
+        "その他",
+    "Size" to
+        "サイズ",
+    "Stroke" to
+        "縁取り",
+    "Corner" to
+        "角",
 )

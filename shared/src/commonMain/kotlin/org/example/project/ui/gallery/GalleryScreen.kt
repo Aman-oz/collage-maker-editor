@@ -118,6 +118,9 @@ import org.example.project.ui.common.TopBarHeight
 import org.example.project.ui.common.bubbleBurstRing
 import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.common.topBar
+import org.example.project.ui.common.LiquidDropSpring
+import org.example.project.ui.common.LiquidSegmentedTabs
+import org.example.project.ui.common.clearLiquidGlass
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -141,23 +144,6 @@ private val CircleButtonSize = TopBarButtonSize
 private val TabsHeight = CircleButtonSize + 12.dp
 private val TabWidth = 112.dp
 private val TabsPadding = 4.dp
-
-/** How much the drop swells while held: past the capsule, like a drop lifted off the glass. */
-private val TabDropHeldGrowthWidth = 22.dp
-private val TabDropHeldGrowthHeight = 18.dp
-
-/** How much the drop stretches per tab/second of travel, and the cap on it. */
-private const val TabStretchPerVelocity = 0.07f
-private const val TabMaxStretch = 0.45f
-
-/** Bouncy enough to overshoot visibly, so a press feels like a drop swelling under the finger. */
-private val TabDropSpring = spring<Float>(dampingRatio = 0.45f, stiffness = 420f)
-
-/** Chases the finger while held: stiff enough to keep up, loose enough to stretch. */
-private val TabFollowSpring = spring<Float>(dampingRatio = 0.7f, stiffness = 700f)
-
-/** Drops the released drop onto its tab with a visible wobble. */
-private val TabSettleSpring = spring<Float>(dampingRatio = 0.55f, stiffness = 320f)
 
 private val PillHeight = 48.dp
 
@@ -489,22 +475,6 @@ private fun glassTint(): Color =
         Color.Black.copy(alpha = 0.18f)
     }
 
-/**
- * Clear Liquid Glass: almost no frost, with the look carried by refraction at the curved rim and
- * a bright edge highlight, so the content behind bends at the edges instead of blurring away.
- */
-private fun Modifier.galleryGlass(liquidState: LiquidState, shape: Shape, tint: Color): Modifier =
-    clip(shape).liquid(liquidState) {
-        this.shape = shape
-        frost = 2.dp
-        curve = 0.4f
-        refraction = 0.35f
-        edge = 0.65f
-        dispersion = 0.18f
-        saturation = 1.2f
-        this.tint = tint
-    }
-
 @Composable
 private fun GalleryTopBar(
     liquidState: LiquidState,
@@ -528,7 +498,17 @@ private fun GalleryTopBar(
         }
 
         Spacer(modifier = Modifier.weight(1f))
-        GlassSegmentedTabs(liquidState = liquidState, selectedTab = selectedTab, onTabSelected = onTabSelected)
+        LiquidSegmentedTabs(
+            labels = GalleryTab.entries.map { it.label },
+            selectedIndex = selectedTab.ordinal,
+            onSelected = { onTabSelected(GalleryTab.entries[it]) },
+            liquidState = liquidState,
+            capsuleTint = glassTint(),
+            modifier = Modifier
+                .height(TabsHeight)
+                .width(TabWidth * GalleryTab.entries.size + TabsPadding * 2),
+            padding = TabsPadding,
+        )
         Spacer(modifier = Modifier.weight(1f))
 
         // Clear glass until something is picked, then the solid primary Done every screen uses.
@@ -580,7 +560,7 @@ private fun GlassCircleButton(
                         placeable.place((constraints.maxWidth - side) / 2, (constraints.maxHeight - side) / 2)
                     }
                 }
-                .galleryGlass(liquidState, CircleShape, tint)
+                .clearLiquidGlass(liquidState, CircleShape, tint)
                 .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape)
                 .clickable(
                     interactionSource = bubble.interactionSource,
@@ -598,191 +578,6 @@ private fun GlassCircleButton(
             ) { content() }
         }
     }
-}
-
-/**
- * A glass capsule holding a liquid selection drop behind the selected label, the gallery's take on
- * [org.example.project.ui.home.HomeBottomBar]'s bubble. A finger down anywhere on the capsule swells
- * the drop past the capsule's height into a clear lens that follows the finger (a tap on the other
- * tab flies it there); on release it snaps to the nearest tab, selects it and settles back. One
- * `pointerInput` owns all of it, so the labels carry only accessibility semantics.
- *
- * Tabs are a fixed equal width, so the drop's centre is just a fractional tab index. The drop is
- * sized and placed in layout, never with a `graphicsLayer` scale: Liquid samples the backdrop from
- * layout bounds, so a scaled layer would refract the wrong region.
- */
-@Composable
-private fun GlassSegmentedTabs(
-    liquidState: LiquidState,
-    selectedTab: GalleryTab,
-    onTabSelected: (GalleryTab) -> Unit,
-) {
-    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    val rim = Color.White.copy(alpha = if (isLight) 0.75f else 0.35f)
-    val scope = rememberCoroutineScope()
-    val position = remember { Animatable(selectedTab.ordinal.toFloat()) }
-    var held by remember { mutableStateOf(false) }
-    // The tab the held drop is over, so that label swells with it.
-    val hoveredTab by remember { derivedStateOf { position.value.roundToInt() } }
-    val currentSelectedTab by rememberUpdatedState(selectedTab)
-    val currentOnTabSelected by rememberUpdatedState(onTabSelected)
-
-    // Selection changed from outside (or by the release below): glide there, unless a finger has it.
-    LaunchedEffect(selectedTab) {
-        if (!held) position.animateTo(selectedTab.ordinal.toFloat(), TabSettleSpring)
-    }
-
-    Box(
-        modifier = Modifier
-            .height(TabsHeight)
-            .width(TabWidth * GalleryTab.entries.size + TabsPadding * 2)
-            .pointerInput(Unit) {
-                val inset = TabsPadding.toPx()
-                val lastTab = (GalleryTab.entries.size - 1).toFloat()
-                fun tabAt(x: Float) = ((x - inset) / TabWidth.toPx() - 0.5f).coerceIn(0f, lastTab)
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    down.consume()
-                    held = true
-                    scope.launch { position.animateTo(tabAt(down.position.x), TabFollowSpring) }
-                    var lastX = down.position.x
-                    try {
-                        while (true) {
-                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
-                            lastX = change.position.x
-                            if (!change.pressed) break
-                            change.consume()
-                            // A fresh animateTo carries the running velocity over, so the drop keeps
-                            // its inertia (and its stretch) while following.
-                            scope.launch { position.animateTo(tabAt(lastX), TabFollowSpring) }
-                        }
-                    } finally {
-                        held = false
-                    }
-                    val tab = GalleryTab.entries[tabAt(lastX).roundToInt()]
-                    scope.launch { position.animateTo(tab.ordinal.toFloat(), TabSettleSpring) }
-                    if (tab != currentSelectedTab) currentOnTabSelected(tab)
-                }
-            },
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .galleryGlass(liquidState, CircleShape, glassTint())
-                .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape),
-        )
-
-        TabSelectionDrop(liquidState = liquidState, position = position, held = held, isLight = isLight)
-
-        Row(modifier = Modifier.fillMaxSize().padding(horizontal = TabsPadding)) {
-            GalleryTab.entries.forEach { tab ->
-                val isSelected = tab == selectedTab
-                // Magnified under the held drop, like text seen through water. Text isn't glass, so
-                // a graphicsLayer scale is safe here.
-                val labelScale by animateFloatAsState(
-                    targetValue = if (held && hoveredTab == tab.ordinal) 1.12f else 1f,
-                    animationSpec = TabDropSpring,
-                )
-                Box(
-                    modifier = Modifier
-                        .width(TabWidth)
-                        .fillMaxHeight()
-                        .semantics(mergeDescendants = true) {
-                            role = Role.Tab
-                            selected = isSelected
-                            onClick(label = tab.label, action = {
-                                onTabSelected(tab)
-                                true
-                            })
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isSelected) 1f else 0.7f),
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = labelScale
-                            scaleY = labelScale
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * The drop behind the selected tab, centred on [position] (a fractional tab index). It stretches
- * along its travel in proportion to its speed and squashes a little in height, so the volume reads
- * as conserved. While [held] it swells past the capsule into a clearer, more strongly refracting
- * lens; released, it settles back. One press progress drives size and material together.
- */
-@Composable
-private fun BoxScope.TabSelectionDrop(
-    liquidState: LiquidState,
-    position: Animatable<Float, *>,
-    held: Boolean,
-    isLight: Boolean,
-) {
-    val press by animateFloatAsState(if (held) 1f else 0f, TabDropSpring)
-    // The spring overshoots slightly past 0 / 1; only the size may use the overshoot.
-    val t = press.coerceIn(0f, 1f)
-    // Resting it is a milky white pill; held it clears toward glass so the lens shows.
-    val body = if (isLight) Color.White.copy(alpha = 0.72f - 0.4f * t) else Color.White.copy(alpha = 0.14f - 0.06f * t)
-    val rim = Color.White.copy(alpha = if (isLight) 0.95f else 0.4f + 0.3f * t)
-    val rimLow = if (isLight) Color(0xFF787880).copy(alpha = 0.25f + 0.1f * t) else rim.copy(alpha = rim.alpha * 0.4f)
-
-    Box(
-        modifier = Modifier
-            .matchParentSize()
-            .layout { measurable, constraints ->
-                val stretch = (abs(position.velocity) * TabStretchPerVelocity).coerceAtMost(TabMaxStretch)
-                val restHeight = TabsHeight.toPx() - TabsPadding.toPx() * 2
-                val w = (TabWidth.toPx() * (1f + stretch) + TabDropHeldGrowthWidth.toPx() * press).roundToInt().coerceAtLeast(0)
-                val h = (restHeight * (1f - stretch * 0.22f) + TabDropHeldGrowthHeight.toPx() * press).roundToInt().coerceAtLeast(0)
-                val placeable = measurable.measure(Constraints.fixed(w, h))
-                layout(constraints.maxWidth, constraints.maxHeight) {
-                    val x = TabsPadding.toPx() + TabWidth.toPx() * (position.value + 0.5f) - w / 2f
-                    placeable.place(x.roundToInt(), (constraints.maxHeight - h) / 2)
-                }
-            }
-            .clip(CircleShape)
-            .liquid(liquidState) {
-                shape = CircleShape
-                // Gentle, like the magnification of a real drop; no frost, whose blur drags the
-                // transparent pixels outside the lens into the rim as a grey shadow.
-                frost = 0.dp
-                curve = 0.25f + 0.12f * t
-                refraction = 0.18f + 0.12f * t
-                edge = 0.35f + 0.25f * t
-                dispersion = 0.1f * t
-                saturation = 1.2f
-                tint = body
-            }
-            // Over the glass as well: Liquid's tint alone renders far fainter than its alpha.
-            .drawWithContent {
-                drawContent()
-                val corner = CornerRadius(size.height / 2f)
-                drawRoundRect(color = body, cornerRadius = corner)
-                // Light focused onto the drop's lower inside edge.
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        0.6f to Color.White.copy(alpha = 0f),
-                        1f to Color.White.copy(alpha = if (isLight) 0.35f + 0.2f * t else 0.08f + 0.06f * t),
-                    ),
-                    cornerRadius = corner,
-                )
-            }
-            .border(
-                width = 1.dp + 0.5.dp * t,
-                brush = Brush.verticalGradient(0f to rim, 0.5f to rim.copy(alpha = rim.alpha * 0.2f), 1f to rimLow),
-                shape = CircleShape,
-            ),
-    )
 }
 
 /**
@@ -804,7 +599,7 @@ private fun SelectionPill(
     val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 1f else 0f, TabDropSpring)
+    val press by animateFloatAsState(if (pressed) 1f else 0f, LiquidDropSpring)
     // 0 at rest; a count change kicks it up and a loose spring brings it back with an overshoot.
     val pulse = remember { Animatable(0f) }
     var lastCount by remember { mutableIntStateOf(selectedCount) }

@@ -3,6 +3,7 @@ package org.example.project.ui.common
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -51,17 +52,18 @@ internal val ToolStageInset = 20.dp
  * Opening a tool inside the editor is two beats: the editor's toolbar drops away, then the tool's
  * panel rises in its place. Closing runs the same two beats the other way round.
  */
-private const val DropMillis = 260
-private const val SettleMillis = 460
+internal const val ToolDropMillis = 260
+internal const val ToolSettleMillis = 460
 
 /** The tool's stage fades over the editor's photo as that comes to rest, and off it before it moves. */
 private const val StageFadeMillis = 180
 
 /** The first beat: the outgoing bar accelerates off the bottom of the screen. */
-private fun dropSpec(): AnimationSpec<Float> = tween(DropMillis, easing = FastOutLinearInEasing)
+internal fun <T> dropSpec(): FiniteAnimationSpec<T> = tween(ToolDropMillis, easing = FastOutLinearInEasing)
 
 /** The second beat: the incoming bar, and the layout around it, decelerates into place. */
-private fun settleSpec(): AnimationSpec<Float> = tween(SettleMillis, easing = LinearOutSlowInEasing)
+internal fun <T> settleSpec(delayMillis: Int = 0): FiniteAnimationSpec<T> =
+    tween(ToolSettleMillis, delayMillis = delayMillis, easing = LinearOutSlowInEasing)
 
 /**
  * Drives a tool that opens *inside* the photo editor instead of on its own screen, and is how the
@@ -135,7 +137,7 @@ internal class InlineToolHostState<T : Any>(initial: T? = null) {
             launch { layout.runTo(1f, settleSpec()) }
             launch { panel.runTo(1f, settleSpec()) }
             launch {
-                delay((SettleMillis - StageFadeMillis).toLong())
+                delay((ToolSettleMillis - StageFadeMillis).toLong())
                 stage.runTo(1f, tween(StageFadeMillis))
             }
         }
@@ -255,6 +257,37 @@ internal class ToolScaffoldScope(
         doneEnabled: Boolean = true,
         content: @Composable ColumnScope.() -> Unit,
     ) {
+        PanelFrame {
+            ToolTopBar(title = title, onClose = onClose, onDone = onDone, doneEnabled = doneEnabled)
+            PanelControls(content)
+        }
+    }
+
+    /**
+     * A panel with no ✕ / title / ✓ row, for a tool whose controls carry their own way out (the Text
+     * tool's floating options bar). It slides in and reports its size exactly like the titled one.
+     */
+    @Composable
+    fun ToolPanel(content: @Composable ColumnScope.() -> Unit) {
+        PanelFrame { PanelControls(content) }
+    }
+
+    /** Beside the stage the controls sit at the bottom of the full-height column. */
+    @Composable
+    private fun ColumnScope.PanelControls(content: @Composable ColumnScope.() -> Unit) {
+        if (sideBySide) {
+            Column(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.Bottom,
+                content = content,
+            )
+        } else {
+            content()
+        }
+    }
+
+    @Composable
+    private fun PanelFrame(content: @Composable ColumnScope.() -> Unit) {
         // Slides by its own height plus the system bar under it, so while hidden it is fully off
         // screen rather than showing through a translucent navigation bar; beside the stage, by its
         // own width plus the inset at the right edge instead. Placed at an offset rather than moved
@@ -289,18 +322,10 @@ internal class ToolScaffoldScope(
         ) {
             // The panel's background spans the screen, but its controls stay phone-width and centred:
             // a slider or chip row stretched across a tablet is hard to use and reads as empty.
-            Column(modifier = Modifier.readableWidth().then(if (sideBySide) Modifier.fillMaxHeight() else Modifier)) {
-                ToolTopBar(title = title, onClose = onClose, onDone = onDone, doneEnabled = doneEnabled)
-                if (sideBySide) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        verticalArrangement = Arrangement.Bottom,
-                        content = content,
-                    )
-                } else {
-                    content()
-                }
-            }
+            Column(
+                modifier = Modifier.readableWidth().then(if (sideBySide) Modifier.fillMaxHeight() else Modifier),
+                content = content,
+            )
         }
     }
 }

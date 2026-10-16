@@ -726,4 +726,80 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "{0} فریمز",
     "View All" to
         "سب دیکھیں",
+    "Font size" to
+        "فونٹ کا سائز",
+    "Opacity" to
+        "دھندلاپن",
+    "Format" to
+        "فارمیٹ",
+    "Spacing" to
+        "فاصلہ",
+    "Shadow" to
+        "سایہ",
+    "Curve" to
+        "خم",
+    "Position" to
+        "مقام",
+    "Nudge" to
+        "ہلکا سرکائیں",
+    "All fonts" to
+        "تمام فونٹس",
+    "Align left" to
+        "بائیں سیدھ",
+    "Align center" to
+        "درمیان میں",
+    "Align right" to
+        "دائیں سیدھ",
+    "Feeling" to
+        "احساس",
+    "Appearance" to
+        "ظاہری شکل",
+    "Calligraphy" to
+        "خطاطی",
+    "Serif" to
+        "سیرف",
+    "Sans Serif" to
+        "سینز سیرف",
+    "Seasonal" to
+        "موسمی",
+    "Featured" to
+        "نمایاں",
+    "Favorites" to
+        "پسندیدہ",
+    "All" to
+        "سب",
+    "Categories" to
+        "زمرے",
+    "No favorite fonts yet" to
+        "ابھی کوئی پسندیدہ فونٹ نہیں",
+    "No recent fonts yet" to
+        "ابھی کوئی حالیہ فونٹ نہیں",
+    "Add to favorites" to
+        "پسندیدہ میں شامل کریں",
+    "Remove from favorites" to
+        "پسندیدہ سے ہٹائیں",
+    "Technology" to
+        "ٹیکنالوجی",
+    "Variable" to
+        "متغیر",
+    "Duplicate" to
+        "ڈپلیکیٹ",
+    "Reset" to
+        "ری سیٹ",
+    "Copy" to
+        "کاپی",
+    "Paste" to
+        "پیسٹ",
+    "Lock" to
+        "لاک",
+    "Unlock" to
+        "ان لاک",
+    "More" to
+        "مزید",
+    "Size" to
+        "سائز",
+    "Stroke" to
+        "آؤٹ لائن",
+    "Corner" to
+        "کونا",
 )

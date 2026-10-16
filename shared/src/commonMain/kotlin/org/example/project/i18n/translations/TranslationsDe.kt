@@ -726,4 +726,80 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "{0}-Rahmen",
     "View All" to
         "Alle anzeigen",
+    "Font size" to
+        "Schriftgröße",
+    "Opacity" to
+        "Deckkraft",
+    "Format" to
+        "Format",
+    "Spacing" to
+        "Abstand",
+    "Shadow" to
+        "Schatten",
+    "Curve" to
+        "Kurve",
+    "Position" to
+        "Position",
+    "Nudge" to
+        "Feinjustieren",
+    "All fonts" to
+        "Alle Schriften",
+    "Align left" to
+        "Linksbündig",
+    "Align center" to
+        "Zentriert",
+    "Align right" to
+        "Rechtsbündig",
+    "Feeling" to
+        "Gefühl",
+    "Appearance" to
+        "Erscheinung",
+    "Calligraphy" to
+        "Kalligrafie",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "Saisonal",
+    "Featured" to
+        "Empfohlen",
+    "Favorites" to
+        "Favoriten",
+    "All" to
+        "Alle",
+    "Categories" to
+        "Kategorien",
+    "No favorite fonts yet" to
+        "Noch keine Lieblingsschriften",
+    "No recent fonts yet" to
+        "Noch keine zuletzt verwendeten Schriften",
+    "Add to favorites" to
+        "Zu Favoriten hinzufügen",
+    "Remove from favorites" to
+        "Aus Favoriten entfernen",
+    "Technology" to
+        "Technologie",
+    "Variable" to
+        "Variabel",
+    "Duplicate" to
+        "Duplizieren",
+    "Reset" to
+        "Zurücksetzen",
+    "Copy" to
+        "Kopieren",
+    "Paste" to
+        "Einfügen",
+    "Lock" to
+        "Sperren",
+    "Unlock" to
+        "Entsperren",
+    "More" to
+        "Mehr",
+    "Size" to
+        "Größe",
+    "Stroke" to
+        "Kontur",
+    "Corner" to
+        "Ecke",
 )

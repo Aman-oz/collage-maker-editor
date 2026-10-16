@@ -726,4 +726,80 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Khung {0}",
     "View All" to
         "Xem tất cả",
+    "Font size" to
+        "Cỡ chữ",
+    "Opacity" to
+        "Độ mờ",
+    "Format" to
+        "Định dạng",
+    "Spacing" to
+        "Giãn cách",
+    "Shadow" to
+        "Đổ bóng",
+    "Curve" to
+        "Uốn cong",
+    "Position" to
+        "Vị trí",
+    "Nudge" to
+        "Dịch chuyển",
+    "All fonts" to
+        "Tất cả phông chữ",
+    "Align left" to
+        "Căn trái",
+    "Align center" to
+        "Căn giữa",
+    "Align right" to
+        "Căn phải",
+    "Feeling" to
+        "Cảm xúc",
+    "Appearance" to
+        "Diện mạo",
+    "Calligraphy" to
+        "Thư pháp",
+    "Serif" to
+        "Có chân",
+    "Sans Serif" to
+        "Không chân",
+    "Seasonal" to
+        "Theo mùa",
+    "Featured" to
+        "Nổi bật",
+    "Favorites" to
+        "Yêu thích",
+    "All" to
+        "Tất cả",
+    "Categories" to
+        "Danh mục",
+    "No favorite fonts yet" to
+        "Chưa có phông chữ yêu thích",
+    "No recent fonts yet" to
+        "Chưa có phông chữ gần đây",
+    "Add to favorites" to
+        "Thêm vào yêu thích",
+    "Remove from favorites" to
+        "Xóa khỏi yêu thích",
+    "Technology" to
+        "Công nghệ",
+    "Variable" to
+        "Biến đổi",
+    "Duplicate" to
+        "Nhân bản",
+    "Reset" to
+        "Đặt lại",
+    "Copy" to
+        "Sao chép",
+    "Paste" to
+        "Dán",
+    "Lock" to
+        "Khóa",
+    "Unlock" to
+        "Mở khóa",
+    "More" to
+        "Thêm",
+    "Size" to
+        "Kích thước",
+    "Stroke" to
+        "Viền",
+    "Corner" to
+        "Góc",
 )

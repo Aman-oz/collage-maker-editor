@@ -726,4 +726,80 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Marcos de {0}",
     "View All" to
         "Ver todo",
+    "Font size" to
+        "Tamaño de fuente",
+    "Opacity" to
+        "Opacidad",
+    "Format" to
+        "Formato",
+    "Spacing" to
+        "Espaciado",
+    "Shadow" to
+        "Sombra",
+    "Curve" to
+        "Curva",
+    "Position" to
+        "Posición",
+    "Nudge" to
+        "Ajuste fino",
+    "All fonts" to
+        "Todas las fuentes",
+    "Align left" to
+        "Alinear a la izquierda",
+    "Align center" to
+        "Centrar",
+    "Align right" to
+        "Alinear a la derecha",
+    "Feeling" to
+        "Sensación",
+    "Appearance" to
+        "Apariencia",
+    "Calligraphy" to
+        "Caligrafía",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "De temporada",
+    "Featured" to
+        "Destacadas",
+    "Favorites" to
+        "Favoritas",
+    "All" to
+        "Todas",
+    "Categories" to
+        "Categorías",
+    "No favorite fonts yet" to
+        "Aún no hay fuentes favoritas",
+    "No recent fonts yet" to
+        "Aún no hay fuentes recientes",
+    "Add to favorites" to
+        "Añadir a favoritas",
+    "Remove from favorites" to
+        "Quitar de favoritas",
+    "Technology" to
+        "Tecnología",
+    "Variable" to
+        "Variable",
+    "Duplicate" to
+        "Duplicar",
+    "Reset" to
+        "Restablecer",
+    "Copy" to
+        "Copiar",
+    "Paste" to
+        "Pegar",
+    "Lock" to
+        "Bloquear",
+    "Unlock" to
+        "Desbloquear",
+    "More" to
+        "Más",
+    "Size" to
+        "Tamaño",
+    "Stroke" to
+        "Contorno",
+    "Corner" to
+        "Esquina",
 )

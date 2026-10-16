@@ -44,3 +44,16 @@ internal fun snapTextRotation(degrees: Float): Float {
 internal const val TextBackgroundPadXFraction = 0.22f
 internal const val TextBackgroundPadYFraction = 0.04f
 internal const val TextBackgroundCornerFraction = 0.2f
+
+/** Where the Color panel's Corner slider (0–100) starts: about [TextBackgroundCornerFraction]. */
+internal const val DefaultTextPlateCorner = 40f
+
+/**
+ * The Corner slider's 0–100 as a fraction of the text's height: 100 rounds the plate's ends fully
+ * (half its height, padding included).
+ */
+internal fun textPlateCornerFraction(corner: Float): Float =
+    corner.coerceIn(0f, 100f) / 100f * (0.5f + TextBackgroundPadYFraction)
+
+/** A text outline's width as a fraction of its font size. Half of it falls inside the letters. */
+internal const val TextStrokeWidthFraction = 0.12f

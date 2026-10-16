@@ -726,4 +726,80 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "{0} Çerçeveleri",
     "View All" to
         "Tümünü gör",
+    "Font size" to
+        "Yazı boyutu",
+    "Opacity" to
+        "Opaklık",
+    "Format" to
+        "Biçim",
+    "Spacing" to
+        "Aralık",
+    "Shadow" to
+        "Gölge",
+    "Curve" to
+        "Eğri",
+    "Position" to
+        "Konum",
+    "Nudge" to
+        "Kaydır",
+    "All fonts" to
+        "Tüm yazı tipleri",
+    "Align left" to
+        "Sola hizala",
+    "Align center" to
+        "Ortala",
+    "Align right" to
+        "Sağa hizala",
+    "Feeling" to
+        "His",
+    "Appearance" to
+        "Görünüm",
+    "Calligraphy" to
+        "Kaligrafi",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "Mevsimsel",
+    "Featured" to
+        "Öne çıkanlar",
+    "Favorites" to
+        "Favoriler",
+    "All" to
+        "Tümü",
+    "Categories" to
+        "Kategoriler",
+    "No favorite fonts yet" to
+        "Henüz favori yazı tipi yok",
+    "No recent fonts yet" to
+        "Henüz son kullanılan yazı tipi yok",
+    "Add to favorites" to
+        "Favorilere ekle",
+    "Remove from favorites" to
+        "Favorilerden kaldır",
+    "Technology" to
+        "Teknoloji",
+    "Variable" to
+        "Değişken",
+    "Duplicate" to
+        "Çoğalt",
+    "Reset" to
+        "Sıfırla",
+    "Copy" to
+        "Kopyala",
+    "Paste" to
+        "Yapıştır",
+    "Lock" to
+        "Kilitle",
+    "Unlock" to
+        "Kilidi aç",
+    "More" to
+        "Daha fazla",
+    "Size" to
+        "Boyut",
+    "Stroke" to
+        "Kontur",
+    "Corner" to
+        "Köşe",
 )

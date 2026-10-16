@@ -10,6 +10,7 @@ import org.example.project.data.billing.AppBillingWrapper
 import org.example.project.data.billing.billingPlatformModule
 import org.example.project.data.centraldata.CentralDataApi
 import org.example.project.data.createKeyValueStore
+import org.example.project.data.fonts.FontLibrary
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
 import org.example.project.getPlatform
@@ -72,6 +73,8 @@ val coreModule: Module = module {
     single { ProjectsRepository() }
 
     single { PipAssetLoader() }
+    // The Text tool's Google Fonts catalog, with the user's favourite and recent fonts.
+    single { FontLibrary(createKeyValueStore()) }
     // Subscriptions. Created at startup so the entitlement check runs on every launch and, on
     // Android, so its activity tracker is registered before the first activity resumes.
     single(createdAtStart = true) { AppBillingWrapper(get(), get()) }

@@ -726,4 +726,80 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "إطارات {0}",
     "View All" to
         "عرض الكل",
+    "Font size" to
+        "حجم الخط",
+    "Opacity" to
+        "الشفافية",
+    "Format" to
+        "التنسيق",
+    "Spacing" to
+        "التباعد",
+    "Shadow" to
+        "الظل",
+    "Curve" to
+        "الانحناء",
+    "Position" to
+        "الموضع",
+    "Nudge" to
+        "تحريك دقيق",
+    "All fonts" to
+        "كل الخطوط",
+    "Align left" to
+        "محاذاة لليسار",
+    "Align center" to
+        "توسيط",
+    "Align right" to
+        "محاذاة لليمين",
+    "Feeling" to
+        "الإحساس",
+    "Appearance" to
+        "المظهر",
+    "Calligraphy" to
+        "الخط اليدوي",
+    "Serif" to
+        "سيريف",
+    "Sans Serif" to
+        "سانس سيريف",
+    "Seasonal" to
+        "موسمي",
+    "Featured" to
+        "مميز",
+    "Favorites" to
+        "المفضلة",
+    "All" to
+        "الكل",
+    "Categories" to
+        "الفئات",
+    "No favorite fonts yet" to
+        "لا توجد خطوط مفضلة بعد",
+    "No recent fonts yet" to
+        "لا توجد خطوط حديثة بعد",
+    "Add to favorites" to
+        "إضافة إلى المفضلة",
+    "Remove from favorites" to
+        "إزالة من المفضلة",
+    "Technology" to
+        "التقنية",
+    "Variable" to
+        "متغير",
+    "Duplicate" to
+        "تكرار",
+    "Reset" to
+        "إعادة تعيين",
+    "Copy" to
+        "نسخ",
+    "Paste" to
+        "لصق",
+    "Lock" to
+        "قفل",
+    "Unlock" to
+        "إلغاء القفل",
+    "More" to
+        "المزيد",
+    "Size" to
+        "الحجم",
+    "Stroke" to
+        "حدود",
+    "Corner" to
+        "الزاوية",
 )

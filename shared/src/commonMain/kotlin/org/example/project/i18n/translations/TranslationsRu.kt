@@ -726,4 +726,80 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Рамки: {0}",
     "View All" to
         "Все",
+    "Font size" to
+        "Размер шрифта",
+    "Opacity" to
+        "Непрозрачность",
+    "Format" to
+        "Формат",
+    "Spacing" to
+        "Интервал",
+    "Shadow" to
+        "Тень",
+    "Curve" to
+        "Изгиб",
+    "Position" to
+        "Положение",
+    "Nudge" to
+        "Сдвиг",
+    "All fonts" to
+        "Все шрифты",
+    "Align left" to
+        "По левому краю",
+    "Align center" to
+        "По центру",
+    "Align right" to
+        "По правому краю",
+    "Feeling" to
+        "Настроение",
+    "Appearance" to
+        "Внешний вид",
+    "Calligraphy" to
+        "Каллиграфия",
+    "Serif" to
+        "С засечками",
+    "Sans Serif" to
+        "Без засечек",
+    "Seasonal" to
+        "Сезонные",
+    "Featured" to
+        "Избранное",
+    "Favorites" to
+        "Любимые",
+    "All" to
+        "Все",
+    "Categories" to
+        "Категории",
+    "No favorite fonts yet" to
+        "Пока нет любимых шрифтов",
+    "No recent fonts yet" to
+        "Пока нет недавних шрифтов",
+    "Add to favorites" to
+        "Добавить в любимые",
+    "Remove from favorites" to
+        "Убрать из любимых",
+    "Technology" to
+        "Технологии",
+    "Variable" to
+        "Вариативные",
+    "Duplicate" to
+        "Дублировать",
+    "Reset" to
+        "Сбросить",
+    "Copy" to
+        "Копировать",
+    "Paste" to
+        "Вставить",
+    "Lock" to
+        "Заблокировать",
+    "Unlock" to
+        "Разблокировать",
+    "More" to
+        "Ещё",
+    "Size" to
+        "Размер",
+    "Stroke" to
+        "Обводка",
+    "Corner" to
+        "Угол",
 )

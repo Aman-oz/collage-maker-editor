@@ -30,6 +30,9 @@ internal fun ToolTopBar(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     doneEnabled: Boolean = true,
+    // Replaces the plain [title] text when set (the Text tool's category picker); [title] is then
+    // unused.
+    titleContent: (@Composable () -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     // A Box rather than a Row keeps the title centered on the screen regardless of the button
@@ -45,16 +48,20 @@ internal fun ToolTopBar(
             onClick = onClose,
             modifier = Modifier.align(Alignment.CenterStart),
         )
-        Text(
-            text = title,
-            color = scheme.onSurface,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = TopBarButtonSize + 16.dp),
-        )
+        if (titleContent != null) {
+            Box(modifier = Modifier.padding(horizontal = TopBarButtonSize + 16.dp)) { titleContent() }
+        } else {
+            Text(
+                text = title,
+                color = scheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = TopBarButtonSize + 16.dp),
+            )
+        }
         GlassTopBarButton(
             icon = Icons.Filled.Check,
             contentDescription = tr("Done"),

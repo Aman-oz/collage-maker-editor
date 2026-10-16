@@ -726,4 +726,80 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Cornici {0}",
     "View All" to
         "Vedi tutto",
+    "Font size" to
+        "Dimensione carattere",
+    "Opacity" to
+        "Opacità",
+    "Format" to
+        "Formato",
+    "Spacing" to
+        "Spaziatura",
+    "Shadow" to
+        "Ombra",
+    "Curve" to
+        "Curva",
+    "Position" to
+        "Posizione",
+    "Nudge" to
+        "Sposta",
+    "All fonts" to
+        "Tutti i caratteri",
+    "Align left" to
+        "Allinea a sinistra",
+    "Align center" to
+        "Centra",
+    "Align right" to
+        "Allinea a destra",
+    "Feeling" to
+        "Sensazione",
+    "Appearance" to
+        "Aspetto",
+    "Calligraphy" to
+        "Calligrafia",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "Stagionali",
+    "Featured" to
+        "In evidenza",
+    "Favorites" to
+        "Preferiti",
+    "All" to
+        "Tutti",
+    "Categories" to
+        "Categorie",
+    "No favorite fonts yet" to
+        "Ancora nessun carattere preferito",
+    "No recent fonts yet" to
+        "Ancora nessun carattere recente",
+    "Add to favorites" to
+        "Aggiungi ai preferiti",
+    "Remove from favorites" to
+        "Rimuovi dai preferiti",
+    "Technology" to
+        "Tecnologia",
+    "Variable" to
+        "Variabile",
+    "Duplicate" to
+        "Duplica",
+    "Reset" to
+        "Ripristina",
+    "Copy" to
+        "Copia",
+    "Paste" to
+        "Incolla",
+    "Lock" to
+        "Blocca",
+    "Unlock" to
+        "Sblocca",
+    "More" to
+        "Altro",
+    "Size" to
+        "Dimensione",
+    "Stroke" to
+        "Contorno",
+    "Corner" to
+        "Angolo",
 )

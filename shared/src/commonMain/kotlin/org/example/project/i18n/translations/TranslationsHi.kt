@@ -726,4 +726,80 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "{0} फ़्रेम",
     "View All" to
         "सभी देखें",
+    "Font size" to
+        "फ़ॉन्ट आकार",
+    "Opacity" to
+        "अपारदर्शिता",
+    "Format" to
+        "फ़ॉर्मैट",
+    "Spacing" to
+        "अंतराल",
+    "Shadow" to
+        "छाया",
+    "Curve" to
+        "वक्र",
+    "Position" to
+        "स्थिति",
+    "Nudge" to
+        "खिसकाएँ",
+    "All fonts" to
+        "सभी फ़ॉन्ट",
+    "Align left" to
+        "बाएँ संरेखित करें",
+    "Align center" to
+        "बीच में करें",
+    "Align right" to
+        "दाएँ संरेखित करें",
+    "Feeling" to
+        "भाव",
+    "Appearance" to
+        "रूप",
+    "Calligraphy" to
+        "सुलेख",
+    "Serif" to
+        "सेरिफ़",
+    "Sans Serif" to
+        "सैन्स सेरिफ़",
+    "Seasonal" to
+        "मौसमी",
+    "Featured" to
+        "चुनिंदा",
+    "Favorites" to
+        "पसंदीदा",
+    "All" to
+        "सभी",
+    "Categories" to
+        "श्रेणियाँ",
+    "No favorite fonts yet" to
+        "अभी कोई पसंदीदा फ़ॉन्ट नहीं",
+    "No recent fonts yet" to
+        "अभी कोई हाल का फ़ॉन्ट नहीं",
+    "Add to favorites" to
+        "पसंदीदा में जोड़ें",
+    "Remove from favorites" to
+        "पसंदीदा से हटाएँ",
+    "Technology" to
+        "तकनीक",
+    "Variable" to
+        "वेरिएबल",
+    "Duplicate" to
+        "डुप्लिकेट",
+    "Reset" to
+        "रीसेट",
+    "Copy" to
+        "कॉपी",
+    "Paste" to
+        "पेस्ट",
+    "Lock" to
+        "लॉक",
+    "Unlock" to
+        "अनलॉक",
+    "More" to
+        "और",
+    "Size" to
+        "आकार",
+    "Stroke" to
+        "स्ट्रोक",
+    "Corner" to
+        "कोना",
 )

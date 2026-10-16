@@ -726,4 +726,80 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Cadres {0}",
     "View All" to
         "Tout voir",
+    "Font size" to
+        "Taille de police",
+    "Opacity" to
+        "Opacité",
+    "Format" to
+        "Format",
+    "Spacing" to
+        "Espacement",
+    "Shadow" to
+        "Ombre",
+    "Curve" to
+        "Courbe",
+    "Position" to
+        "Position",
+    "Nudge" to
+        "Ajuster",
+    "All fonts" to
+        "Toutes les polices",
+    "Align left" to
+        "Aligner à gauche",
+    "Align center" to
+        "Centrer",
+    "Align right" to
+        "Aligner à droite",
+    "Feeling" to
+        "Ressenti",
+    "Appearance" to
+        "Apparence",
+    "Calligraphy" to
+        "Calligraphie",
+    "Serif" to
+        "Serif",
+    "Sans Serif" to
+        "Sans Serif",
+    "Seasonal" to
+        "Saisonnier",
+    "Featured" to
+        "En vedette",
+    "Favorites" to
+        "Favoris",
+    "All" to
+        "Toutes",
+    "Categories" to
+        "Catégories",
+    "No favorite fonts yet" to
+        "Aucune police favorite",
+    "No recent fonts yet" to
+        "Aucune police récente",
+    "Add to favorites" to
+        "Ajouter aux favoris",
+    "Remove from favorites" to
+        "Retirer des favoris",
+    "Technology" to
+        "Technologie",
+    "Variable" to
+        "Variable",
+    "Duplicate" to
+        "Dupliquer",
+    "Reset" to
+        "Réinitialiser",
+    "Copy" to
+        "Copier",
+    "Paste" to
+        "Coller",
+    "Lock" to
+        "Verrouiller",
+    "Unlock" to
+        "Déverrouiller",
+    "More" to
+        "Plus",
+    "Size" to
+        "Taille",
+    "Stroke" to
+        "Contour",
+    "Corner" to
+        "Coin",
 )
