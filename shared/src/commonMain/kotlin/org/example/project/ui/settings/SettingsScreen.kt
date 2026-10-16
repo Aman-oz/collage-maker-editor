@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -86,6 +87,7 @@ import photocollagemaker.shared.generated.resources.ic_share_app
 import photocollagemaker.shared.generated.resources.ic_terms_and_conditions
 import photocollagemaker.shared.generated.resources.ic_theme
 import photocollagemaker.shared.generated.resources.img_premium_card
+import photocollagemaker.shared.generated.resources.img_premium_card_landscape
 
 /** Brand purple shared with the language screen, splash and onboarding. */
 internal val SettingsAccent = Color(0xFF8B5CF6)
@@ -178,8 +180,8 @@ private fun SettingsContent(
     )
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        // A phone on its side: the 2.5:1 premium card alone would fill the first screen, so it
-        // moves to the left and the rows scroll beside it. The dialogs go wide there too, since
+        // A phone on its side: the 2.5:1 premium card alone would fill the first screen, so a
+        // squarer one takes the left and the rows scroll beside it. The dialogs go wide there too, since
         // stacked they are taller than the screen.
         val landscape = isSideBySideEditor(maxWidth, maxHeight)
         val sections: @Composable () -> Unit = {
@@ -211,9 +213,17 @@ private fun SettingsContent(
             SettingsTopBar(onBack = onBack)
             if (landscape) {
                 Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                    // Level with the first section header's text on the right.
-                    Column(modifier = Modifier.weight(1f).padding(top = 20.dp)) {
-                        PremiumCard(onClick = onPremium)
+                    // Level with the first section header's text on the right, and as big as the
+                    // column's width or height allows.
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(top = 20.dp, bottom = 16.dp)
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                        contentAlignment = Alignment.TopStart,
+                    ) {
+                        LandscapePremiumCard(onClick = onPremium)
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(
@@ -338,6 +348,51 @@ private fun PremiumCard(onClick: () -> Unit) {
                 fontWeight = FontWeight.Bold,
             )
         }
+    }
+}
+
+/**
+ * The square card for a phone on its side, where the wide card would leave most of its column
+ * empty. It takes the largest square that fits the column, so the name and Try Now laid over the
+ * artwork (in the gaps under the crown and under the photos) are sized from the card's width
+ * rather than fixed, to stay in those gaps at any size.
+ */
+@Composable
+private fun LandscapePremiumCard(onClick: () -> Unit) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(PremiumCardShape)
+            .clickable(role = Role.Button, onClick = onClick),
+    ) {
+        val unit = maxWidth / 100
+        Image(
+            painter = painterResource(Res.drawable.img_premium_card_landscape),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+        Text(
+            text = "Photo Collage Maker",
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = unit * 22),
+            color = Color.White,
+            fontSize = with(LocalDensity.current) { (unit * 6.4f).toSp() },
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+        Text(
+            text = tr("TRY NOW"),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = unit * 5)
+                .clip(CircleShape)
+                .background(Brush.verticalGradient(TryNowGradient))
+                .padding(horizontal = unit * 9, vertical = unit * 2.4f),
+            color = Color(0xFF3A1D00),
+            fontSize = with(LocalDensity.current) { (unit * 4.6f).toSp() },
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
     }
 }
 
