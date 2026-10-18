@@ -95,7 +95,9 @@ edge instead of up from the bottom. `ToolScaffold` does that for every tool, whi
 the stage by its `toolStage()` layout id rather than being a plain `Column`. There the panel fills the
 column with its controls at the bottom; a tool checks `ToolScaffoldScope.sideBySide` to reorder
 them or to turn a strip of options into a vertical grid with `Modifier.weight(1f)`. The Collage, Freestyle,
-PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The save and
+PIP and Set Background editors get the same arrangement from `EditorPanelLayout`. The Templates /
+Frames editor (`TemplatesEditorScreen`) lays itself out the same way: the frame on the left, its top
+bar at the top of the column and the PRO bar, hint and buttons at its foot. The save and
 share screens, the background remover's crop step (`CropContent`) and its eraser switch at the
 same size too: the picture on the left, their bars and buttons in the column. So does the paywall
 (its hero on the left, the plans and button beside it), and its launch offer goes wide.

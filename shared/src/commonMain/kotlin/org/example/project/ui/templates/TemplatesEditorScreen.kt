@@ -14,6 +14,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
+import org.example.project.ui.common.isSideBySideEditor
+import org.example.project.ui.common.EditorSidePanelWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -111,104 +115,130 @@ fun TemplatesEditorScreen(
         picker.launch()
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .safeDrawingPadding(),
+    val topBar = @Composable {
+        EditorTopBar(
+            title = title,
+            onBack = onBack,
+            // A premium template or frame can be tried by anyone, but using it takes a subscription.
+            onDone = {
+                if (viewModel.needsPremium) onPremium() else if (viewModel.applyTemplate()) onDone()
+            },
+        )
+    }
+    val stage = @Composable { stageModifier: Modifier ->
+        Box(
+            modifier = stageModifier
+                // A tap that no slot took (the frame's artwork, or the space around the template)
+                // clears the selection; slots consume their own taps.
+                .pointerInput(Unit) { detectTapGestures { viewModel.selectSlot(null) } },
+            contentAlignment = Alignment.Center,
         ) {
-            EditorTopBar(
-                title = title,
-                onBack = onBack,
-                // A premium template or frame can be tried by anyone, but using it takes a subscription.
-                onDone = {
-                    if (viewModel.needsPremium) onPremium() else if (viewModel.applyTemplate()) onDone()
-                },
-            )
+            when (val state = uiState) {
+                TemplatesEditorUiState.Loading -> FramePlaceholder(frame)
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    // A tap that no slot took (the frame's artwork, or the space around the template)
-                    // clears the selection; slots consume their own taps.
-                    .pointerInput(Unit) { detectTapGestures { viewModel.selectSlot(null) } },
-                contentAlignment = Alignment.Center,
-            ) {
-                when (val state = uiState) {
-                    TemplatesEditorUiState.Loading -> FramePlaceholder(frame)
-
-                    is TemplatesEditorUiState.Ready -> TemplatePreview(
-                        frame = frame,
-                        state = state,
-                        selectedSlotIndex = selectedSlotIndex,
-                        onSlotTap = { index ->
-                            if (index !in state.images) {
-                                // An empty slot's "+" goes straight to filling it.
-                                viewModel.selectSlot(index)
-                                pickInto(index)
-                            } else {
-                                // A filled one toggles: selected for "Change Image" (or a double tap
-                                // to replace), and a second tap takes the selection off again.
-                                viewModel.selectSlot(if (state.selectedSlotIndex == index) null else index)
-                            }
-                        },
-                        onSlotDoubleTap = { index ->
+                is TemplatesEditorUiState.Ready -> TemplatePreview(
+                    frame = frame,
+                    state = state,
+                    selectedSlotIndex = selectedSlotIndex,
+                    onSlotTap = { index ->
+                        if (index !in state.images) {
+                            // An empty slot's "+" goes straight to filling it.
                             viewModel.selectSlot(index)
                             pickInto(index)
-                        },
-                        onSlotTransform = viewModel::transformSlot,
-                    )
+                        } else {
+                            // A filled one toggles: selected for "Change Image" (or a double tap
+                            // to replace), and a second tap takes the selection off again.
+                            viewModel.selectSlot(if (state.selectedSlotIndex == index) null else index)
+                        }
+                    },
+                    onSlotDoubleTap = { index ->
+                        viewModel.selectSlot(index)
+                        pickInto(index)
+                    },
+                    onSlotTransform = viewModel::transformSlot,
+                )
 
-                    is TemplatesEditorUiState.Error -> Text(
-                        text = state.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(24.dp),
+                is TemplatesEditorUiState.Error -> Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(24.dp),
+                )
+            }
+        }
+    }
+    // The PRO bar, the hint and the two buttons: under the frame, or at the foot of the side column.
+    val controls = @Composable {
+        ProFeatureBar(visible = frame.isPremium && !isSubscribed, onClick = onPremium)
+        PreventScreenCapture(enabled = frame.isPremium && !isSubscribed)
+
+        Text(
+            text = tr("Tap a photo to select it, double tap to replace it, pinch to zoom"),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
+        val selectedHasImage = selectedSlotIndex?.let { index ->
+            (uiState as? TemplatesEditorUiState.Ready)?.images?.containsKey(index)
+        } == true
+        BottomActions(
+            enabled = uiState is TemplatesEditorUiState.Ready,
+            imageLabel = if (selectedHasImage) tr("Change Image") else tr("Add Image"),
+            // Fills the selected slot, or replaces its photo once it has one. With nothing
+            // selected it carries on with the first empty slot (selecting it, so the selection
+            // then moves on from there); with none left, it says how to pick a photo to replace.
+            onImageAction = {
+                val target = selectedSlotIndex ?: viewModel.firstEmptySlotIndex()
+                if (target == null) {
+                    toastMessage = tr("Tap a photo to select it, double tap to replace it, pinch to zoom")
+                } else {
+                    viewModel.selectSlot(target)
+                    pickInto(target)
+                }
+            },
+            onChangeFrame = onBack,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding(),
+    ) {
+        if (isSideBySideEditor(maxWidth, maxHeight)) {
+            // A phone on its side: the frame on the left at full height; the top bar at the top of a
+            // column on the right and the controls at its foot, as in the other editors.
+            Row(modifier = Modifier.fillMaxSize()) {
+                stage(Modifier.weight(1f).fillMaxHeight().padding(12.dp))
+                Box(modifier = Modifier.width(EditorSidePanelWidth).fillMaxHeight()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        topBar()
+                        Spacer(modifier = Modifier.weight(1f))
+                        controls()
+                    }
+                    EditorToast(
+                        message = toastMessage,
+                        onDismissed = { toastMessage = null },
+                        modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             }
-
-            ProFeatureBar(visible = frame.isPremium && !isSubscribed, onClick = onPremium)
-            PreventScreenCapture(enabled = frame.isPremium && !isSubscribed)
-
-            Text(
-                text = tr("Tap a photo to select it, double tap to replace it, pinch to zoom"),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-
-            val selectedHasImage = selectedSlotIndex?.let { index ->
-                (uiState as? TemplatesEditorUiState.Ready)?.images?.containsKey(index)
-            } == true
-            BottomActions(
-                enabled = uiState is TemplatesEditorUiState.Ready,
-                imageLabel = if (selectedHasImage) tr("Change Image") else tr("Add Image"),
-                // Fills the selected slot, or replaces its photo once it has one. With nothing
-                // selected it carries on with the first empty slot (selecting it, so the selection
-                // then moves on from there); with none left, it says how to pick a photo to replace.
-                onImageAction = {
-                    val target = selectedSlotIndex ?: viewModel.firstEmptySlotIndex()
-                    if (target == null) {
-                        toastMessage = tr("Tap a photo to select it, double tap to replace it, pinch to zoom")
-                    } else {
-                        viewModel.selectSlot(target)
-                        pickInto(target)
-                    }
-                },
-                onChangeFrame = onBack,
-                modifier = Modifier.padding(16.dp),
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                topBar()
+                stage(Modifier.fillMaxWidth().weight(1f))
+                controls()
+            }
+            EditorToast(
+                message = toastMessage,
+                onDismissed = { toastMessage = null },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
-
-        EditorToast(
-            message = toastMessage,
-            onDismissed = { toastMessage = null },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 
