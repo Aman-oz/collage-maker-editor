@@ -122,17 +122,6 @@ class TextMathTest {
     }
 
     @Test
-    fun turnedBoxContains_followsTheTurn() {
-        val center = Offset(50f, 50f)
-        // A wide, short box: a point 30 to the right is in, 30 below is out...
-        assertTrue(turnedBoxContains(Offset(80f, 50f), center, 80f, 20f, 0f))
-        assertTrue(!turnedBoxContains(Offset(50f, 80f), center, 80f, 20f, 0f))
-        // ...and the other way round once it stands on end.
-        assertTrue(!turnedBoxContains(Offset(80f, 50f), center, 80f, 20f, 90f))
-        assertTrue(turnedBoxContains(Offset(50f, 80f), center, 80f, 20f, 90f))
-    }
-
-    @Test
     fun textPlateRect_reachesPastTheWordsBySide() {
         // 50 on the slider is 1 em; the font is 20px.
         val plate = textPlateRect(50f, 0f, 25f, 100f, androidx.compose.ui.geometry.Size(100f, 30f), emPx = 20f)

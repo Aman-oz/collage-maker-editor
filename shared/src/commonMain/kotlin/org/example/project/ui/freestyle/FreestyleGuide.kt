@@ -69,7 +69,7 @@ private class GuidePoint(val title: String, val description: String, val icon: @
  * guide points at what is on screen rather than describing it.
  */
 private val GuidePoints = listOf(
-    GuidePoint("Move", "Drag a photo, sticker or text with one finger to move it.") { Icons.Outlined.OpenWith },
+    GuidePoint("Move", "Drag a photo or sticker with one finger to move it.") { Icons.Outlined.OpenWith },
     GuidePoint("Pinch to resize", "Pinch with two fingers to make it bigger or smaller, and twist to rotate it.") {
         Icons.Outlined.Pinch
     },
@@ -84,7 +84,7 @@ private val GuidePoints = listOf(
     GuidePoint("Border", "Set the border width and corner radius. Tap a photo first to change only that one.") {
         Icons.Outlined.BorderClear
     },
-    GuidePoint("Text", "Add text, then choose its font, color and background. Double-tap text to edit it.") {
+    GuidePoint("Text", "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again.") {
         Icons.Outlined.TextFields
     },
     GuidePoint("Add Image", "Add another photo. Tap a photo first to replace it instead.") {

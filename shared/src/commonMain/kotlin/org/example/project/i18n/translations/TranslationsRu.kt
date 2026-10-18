@@ -694,8 +694,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Сведите пальцы для изменения размера",
     "Corner handle" to
         "Угловой маркер",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "Перетащите фото, стикер или текст одним пальцем, чтобы переместить.",
+    "Drag a photo or sticker with one finger to move it." to
+        "Перетащите фото или стикер одним пальцем, чтобы переместить его.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "Сведите или разведите два пальца, чтобы уменьшить или увеличить, и поверните их, чтобы повернуть.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Нажмите на эмодзи, чтобы поместить его на холст.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "Задайте ширину рамки и радиус углов. Сначала нажмите на фото, чтобы изменить только его.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "Добавьте текст, затем выберите шрифт, цвет и фон. Дважды нажмите на текст, чтобы изменить его.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "Добавьте текст и оформите его шрифтами, цветами, тенью и не только. Коснитесь текста, чтобы снова его изменить.",
     "Add another photo. Tap a photo first to replace it instead." to
         "Добавьте ещё одно фото. Сначала нажмите на фото, чтобы заменить его.",
     "Undo and redo step back and forward through your changes." to

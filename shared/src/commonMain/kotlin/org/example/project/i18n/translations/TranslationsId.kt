@@ -694,8 +694,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Cubit untuk mengubah ukuran",
     "Corner handle" to
         "Pegangan sudut",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "Seret foto, stiker, atau teks dengan satu jari untuk memindahkannya.",
+    "Drag a photo or sticker with one finger to move it." to
+        "Seret foto atau stiker dengan satu jari untuk memindahkannya.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "Cubit dengan dua jari untuk memperbesar atau memperkecil, dan putar jari untuk memutarnya.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Ketuk emoji untuk menempatkannya di kanvas.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "Atur lebar bingkai tepi dan radius sudut. Ketuk foto terlebih dahulu untuk mengubah foto itu saja.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "Tambahkan teks, lalu pilih font, warna, dan latar belakangnya. Ketuk dua kali teks untuk mengeditnya.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "Tambahkan teks dan beri gaya dengan font, warna, bayangan, dan lainnya. Ketuk teks untuk mengeditnya lagi.",
     "Add another photo. Tap a photo first to replace it instead." to
         "Tambahkan foto lain. Ketuk foto terlebih dahulu untuk menggantinya.",
     "Undo and redo step back and forward through your changes." to

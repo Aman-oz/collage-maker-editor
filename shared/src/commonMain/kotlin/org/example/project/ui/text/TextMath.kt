@@ -234,12 +234,3 @@ internal fun rotatedHalfSize(width: Float, height: Float, degrees: Float): Size 
     val sn = abs(sin(radians))
     return Size(width / 2f * c + height / 2f * sn, width / 2f * sn + height / 2f * c)
 }
-
-/**
- * Whether [point] is inside a [width] × [height] box centred on [center] and turned [degrees]
- * clockwise: the point is turned back into the box's own frame and checked against its sides.
- */
-internal fun turnedBoxContains(point: Offset, center: Offset, width: Float, height: Float, degrees: Float): Boolean {
-    val local = rotateVector(point - center, -degrees)
-    return abs(local.x) <= width / 2f && abs(local.y) <= height / 2f
-}

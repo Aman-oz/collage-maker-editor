@@ -1,5 +1,8 @@
 package org.example.project.ui.freestyle
 
+import org.example.project.ui.text.TextLayersOverlay
+import org.example.project.ui.text.TextToolOverlay
+import org.example.project.ui.text.TextLayers
 import org.example.project.i18n.tr
 import io.github.fletchmckee.liquid.liquefiable
 import io.github.fletchmckee.liquid.rememberLiquidState
@@ -91,9 +94,6 @@ import org.example.project.ui.common.rememberStickerFlights
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.text.TextColorOptions
-import org.example.project.ui.text.TextFontStyleOption
-import org.example.project.ui.text.TextFontStyles
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -131,6 +131,8 @@ fun FreestyleEditorScreen(
     viewModel: FreestyleEditorViewModel = koinViewModel { parametersOf(imagePaths) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     // The photo layer the open picker will replace; null means the pick adds a new layer.
@@ -154,6 +156,7 @@ fun FreestyleEditorScreen(
     Box(modifier = modifier.fillMaxSize()) {
         FreestyleEditorContent(
             uiState = uiState,
+            texts = texts,
             onClose = discard::requestBack,
             onDone = { canvasSizePx ->
                 // A canvas that uses something premium shows a non-subscriber the paywall once, as
@@ -175,9 +178,15 @@ fun FreestyleEditorScreen(
                 imagePicker.launch()
             },
             onAddSticker = viewModel::addSticker,
-            onAddText = viewModel::addText,
-            onUpdateText = viewModel::updateText,
-            onRetypeText = viewModel::retypeText,
+            onOpenTextTool = { canvasSizePx, selectedTextId ->
+                viewModel.openTextTool(
+                    textMeasurer = textMeasurer,
+                    previewWidthPx = canvasSizePx.width.toFloat(),
+                    previewHeightPx = canvasSizePx.height.toFloat(),
+                    previewDensity = density.density,
+                    selectedTextId = selectedTextId,
+                )
+            },
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onGestureEnd = viewModel::endGesture,
@@ -186,6 +195,16 @@ fun FreestyleEditorScreen(
             onCornerRadiusChange = viewModel::updateImageCornerRadius,
             modifier = Modifier.liquefiable(liquidState),
         )
+
+        // The photo editor's Text tool, over the whole screen.
+        TextToolOverlay(
+            session = viewModel.textSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeTextTool,
+            onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+        )
+
         DiscardChangesPopup(discard, liquidState)
     }
 }
@@ -193,6 +212,7 @@ fun FreestyleEditorScreen(
 @Composable
 private fun FreestyleEditorContent(
     uiState: FreestyleEditorUiState,
+    texts: TextLayers?,
     onClose: () -> Unit,
     onDone: (canvasSizePx: IntSize) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
@@ -201,9 +221,7 @@ private fun FreestyleEditorContent(
     onDeleteLayer: (id: Long) -> Unit,
     onImageAction: (replaceLayerId: Long?) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
-    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
-    onRetypeText: (id: Long, text: String) -> Unit,
+    onOpenTextTool: (canvasSizePx: IntSize, selectedTextId: Long?) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onGestureEnd: () -> Unit,
@@ -217,12 +235,6 @@ private fun FreestyleEditorContent(
     var selectedTool by remember { mutableStateOf(FreestyleTool.Background) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var canvasSizePx by remember { mutableStateOf(IntSize.Zero) }
-    // Style for the next new text layer; a selected text layer shows and edits its own instead.
-    var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
-    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
-    // Non-null while the keyboard-docked text bar is open.
-    var textEntry by remember { mutableStateOf<TextEntry?>(null) }
     var showGuide by remember { mutableStateOf(false) }
 
     val freestyle = (uiState as? FreestyleEditorUiState.Ready)?.freestyle
@@ -231,28 +243,9 @@ private fun FreestyleEditorContent(
         it.id == selectedLayerId && it.content is FreestyleContent.ImageContent
     }
     val selectedImageId = selectedImageLayer?.id
-    val selectedTextLayer = freestyle?.layers?.firstOrNull {
-        it.id == selectedLayerId && it.content is FreestyleContent.TextContent
-    }
-    val selectedText = selectedTextLayer?.content as? FreestyleContent.TextContent
-
-    fun commitTextEntry(entry: TextEntry) {
-        // Retyping coalesces into one undo step; closing the bar ends it.
-        onGestureEnd()
-        val layerId = entry.layerId
-        if (layerId == null) {
-            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
-        } else if (entry.text.isBlank()) {
-            // Clearing a label's text removes it, rather than leaving an invisible layer behind.
-            onDeleteLayer(layerId)
-            if (selectedLayerId == layerId) selectedLayerId = null
-        }
-        textEntry = null
-    }
-
-    fun openTextEntry(layer: FreestyleLayer?) {
-        val text = (layer?.content as? FreestyleContent.TextContent)?.text.orEmpty()
-        textEntry = TextEntry(layerId = layer?.id, text = text)
+    val openTextTool = { selectedTextId: Long? ->
+        selectedLayerId = null
+        onOpenTextTool(canvasSizePx, selectedTextId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch/slider step in progress.
@@ -261,8 +254,8 @@ private fun FreestyleEditorContent(
             panelHeight = ToolPanelHeight,
             modifier = Modifier
                 .background(chrome.surface)
-                // The keyboard is left out on purpose: it slides up over the panels while the canvas
-                // keeps its size, and the text bar docks itself above it instead.
+                // The keyboard is left out on purpose: the Text tool's slides up over the editor, which
+                // keeps its size under it (the canvas's size is what its layers are placed against).
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
             topBar = {
                 FreestyleTopBar(
@@ -288,32 +281,35 @@ private fun FreestyleEditorContent(
                     when (uiState) {
                         FreestyleEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
 
-                        is FreestyleEditorUiState.Ready -> FreestyleCanvas(
-                            stickerFlights = stickerFlights,
-                            layers = uiState.freestyle.layers,
-                            chrome = chrome,
-                            selectedLayerId = selectedLayerId,
-                            onCanvasSizeChanged = { canvasSizePx = it },
-                            onTextLayerDoubleTapped = { layer ->
-                                selectedLayerId = layer.id
-                                onSelectLayer(layer.id)
-                                selectedTool = FreestyleTool.Text
-                                openTextEntry(layer)
-                            },
-                            onLayerSelected = { id ->
-                                selectedLayerId = id
-                                onSelectLayer(id)
-                                // Selecting a label opens the panel that edits it (font, color, retyping).
-                                val isText = uiState.freestyle.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                                if (isText) selectedTool = FreestyleTool.Text
-                            },
-                            onLayerTransformed = onTransformLayer,
-                            onLayerScaleRotated = onScaleRotateLayer,
-                            onLayerDeleted = { id ->
-                                onDeleteLayer(id)
-                                selectedLayerId = null
-                            },
-                        )
+                        is FreestyleEditorUiState.Ready -> Box(modifier = Modifier.fillMaxSize()) {
+                            FreestyleCanvas(
+                                stickerFlights = stickerFlights,
+                                layers = uiState.freestyle.layers,
+                                chrome = chrome,
+                                selectedLayerId = selectedLayerId,
+                                onCanvasSizeChanged = { canvasSizePx = it },
+                                // Texts are the Text tool's, over the canvas, not its layers.
+                                onTextLayerDoubleTapped = {},
+                                onLayerSelected = { id ->
+                                    selectedLayerId = id
+                                    onSelectLayer(id)
+                                },
+                                onLayerTransformed = onTransformLayer,
+                                onLayerScaleRotated = onScaleRotateLayer,
+                                onLayerDeleted = { id ->
+                                    onDeleteLayer(id)
+                                    selectedLayerId = null
+                                },
+                            )
+                            // Above every layer, as Done bakes them; a tap on one opens the Text tool on it.
+                            if (texts != null) {
+                                TextLayersOverlay(
+                                    layers = texts,
+                                    onTextTapped = { id -> openTextTool(id) },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
 
                         is FreestyleEditorUiState.Error -> Text(
                             text = uiState.message,
@@ -344,35 +340,8 @@ private fun FreestyleEditorContent(
                             onWidthChange = { onBorderWidthChange(selectedImageId, it) },
                             onRadiusChange = { onCornerRadiusChange(selectedImageId, it) },
                         )
-                        FreestyleTool.Text -> TextPanel(
-                            chrome = chrome,
-                            selectedText = selectedText,
-                            font = selectedText?.font ?: newTextFont,
-                            fill = selectedText?.fill ?: newTextFill,
-                            background = if (selectedText != null) selectedText.background else newTextBackground,
-                            onFieldClick = { openTextEntry(selectedTextLayer) },
-                            onFontChange = { font ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
-                                } else {
-                                    newTextFont = font
-                                }
-                            },
-                            onFillChange = { fill ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
-                                } else {
-                                    newTextFill = fill
-                                }
-                            },
-                            onBackgroundChange = { background ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
-                                } else {
-                                    newTextBackground = background
-                                }
-                            },
-                        )
+                        // Opens the Text tool over the screen instead of a panel (see onToolSelected).
+                        FreestyleTool.Text -> Unit
                     }
                 }
             },
@@ -382,27 +351,13 @@ private fun FreestyleEditorContent(
                     selected = selectedTool,
                     enabled = freestyle != null,
                     replacing = selectedImageLayer != null,
-                    onToolSelected = { selectedTool = it },
+                    onToolSelected = { tool -> if (tool == FreestyleTool.Text) openTextTool(null) else selectedTool = tool },
                     onImageAction = { onImageAction(selectedImageLayer?.id) },
                     // Five tools fit the side column's width only a little narrower than usual.
                     itemWidth = if (sideBySide) 70.dp else ToolItemWidth,
                 )
             },
         )
-
-        textEntry?.let { entry ->
-            TextEntryBar(
-                chrome = chrome,
-                entry = entry,
-                onTextChange = { text ->
-                    textEntry = entry.copy(text = text)
-                    // An existing label updates live as it's retyped; a blank one is removed on commit.
-                    val layerId = entry.layerId
-                    if (layerId != null && text.isNotBlank()) onRetypeText(layerId, text)
-                },
-                onCommit = { commitTextEntry(entry) },
-            )
-        }
 
         StickerFlightOverlay(stickerFlights)
 
@@ -818,6 +773,7 @@ private fun FreestyleEditorScreenPreview() {
     ThemePreviews {
         FreestyleEditorContent(
             uiState = FreestyleEditorUiState.Ready(FreestyleState()),
+            texts = null,
             onClose = {},
             onDone = {},
             onTransformLayer = { _, _, _, _ -> },
@@ -826,9 +782,7 @@ private fun FreestyleEditorScreenPreview() {
             onDeleteLayer = {},
             onImageAction = {},
             onAddSticker = {},
-            onAddText = { _, _, _, _ -> },
-            onUpdateText = { _, _, _, _, _ -> },
-            onRetypeText = { _, _ -> },
+            onOpenTextTool = { _, _ -> },
             onUndo = {},
             onRedo = {},
             onGestureEnd = {},

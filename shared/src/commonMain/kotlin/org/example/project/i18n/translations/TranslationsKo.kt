@@ -694,8 +694,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "핀치하여 크기 조절",
     "Corner handle" to
         "모서리 핸들",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "사진, 스티커 또는 텍스트를 한 손가락으로 드래그해 옮깁니다.",
+    "Drag a photo or sticker with one finger to move it." to
+        "사진이나 스티커를 한 손가락으로 끌어 이동하세요.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "두 손가락으로 핀치해 크게 또는 작게 하고, 비틀어 회전합니다.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "이모지를 탭해 캔버스에 놓습니다.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "테두리 두께와 모서리 반경을 설정합니다. 한 장만 바꾸려면 먼저 그 사진을 탭하세요.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "텍스트를 추가한 다음 글꼴, 색상, 배경을 고릅니다. 텍스트를 두 번 탭하면 편집할 수 있습니다.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "텍스트를 추가하고 글꼴, 색상, 그림자 등으로 꾸미세요. 텍스트를 탭하면 다시 편집할 수 있어요.",
     "Add another photo. Tap a photo first to replace it instead." to
         "사진을 한 장 더 추가합니다. 먼저 사진을 탭하면 그 사진을 교체합니다.",
     "Undo and redo step back and forward through your changes." to

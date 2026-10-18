@@ -1,5 +1,6 @@
 package org.example.project.ui.pip
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
@@ -22,16 +23,15 @@ import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.freestyle.isPremiumFreestyle
 import org.example.project.ui.freestyle.FreestyleContent
-import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
-import org.example.project.ui.freestyle.retyped
 import org.example.project.ui.freestyle.transformed
 import org.example.project.ui.freestyle.withScaleRotation
-import org.example.project.ui.freestyle.withText
 import org.example.project.ui.templates.SlotTransform
 import org.example.project.ui.templates.applyGesture
-import org.example.project.ui.text.TextFontStyleOption
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextToolSession
+import org.example.project.ui.text.bakeTextLayers
 
 data class PipEditorUiState(
     /** The frame and masks; null while they (and the picked photos) load. */
@@ -45,13 +45,23 @@ data class PipEditorUiState(
 )
 
 /**
+ * One state of the PIP editor: the picture and its stickers ([edit]), and the Text tool's texts over
+ * it ([TextLayers]), kept live (so a tap opens them again) and baked over everything on Done.
+ */
+private data class PipFrame(val edit: PipEdit, val texts: TextLayers? = null)
+
+/**
  * Drives the Pip editor (the LAS app's `TemplateDetailActivity`): loads [templateName]'s frame and
- * masks, puts the picked [imagePaths] into its slots in order, and bakes the picture plus its text
- * and stickers into the session on Done.
+ * masks, puts the picked [imagePaths] into its slots in order, and bakes the picture plus its
+ * stickers and texts into the session on Done.
+ *
+ * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
+ * picture. Its texts come back as [TextLayers] that stay live over the picture ([texts]), above the
+ * stickers, until Done bakes them in.
  *
  * The edit history lives here rather than in the composable because Done pushes the photo editor
  * over this screen, and Back must return to the same photos and layers. Like Set Background,
- * continuous edits (a pinch, a drag, retyping a label) pass a coalesce key and fold into one undo
+ * continuous edits (a pinch, a drag) pass a coalesce key and fold into one undo
  * step until the screen reports the gesture over via [endGesture].
  */
 class PipEditorViewModel(
@@ -66,22 +76,37 @@ class PipEditorViewModel(
 
     /**
      * Whether Done should open the paywall once before creating the picture: `true` a single time,
-     * for a non-subscriber whose text and sticker layers are premium by the freestyle editor's rule
-     * ([isPremiumFreestyle]: more than two stickers, or text in the premium red or Stylish font).
-     * It is an offer, not a gate, so asking marks it as made and the next Done goes through either
-     * way.
+     * for a non-subscriber whose sticker layers are premium by the freestyle editor's rule
+     * ([isPremiumFreestyle]: more than two stickers). The texts are the Text tool's, which makes its
+     * own offer. It is an offer, not a gate, so asking marks it as made and the next Done goes
+     * through either way.
      */
     fun consumePremiumOffer(): Boolean {
-        if (settings.isPremium.value || premiumOfferShown || !history.current.layers.isPremiumFreestyle()) return false
+        if (settings.isPremium.value || premiumOfferShown || !history.current.edit.layers.isPremiumFreestyle()) return false
         premiumOfferShown = true
         return true
     }
 
     val template: PipTemplate? = pipTemplate(templateName)
 
+    /** Whether the user is subscribed; the Text tool offers everyone else the paywall on its Done. */
+    internal val isPremium: StateFlow<Boolean> = settings.isPremium
+
+    /**
+     * The Text tool open over the editor, or null. Here rather than in the screen because the paywall
+     * (offered from the tool's Done) covers the editor, which leaves composition: the tool has to
+     * still be open on return.
+     */
+    internal val textSession = mutableStateOf<TextToolSession?>(null)
+
+    private val _texts = MutableStateFlow<TextLayers?>(null)
+
+    /** The texts over the picture, not yet baked; null with none. */
+    internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
+
     private var assets: PipFrameAssets? = null
 
-    private var history = EditHistory(PipEdit(), maxSize = MaxPipHistory)
+    private var history = EditHistory(PipFrame(PipEdit()), maxSize = MaxPipHistory)
 
     /** The coalesce key of the continuous edit in progress, or null between gestures. */
     private var gestureKey: String? = null
@@ -120,7 +145,7 @@ class PipEditorViewModel(
                 .mapNotNull { (index, photo) -> photo?.let { index to it } }
                 .toMap()
             // The picked photos are the starting point, not an undoable step.
-            history = EditHistory(PipEdit(photos = placed), maxSize = MaxPipHistory)
+            history = EditHistory(PipFrame(PipEdit(photos = placed)), maxSize = MaxPipHistory)
             publish()
         }
     }
@@ -143,17 +168,6 @@ class PipEditorViewModel(
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
 
-    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
-        if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, fill, font, background))
-    }
-
-    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) =
-        updateLayers { it.withText(id, text, fill, font, background) }
-
-    /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
-    fun retypeText(id: Long, text: String) = updateLayers(coalesceKey = "text:$id") { it.retyped(id, text) }
-
     fun transformLayer(id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) =
         updateLayers(coalesceKey = "transform:$id") { it.transformed(id, panFraction, zoomDelta, rotationDeltaDegrees) }
 
@@ -175,16 +189,47 @@ class PipEditorViewModel(
     fun redo() = restore(history.redo())
 
     /**
-     * Bakes the picture into the session; see [bakePip] for the preview arguments. Returns false
-     * while nothing is loaded yet, so the screen stays put.
+     * Bakes the picture into the session, its texts on top; see [bakePip] for the preview arguments.
+     * Returns false while nothing is loaded yet, so the screen stays put.
      */
     fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): Boolean {
-        val template = template ?: return false
-        val assets = assets ?: return false
-        val edit = history.current
-        val backdrop = edit.backdropSource?.let { source -> backdrops[source] ?: blurredBackdrop(source) }
-        session.set(bakePip(template, assets, backdrop, edit, textMeasurer, previewWidthPx, previewDensity))
+        val picture = bakePicture(textMeasurer, previewWidthPx, previewDensity) ?: return false
+        val texts = history.current.texts
+        session.set(texts?.let { bakeTextLayers(picture, textMeasurer, it) } ?: picture)
         return true
+    }
+
+    /**
+     * Opens the Text tool on the picture as it is now, baked as Done would bake it (without the texts,
+     * which the tool shows itself). [selectedTextId] is the text tapped on the picture, if one was.
+     */
+    internal fun openTextTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedTextId: Long?) {
+        if (textSession.value != null || previewWidthPx <= 0f) return
+        val snapshot = bakePicture(textMeasurer, previewWidthPx, previewDensity) ?: return
+        textSession.value = TextToolSession(snapshot, history.current.texts, selectedTextId)
+    }
+
+    /** Leaves the Text tool without its changes. */
+    internal fun closeTextTool() {
+        textSession.value = null
+    }
+
+    /** Commits the Text tool's texts as one undoable step (none, when every text was deleted) and closes it. */
+    internal fun applyTexts(layers: TextLayers) {
+        textSession.value = null
+        if (assets == null) return
+        history = history.push(history.current.copy(texts = layers.takeIf { it.texts.isNotEmpty() }))
+        gestureKey = null
+        publish()
+    }
+
+    /** The picture and its stickers, baked; null while nothing is loaded yet. */
+    private fun bakePicture(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): ImageBitmap? {
+        val template = template ?: return null
+        val assets = assets ?: return null
+        val edit = history.current.edit
+        val backdrop = edit.backdropSource?.let { source -> backdrops[source] ?: blurredBackdrop(source) }
+        return bakePip(template, assets, backdrop, edit, textMeasurer, previewWidthPx, previewDensity)
     }
 
     private suspend fun loadPhoto(path: String): ImageBitmap? =
@@ -211,7 +256,7 @@ class PipEditorViewModel(
         transform: (PipEdit) -> PipEdit,
     ) {
         if (assets == null) return
-        val next = transform(history.current)
+        val next = history.current.copy(edit = transform(history.current.edit))
         if (next == history.current) return
         history = when {
             !record -> history.copy(current = next)
@@ -222,14 +267,14 @@ class PipEditorViewModel(
         publish()
     }
 
-    private fun restore(restored: EditHistory<PipEdit>) {
+    private fun restore(restored: EditHistory<PipFrame>) {
         history = restored
         gestureKey = null
         publish()
     }
 
     private fun publish() {
-        val edit = history.current
+        val edit = history.current.edit
         val source = edit.backdropSource
         if (source != null && source !in backdrops) blurBackdrop(source)
         _uiState.value = PipEditorUiState(
@@ -239,6 +284,7 @@ class PipEditorViewModel(
             canUndo = history.canUndo,
             canRedo = history.canRedo,
         )
+        _texts.value = history.current.texts
     }
 
     private fun blurBackdrop(source: ImageBitmap) {

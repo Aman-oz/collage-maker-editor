@@ -130,9 +130,9 @@ are applied (`EditorViewModel.consumePremiumOffer`, counted from the undo histor
 The collage editor follows the same two patterns on its own Done: a premium layout is a hard gate
 (`CollageEditorViewModel.needsPremium`), and a free layout with a border width of 2–5 or the 4:5
 ratio (`isPremiumCollageEdit`) gets the one-time offer (`consumePremiumOffer`). The freestyle
-editor's Done makes the one-time offer too (`isPremiumFreestyle`: more than 4 photos, more than 2
-stickers, or a text label in the premium red or Stylish font), and so does the PIP editor's, by
-the same rule applied to its text and sticker layers. Set Background does as well
+editor's Done makes the one-time offer too (`isPremiumFreestyle`: more than 4 photos or more than 2
+stickers; its texts are the Text tool's, which makes its own offer), and so does the PIP editor's,
+by the same rule applied to its sticker layers. Set Background does as well
 (`SetBackgroundEdit.isPremium`: that rule, or a backdrop from the Gradient tab).
 
 The background remover's crop step still uses the full-screen `CropContent`; it shares
@@ -155,7 +155,16 @@ from the back stack.
   offline, the bundled `composeResources/files/collages.json` is used. A new layout needs both a
   server asset and a generator case.
 - **Freestyle** (`ui/freestyle/`): the picked photos open spread over a grid by the pure
-  `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. The canvas fill and a
+  `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. Its Text button opens the photo
+  editor's Text tool over the whole screen (`TextToolOverlay` with a `TextToolSession` held in
+  `FreestyleEditorViewModel.textSession`, in the ViewModel so it outlives the paywall) on a
+  `bakeFreestyle` snapshot of the canvas; the
+  `TextLayers` it returns sit in the undo history beside the `FreestyleState` (`FreestyleFrame`),
+  are drawn over every layer by `TextLayersOverlay` (whose per-text tap boxes leave the photos
+  under it draggable), reopen the tool on a tap, and are baked on top on Done.
+  The PIP editor and Set Background do the same (`PipFrame` / `SetBackgroundFrame`, on a `bakePip` /
+  `bakeBackground` snapshot). The text labels below are the older `FreestyleContent.TextContent`
+  layers, which no screen creates any more (they still draw, and count in `isPremiumFreestyle`). The canvas fill and a
   text label's fill are both a `FreestyleFill` (solid or gradient) whose `brush` the preview and
   the bake draw; labels use `BasicText`, since Material's `Text` would flatten a gradient brush.
   A label can also carry a `background` fill, drawn by `drawTextPlate` (`ui/text/TextBaking.kt`)
@@ -208,9 +217,9 @@ from the back stack.
   `fonts_catalog.py`; don't hand-edit its format without `parseFontCatalog`). `buildFontSections`
   turns its tags into the main categories and their sub-categories (plus Technology: variable fonts); `FontLoader` downloads each
   TTF once from fonts.gstatic.com into a disk cache (expect/actual, 4 at a time, LRU in memory).
-  `FontLibrary` (Koin) parses the catalog once and keeps favourite and recent families. The
-  freestyle, PIP and Set Background text still use the system `TextFontStyles`, so the Stylish
-  rule of `isPremiumTextEdit` only bites there.
+  `FontLibrary` (Koin) parses the catalog once and keeps favourite and recent families.
+  Every editor's text is now this tool's, with catalog fonts, so the Stylish rule of
+  `isPremiumTextEdit` (a system `TextFontStyles` font) no longer comes up.
 - **Custom colours**: every colour row or grid (text, text background, Draw, Frame, and the
   collage, freestyle and Set Background backgrounds) leads with a colour-wheel swatch
   (`ColorPickerFill`) that opens `ColorPickerDialog` through `rememberColorPickerLauncher`
@@ -233,8 +242,9 @@ Ported from the LAS app's `TemplateActivity` / `TemplateDetailActivity`. Home's 
 one `<name>_<slot>.png` alpha mask per slot. `PipCatalog.kt` holds each slot's top-left corner in the
 frame's pixel space; a slot's size is its mask's own size, so geometry is only known once the masks
 are decoded (`PipAssetLoader`). `drawPip` renders the blurred first photo, then each photo masked by
-`DstIn` in its own layer, then the frame, and is shared by the preview and the bake. The editor's text
-and sticker layers are the freestyle ones, as in Set Background.
+`DstIn` in its own layer, then the frame, and is shared by the preview and the bake. The editor's
+sticker layers are the freestyle ones, as in Set Background; its text is the photo editor's Text
+tool, kept live over the picture as in the freestyle editor.
 
 ### Background remover — `ui/bgremover/`
 
@@ -246,10 +256,11 @@ inside an offscreen layer. Auto is a colour-based magic wand, not ML: a tap floo
 connected region around it (the bottom slider, tinted with the tapped colour, sets the tolerance)
 and erases or recovers it. The eraser's backdrop chip (each tap cycles checkerboard → white → dark
 → grey) is preview-only: Done hands a *transparent* cut-out to `ui/setbackground/`, which puts a
-colour, gradient or picked photo behind it, lets the user add text and stickers over it, and
-flattens it all (export is JPEG). The text/sticker layers are the freestyle editor's:
-`ui/freestyle/FreestyleLayers.kt` (canvas, selection handles, keyboard text bar, Text/Stickers
-panels) and `FreestyleLayerOps.kt` (pure layer edits) are internal and shared by both screens.
+colour, gradient or picked photo behind it, lets the user add stickers and text over it, and
+flattens it all (export is JPEG). The sticker layers are the freestyle editor's:
+`ui/freestyle/FreestyleLayers.kt` (canvas, selection handles, Stickers panel) and
+`FreestyleLayerOps.kt` (pure layer edits) are internal and shared with the PIP editor. The text is
+the photo editor's Text tool, opened over the screen, as in the freestyle editor.
 
 Ai Magic (premium) is server-side, ported from the LAS app: `data/bgremover/BackgroundRemoverApi`
 uploads the cropped photo as multipart `file` to `<base>/bg-remover/remove`, downloads the returned

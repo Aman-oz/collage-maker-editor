@@ -84,21 +84,15 @@ import org.example.project.ui.common.rememberStickerFlights
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.freestyle.FreestyleCanvas
-import org.example.project.ui.freestyle.FreestyleContent
-import org.example.project.ui.freestyle.FreestyleFill
-import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.StickersPanel
-import org.example.project.ui.freestyle.TextEntry
-import org.example.project.ui.freestyle.TextEntryBar
-import org.example.project.ui.freestyle.TextPanel
 import org.example.project.ui.freestyle.freestyleChrome
 import org.example.project.ui.freestyle.onGestureEnd
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.text.TextColorOptions
-import org.example.project.ui.text.TextFontStyleOption
-import org.example.project.ui.text.TextFontStyles
 import org.jetbrains.compose.resources.vectorResource
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextLayersOverlay
+import org.example.project.ui.text.TextToolOverlay
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_background
@@ -119,8 +113,8 @@ private val TallTileHeight = SwatchSize * 2 + SwatchSpacing
  */
 private val ToolPanelHeight = 190.dp
 
-/** The bottom tabs, each opening its panel under the photo. */
-private enum class SetBackgroundTool { Background, Text, Stickers }
+/** The bottom tabs that open a panel under the photo; Text opens the Text tool instead. */
+private enum class SetBackgroundTool { Background, Stickers }
 
 /** The two pages of the Background panel. */
 private enum class BackdropTab(private val englishLabel: String) {
@@ -133,9 +127,9 @@ private enum class BackdropTab(private val englishLabel: String) {
 }
 
 /**
- * Background remover step 3: put a colour, gradient or photo behind the transparent cut-out, and
- * add text and stickers over it (the freestyle editor's layers). Done flattens it all into the
- * session and opens the photo editor.
+ * Background remover step 3: put a colour, gradient or photo behind the transparent cut-out, add
+ * stickers over it (the freestyle editor's layers) and text over everything with the photo editor's
+ * Text tool. Done flattens it all into the session and opens the photo editor.
  */
 @Composable
 fun SetBackgroundScreen(
@@ -146,6 +140,8 @@ fun SetBackgroundScreen(
     viewModel: SetBackgroundViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val photos by viewModel.photos.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -153,52 +149,61 @@ fun SetBackgroundScreen(
         if (file != null) viewModel.addPhoto(file.path)
     }
 
-    SetBackgroundContent(
-        sourceImage = viewModel.cutOut,
-        uiState = uiState,
-        photos = photos,
-        onBack = onBack,
-        onDone = { previewSizePx ->
-            // A premium backdrop, text or stickers show a non-subscriber the paywall once, as an
-            // offer. The edit lives in the ViewModel, so it is still here when they come back, and
-            // the next Done goes through whether or not they subscribed.
-            if (viewModel.consumePremiumOffer()) {
-                onPremium()
-            } else {
-                viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
-                onApplied()
-            }
-        },
-        onAddPhoto = { photoPicker.launch() },
-        onSelectBackdrop = viewModel::selectBackdrop,
-        onAddSticker = viewModel::addSticker,
-        onAddText = viewModel::addText,
-        onUpdateText = viewModel::updateText,
-        onRetypeText = viewModel::retypeText,
-        onTransformLayer = viewModel::transformLayer,
-        onScaleRotateLayer = viewModel::setLayerScaleRotation,
-        onSelectLayer = viewModel::bringToFront,
-        onDeleteLayer = viewModel::removeLayer,
-        onUndo = viewModel::undo,
-        onRedo = viewModel::redo,
-        onGestureEnd = viewModel::endGesture,
-        modifier = modifier,
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        SetBackgroundContent(
+            sourceImage = viewModel.cutOut,
+            uiState = uiState,
+            texts = texts,
+            photos = photos,
+            onBack = onBack,
+            onDone = { previewSizePx ->
+                // A premium backdrop or stickers show a non-subscriber the paywall once, as an
+                // offer. The edit lives in the ViewModel, so it is still here when they come back, and
+                // the next Done goes through whether or not they subscribed.
+                if (viewModel.consumePremiumOffer()) {
+                    onPremium()
+                } else {
+                    viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
+                    onApplied()
+                }
+            },
+            onAddPhoto = { photoPicker.launch() },
+            onSelectBackdrop = viewModel::selectBackdrop,
+            onAddSticker = viewModel::addSticker,
+            onOpenTextTool = { previewSizePx, selectedTextId ->
+                viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
+            },
+            onTransformLayer = viewModel::transformLayer,
+            onScaleRotateLayer = viewModel::setLayerScaleRotation,
+            onSelectLayer = viewModel::bringToFront,
+            onDeleteLayer = viewModel::removeLayer,
+            onUndo = viewModel::undo,
+            onRedo = viewModel::redo,
+            onGestureEnd = viewModel::endGesture,
+        )
+        // The photo editor's Text tool, over the whole screen.
+        TextToolOverlay(
+            session = viewModel.textSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeTextTool,
+            onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+        )
+    }
 }
 
 @Composable
 private fun SetBackgroundContent(
     sourceImage: ImageBitmap?,
     uiState: SetBackgroundUiState,
+    texts: TextLayers?,
     photos: List<ImageBitmap>,
     onBack: () -> Unit,
     onDone: (previewSizePx: IntSize) -> Unit,
     onAddPhoto: () -> Unit,
     onSelectBackdrop: (Backdrop) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
-    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
-    onRetypeText: (id: Long, text: String) -> Unit,
+    onOpenTextTool: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
     onSelectLayer: (id: Long) -> Unit,
@@ -215,33 +220,9 @@ private fun SetBackgroundContent(
     var tab by remember { mutableStateOf(BackdropTab.Colour) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
-    // Style for the next new text layer; a selected text layer shows and edits its own instead.
-    var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
-    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
-    // Non-null while the keyboard-docked text bar is open.
-    var textEntry by remember { mutableStateOf<TextEntry?>(null) }
-
-    val selectedTextLayer = edit.layers.firstOrNull { it.id == selectedLayerId && it.content is FreestyleContent.TextContent }
-    val selectedText = selectedTextLayer?.content as? FreestyleContent.TextContent
-
-    fun commitTextEntry(entry: TextEntry) {
-        // Retyping coalesces into one undo step; closing the bar ends it.
-        onGestureEnd()
-        val layerId = entry.layerId
-        if (layerId == null) {
-            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
-        } else if (entry.text.isBlank()) {
-            // Clearing a label's text removes it, rather than leaving an invisible layer behind.
-            onDeleteLayer(layerId)
-            if (selectedLayerId == layerId) selectedLayerId = null
-        }
-        textEntry = null
-    }
-
-    fun openTextEntry(layer: FreestyleLayer?) {
-        val text = (layer?.content as? FreestyleContent.TextContent)?.text.orEmpty()
-        textEntry = TextEntry(layerId = layer?.id, text = text)
+    val openTextTool = { selectedTextId: Long? ->
+        selectedLayerId = null
+        onOpenTextTool(previewSizePx, selectedTextId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
@@ -250,8 +231,8 @@ private fun SetBackgroundContent(
             panelHeight = ToolPanelHeight,
             modifier = Modifier
                 .background(chrome.surface)
-                // The keyboard is left out on purpose: it slides up over the panels while the photo
-                // keeps its size, and the text bar docks itself above it instead.
+                // The keyboard is left out on purpose: the Text tool's slides up over the screen, which
+                // keeps its size under it (the photo's size is what its layers are placed against).
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
             topBar = {
                 SetBackgroundTopBar(
@@ -281,18 +262,11 @@ private fun SetBackgroundContent(
                                 chrome = chrome,
                                 selectedLayerId = selectedLayerId,
                                 onCanvasSizeChanged = { previewSizePx = it },
-                                onTextLayerDoubleTapped = { layer ->
-                                    selectedLayerId = layer.id
-                                    onSelectLayer(layer.id)
-                                    tool = SetBackgroundTool.Text
-                                    openTextEntry(layer)
-                                },
+                                // Texts are the Text tool's, over the photo, not its layers.
+                                onTextLayerDoubleTapped = {},
                                 onLayerSelected = { id ->
                                     selectedLayerId = id
                                     onSelectLayer(id)
-                                    // Selecting a label opens the panel that edits it (font, color, retyping).
-                                    val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                                    if (isText) tool = SetBackgroundTool.Text
                                 },
                                 onLayerTransformed = onTransformLayer,
                                 onLayerScaleRotated = onScaleRotateLayer,
@@ -301,6 +275,14 @@ private fun SetBackgroundContent(
                                     selectedLayerId = null
                                 },
                             )
+                            // Above the stickers, as Done bakes them; a tap on one opens the Text tool on it.
+                            if (texts != null) {
+                                TextLayersOverlay(
+                                    layers = texts,
+                                    onTextTapped = { id -> openTextTool(id) },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                         }
                     } else {
                         Text(tr("No image to edit"), color = chrome.content, style = MaterialTheme.typography.bodyLarge)
@@ -316,35 +298,6 @@ private fun SetBackgroundContent(
                         photos = photos,
                         onAddPhoto = onAddPhoto,
                         onSelected = onSelectBackdrop,
-                    )
-                    SetBackgroundTool.Text -> TextPanel(
-                        chrome = chrome,
-                        selectedText = selectedText,
-                        font = selectedText?.font ?: newTextFont,
-                        fill = selectedText?.fill ?: newTextFill,
-                        background = if (selectedText != null) selectedText.background else newTextBackground,
-                        onFieldClick = { openTextEntry(selectedTextLayer) },
-                        onFontChange = { font ->
-                            if (selectedTextLayer != null && selectedText != null) {
-                                onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
-                            } else {
-                                newTextFont = font
-                            }
-                        },
-                        onFillChange = { fill ->
-                            if (selectedTextLayer != null && selectedText != null) {
-                                onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
-                            } else {
-                                newTextFill = fill
-                            }
-                        },
-                        onBackgroundChange = { background ->
-                            if (selectedTextLayer != null && selectedText != null) {
-                                onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
-                            } else {
-                                newTextBackground = background
-                            }
-                        },
                     )
                     SetBackgroundTool.Stickers -> StickersPanel(
                         chrome = chrome,
@@ -369,9 +322,9 @@ private fun SetBackgroundContent(
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_text_editor),
                         label = tr("Text"),
-                        selected = tool == SetBackgroundTool.Text,
+                        selected = false,
                         enabled = sourceImage != null,
-                        onClick = { tool = SetBackgroundTool.Text },
+                        onClick = { openTextTool(null) },
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
@@ -383,20 +336,6 @@ private fun SetBackgroundContent(
                 }
             },
         )
-
-        textEntry?.let { entry ->
-            TextEntryBar(
-                chrome = chrome,
-                entry = entry,
-                onTextChange = { text ->
-                    textEntry = entry.copy(text = text)
-                    // An existing label updates live as it's retyped; a blank one is removed on commit.
-                    val layerId = entry.layerId
-                    if (layerId != null && text.isNotBlank()) onRetypeText(layerId, text)
-                },
-                onCommit = { commitTextEntry(entry) },
-            )
-        }
 
         StickerFlightOverlay(stickerFlights)
     }
@@ -648,15 +587,14 @@ private fun SetBackgroundPreview() {
         SetBackgroundContent(
             sourceImage = ImageBitmap(360, 480),
             uiState = SetBackgroundUiState(),
+            texts = null,
             photos = emptyList(),
             onBack = {},
             onDone = {},
             onAddPhoto = {},
             onSelectBackdrop = {},
             onAddSticker = {},
-            onAddText = { _, _, _, _ -> },
-            onUpdateText = { _, _, _, _, _ -> },
-            onRetypeText = { _, _ -> },
+            onOpenTextTool = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },
             onSelectLayer = {},

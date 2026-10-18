@@ -1,5 +1,6 @@
 package org.example.project.ui.freestyle
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
@@ -17,7 +18,9 @@ import org.example.project.data.ImageEditSession
 import org.example.project.i18n.tr
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.editor.MaxEditHistory
-import org.example.project.ui.text.TextFontStyleOption
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextToolSession
+import org.example.project.ui.text.bakeTextLayers
 
 sealed interface FreestyleEditorUiState {
     data object Loading : FreestyleEditorUiState
@@ -30,12 +33,22 @@ sealed interface FreestyleEditorUiState {
 }
 
 /**
+ * One state of the freestyle editor: the canvas, and the Text tool's texts over it ([TextLayers]),
+ * kept live (so a tap opens them again) and baked over everything on Done.
+ */
+private data class FreestyleFrame(val canvas: FreestyleState, val texts: TextLayers? = null)
+
+/**
  * Decodes every initially-picked image in parallel, scatters them ([scatterPlacements]) as freely
  * draggable/rotatable layers on one open canvas, and exposes every edit the freestyle screen offers — adding more
- * images, stickers or text, replacing a photo, transforming/reordering/deleting layers, the canvas
+ * images or stickers, replacing a photo, transforming/reordering/deleting layers, the canvas
  * background fill, and each photo's white frame and corner rounding.
  *
- * Every edit goes through an [EditHistory] of whole [FreestyleState]s for undo/redo. Continuous
+ * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
+ * canvas. Its texts come back as [TextLayers] that stay live over the canvas ([texts]), above every
+ * layer, until Done bakes them in.
+ *
+ * Every edit goes through an [EditHistory] of whole states (the canvas and its texts) for undo/redo. Continuous
  * edits (a drag, a slider, retyping a label) pass a coalesce key and are folded into one step until
  * the screen reports the gesture over via [endGesture]; bringing a layer to front on selection is
  * not recorded at all, so undo only ever reverts something the user deliberately did.
@@ -49,6 +62,21 @@ class FreestyleEditorViewModel(
 ) : ViewModel() {
 
     private var premiumOfferShown = false
+
+    /** Whether the user is subscribed; the Text tool offers everyone else the paywall on its Done. */
+    internal val isPremium: StateFlow<Boolean> = settings.isPremium
+
+    /**
+     * The Text tool open over the editor, or null. Here rather than in the screen because the paywall
+     * (offered from the tool's Done) covers the editor, which leaves composition: the tool has to
+     * still be open on return.
+     */
+    internal val textSession = mutableStateOf<TextToolSession?>(null)
+
+    private val _texts = MutableStateFlow<TextLayers?>(null)
+
+    /** The texts over the canvas, not yet baked; null with none. */
+    internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
 
     /**
      * Whether Done should open the paywall once before creating the freestyle: `true` a single
@@ -67,7 +95,7 @@ class FreestyleEditorViewModel(
 
     private var nextLayerId = 0L
 
-    private var history: EditHistory<FreestyleState>? = null
+    private var history: EditHistory<FreestyleFrame>? = null
 
     /** The coalesce key of the continuous edit in progress, or null between gestures. */
     private var gestureKey: String? = null
@@ -92,7 +120,7 @@ class FreestyleEditorViewModel(
                             rotationDegrees = placement.rotationDegrees,
                         )
                     }
-                    history = EditHistory(FreestyleState(layers = layers), maxSize = MaxFreestyleHistory)
+                    history = EditHistory(FreestyleFrame(FreestyleState(layers = layers)), maxSize = MaxFreestyleHistory)
                     publish()
                 }
                 .onFailure { _uiState.value = FreestyleEditorUiState.Error(it.message ?: tr("Could not open these images")) }
@@ -107,21 +135,6 @@ class FreestyleEditorViewModel(
     }
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
-
-    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
-        if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, fill, font, background))
-    }
-
-    /** Rewrites text layer [id] in place, keeping its placement. */
-    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
-        updateReady { state -> state.copy(layers = state.layers.withText(id, text, fill, font, background)) }
-    }
-
-    /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
-    fun retypeText(id: Long, text: String) {
-        updateReady(coalesceKey = "text:$id") { state -> state.copy(layers = state.layers.retyped(id, text)) }
-    }
 
     private fun addLayer(content: FreestyleContent) {
         updateReady { state -> state.copy(layers = state.layers + FreestyleLayer(id = nextId(), content = content)) }
@@ -168,7 +181,39 @@ class FreestyleEditorViewModel(
 
     fun redo() = restore { it.redo() }
 
-    private inline fun restore(step: (EditHistory<FreestyleState>) -> EditHistory<FreestyleState>) {
+    /**
+     * Opens the Text tool on the canvas as it is now, baked at the on-screen canvas's
+     * [previewWidthPx] x [previewHeightPx] aspect ratio as Done would bake it (without the texts,
+     * which the tool shows itself). [selectedTextId] is the text tapped on the canvas, if one was.
+     */
+    internal fun openTextTool(
+        textMeasurer: TextMeasurer,
+        previewWidthPx: Float,
+        previewHeightPx: Float,
+        previewDensity: Float,
+        selectedTextId: Long?,
+    ) {
+        val frame = history?.current ?: return
+        if (textSession.value != null || previewWidthPx <= 0f || previewHeightPx <= 0f) return
+        val snapshot = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
+        textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
+    }
+
+    /** Leaves the Text tool without its changes. */
+    internal fun closeTextTool() {
+        textSession.value = null
+    }
+
+    /** Commits the Text tool's texts as one undoable step (none, when every text was deleted) and closes it. */
+    internal fun applyTexts(layers: TextLayers) {
+        textSession.value = null
+        val current = history ?: return
+        history = current.push(current.current.copy(texts = layers.takeIf { it.texts.isNotEmpty() }))
+        gestureKey = null
+        publish()
+    }
+
+    private inline fun restore(step: (EditHistory<FreestyleFrame>) -> EditHistory<FreestyleFrame>) {
         val current = history ?: return
         history = step(current)
         gestureKey = null
@@ -186,13 +231,14 @@ class FreestyleEditorViewModel(
     }
 
     /**
-     * Bakes the current canvas into one bitmap and hands it to the shared editing session.
-     * The output keeps the on-screen canvas's [previewWidthPx] x [previewHeightPx] aspect ratio;
-     * [previewDensity] converts the layers' dp frame widths/corners into preview pixels.
+     * Bakes the current canvas into one bitmap, its texts on top, and hands it to the shared editing
+     * session. The output keeps the on-screen canvas's [previewWidthPx] x [previewHeightPx] aspect
+     * ratio; [previewDensity] converts the layers' dp frame widths/corners into preview pixels.
      */
     fun applyFreestyle(textMeasurer: TextMeasurer, previewWidthPx: Float, previewHeightPx: Float, previewDensity: Float) {
-        val state = (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle ?: return
-        session.set(bakeFreestyle(state, textMeasurer, previewWidthPx, previewHeightPx, previewDensity))
+        val frame = history?.current ?: return
+        val canvas = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
+        session.set(frame.texts?.let { bakeTextLayers(canvas, textMeasurer, it) } ?: canvas)
     }
 
     private inline fun updateImageLayers(
@@ -223,7 +269,7 @@ class FreestyleEditorViewModel(
         transform: (FreestyleState) -> FreestyleState,
     ) {
         val current = history ?: return
-        val next = transform(current.current)
+        val next = current.current.copy(canvas = transform(current.current.canvas))
         if (next == current.current) return
         history = when {
             !record -> current.copy(current = next)
@@ -236,13 +282,14 @@ class FreestyleEditorViewModel(
 
     private fun publish() {
         val current = history ?: return
-        _uiState.value = FreestyleEditorUiState.Ready(current.current, current.canUndo, current.canRedo)
+        _uiState.value = FreestyleEditorUiState.Ready(current.current.canvas, current.canUndo, current.canRedo)
+        _texts.value = current.current.texts
     }
 
     private companion object {
         /**
          * Higher than the photo editor's [MaxEditHistory]: a step here is a small [FreestyleState]
-         * whose layers share their decoded bitmaps, not a full-resolution bitmap of its own.
+         * whose layers share their decoded bitmaps (and texts), not a full-resolution bitmap of its own.
          */
         const val MaxFreestyleHistory = 50
     }

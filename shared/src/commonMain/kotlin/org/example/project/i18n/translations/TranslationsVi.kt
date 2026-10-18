@@ -694,8 +694,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Chụm để đổi kích thước",
     "Corner handle" to
         "Tay nắm ở góc",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "Kéo ảnh, nhãn dán hoặc chữ bằng một ngón tay để di chuyển.",
+    "Drag a photo or sticker with one finger to move it." to
+        "Kéo ảnh hoặc nhãn dán bằng một ngón tay để di chuyển.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "Chụm hai ngón tay để phóng to hoặc thu nhỏ, và xoay hai ngón để xoay.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Chạm vào một biểu tượng cảm xúc để đặt lên khung vẽ.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "Đặt độ rộng viền và bán kính góc. Chạm vào một ảnh trước để chỉ thay đổi ảnh đó.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "Thêm chữ, rồi chọn phông, màu và nền. Chạm hai lần vào chữ để sửa.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "Thêm chữ và tạo kiểu bằng phông chữ, màu, bóng đổ và hơn thế nữa. Chạm vào chữ để chỉnh sửa lại.",
     "Add another photo. Tap a photo first to replace it instead." to
         "Thêm một ảnh khác. Chạm vào một ảnh trước để thay ảnh đó.",
     "Undo and redo step back and forward through your changes." to

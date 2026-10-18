@@ -694,8 +694,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Boyutlandırmak için kıstır",
     "Corner handle" to
         "Köşe tutamacı",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "Bir fotoğrafı, çıkartmayı veya metni taşımak için tek parmakla sürükleyin.",
+    "Drag a photo or sticker with one finger to move it." to
+        "Taşımak için bir fotoğrafı veya çıkartmayı tek parmakla sürükleyin.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "Büyütmek veya küçültmek için iki parmakla kıstırın, döndürmek için parmaklarınızı çevirin.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Tuvale yerleştirmek için bir emojiye dokunun.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "Kenarlık genişliğini ve köşe yarıçapını ayarlayın. Yalnızca birini değiştirmek için önce o fotoğrafa dokunun.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "Metin ekleyin, ardından yazı tipini, rengini ve arka planını seçin. Düzenlemek için metne çift dokunun.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "Metin ekleyin ve yazı tipleri, renkler, gölge ve daha fazlasıyla biçimlendirin. Yeniden düzenlemek için bir metne dokunun.",
     "Add another photo. Tap a photo first to replace it instead." to
         "Başka bir fotoğraf ekleyin. Değiştirmek için önce bir fotoğrafa dokunun.",
     "Undo and redo step back and forward through your changes." to

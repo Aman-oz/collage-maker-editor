@@ -694,8 +694,8 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Pincer pour redimensionner",
     "Corner handle" to
         "Poignée d'angle",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "Faites glisser une photo, un sticker ou un texte avec un doigt pour le déplacer.",
+    "Drag a photo or sticker with one finger to move it." to
+        "Faites glisser une photo ou un sticker avec un doigt pour le déplacer.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "Pincez avec deux doigts pour l'agrandir ou le réduire, et tournez-les pour le faire pivoter.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Touchez un emoji pour le placer sur le canevas.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "Réglez la largeur de la bordure et le rayon des angles. Touchez d'abord une photo pour ne modifier que celle-ci.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "Ajoutez du texte, puis choisissez sa police, sa couleur et son arrière-plan. Touchez deux fois le texte pour le modifier.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "Ajoutez du texte et stylisez-le avec des polices, des couleurs, une ombre et plus. Touchez un texte pour le modifier à nouveau.",
     "Add another photo. Tap a photo first to replace it instead." to
         "Ajoutez une autre photo. Touchez d'abord une photo pour la remplacer.",
     "Undo and redo step back and forward through your changes." to

@@ -80,19 +80,13 @@ import org.example.project.ui.common.GlassTopBarButton
 import org.example.project.ui.common.TopBarButtonSize
 import org.example.project.ui.common.topBar
 import org.example.project.ui.freestyle.FreestyleCanvas
-import org.example.project.ui.freestyle.FreestyleContent
-import org.example.project.ui.freestyle.FreestyleFill
-import org.example.project.ui.freestyle.FreestyleLayer
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextLayersOverlay
+import org.example.project.ui.text.TextToolOverlay
 import org.example.project.ui.freestyle.StickersPanel
-import org.example.project.ui.freestyle.TextEntry
-import org.example.project.ui.freestyle.TextEntryBar
-import org.example.project.ui.freestyle.TextPanel
 import org.example.project.ui.freestyle.freestyleChrome
 import org.example.project.ui.freestyle.onGestureEnd
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.text.TextColorOptions
-import org.example.project.ui.text.TextFontStyleOption
-import org.example.project.ui.text.TextFontStyles
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -111,14 +105,12 @@ private val ToolPanelHeight = 190.dp
 /** Mask alpha (0..255) above which a touch counts as landing on that slot's window. */
 private const val MaskHitAlpha = 16
 
-/** The bottom tabs, each opening its panel under the picture. */
-private enum class PipTool { Text, Stickers }
-
 /**
  * Pip editor: the chosen template's frame over a blurred copy of the first photo, with each picked
  * photo showing through its window. Pinch/drag a window to reframe its photo, tap an empty one (or
- * double-tap any) to pick a photo for it, and add text and stickers over the whole picture (the
- * freestyle editor's layers). Done bakes it all into the session and opens the photo editor.
+ * double-tap any) to pick a photo for it, add stickers over the whole picture (the freestyle
+ * editor's layers) and text over everything with the photo editor's Text tool. Done bakes it all
+ * into the session and opens the photo editor.
  */
 @Composable
 fun PipEditorScreen(
@@ -131,6 +123,8 @@ fun PipEditorScreen(
     viewModel: PipEditorViewModel = koinViewModel { parametersOf(templateName, imagePaths) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     var pendingSlotIndex by remember { mutableStateOf<Int?>(null) }
@@ -149,9 +143,10 @@ fun PipEditorScreen(
         PipEditorContent(
             template = viewModel.template,
             uiState = uiState,
+            texts = texts,
             onBack = discard::requestBack,
             onDone = { previewSizePx ->
-                // Premium text or stickers show a non-subscriber the paywall once, as an offer. The
+                // Premium stickers show a non-subscriber the paywall once, as an offer. The
                 // edit lives in the ViewModel, so it is still here when they come back, and the next
                 // Done goes through whether or not they subscribed.
                 if (viewModel.consumePremiumOffer()) {
@@ -166,9 +161,9 @@ fun PipEditorScreen(
             },
             onTransformSlot = viewModel::transformSlot,
             onAddSticker = viewModel::addSticker,
-            onAddText = viewModel::addText,
-            onUpdateText = viewModel::updateText,
-            onRetypeText = viewModel::retypeText,
+            onOpenTextTool = { previewSizePx, selectedTextId ->
+                viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
+            },
             onTransformLayer = viewModel::transformLayer,
             onScaleRotateLayer = viewModel::setLayerScaleRotation,
             onSelectLayer = viewModel::bringToFront,
@@ -178,6 +173,14 @@ fun PipEditorScreen(
             onGestureEnd = viewModel::endGesture,
             modifier = Modifier.liquefiable(liquidState),
         )
+        // The photo editor's Text tool, over the whole screen.
+        TextToolOverlay(
+            session = viewModel.textSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeTextTool,
+            onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+        )
         DiscardChangesPopup(discard, liquidState)
     }
 }
@@ -186,14 +189,13 @@ fun PipEditorScreen(
 private fun PipEditorContent(
     template: PipTemplate?,
     uiState: PipEditorUiState,
+    texts: TextLayers?,
     onBack: () -> Unit,
     onDone: (previewSizePx: IntSize) -> Unit,
     onPickSlotPhoto: (slotIndex: Int) -> Unit,
     onTransformSlot: (index: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) -> Unit,
     onAddSticker: (String) -> Unit,
-    onAddText: (String, FreestyleFill, TextFontStyleOption, FreestyleFill?) -> Unit,
-    onUpdateText: (id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) -> Unit,
-    onRetypeText: (id: Long, text: String) -> Unit,
+    onOpenTextTool: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
     onSelectLayer: (id: Long) -> Unit,
@@ -208,36 +210,11 @@ private fun PipEditorContent(
     val edit = uiState.edit
     val assets = uiState.assets
     val ready = template != null && assets != null
-    var tool by remember { mutableStateOf(PipTool.Text) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
-    // Style for the next new text layer; a selected text layer shows and edits its own instead.
-    var newTextFont by remember { mutableStateOf(TextFontStyles[1]) }
-    var newTextFill by remember { mutableStateOf<FreestyleFill>(FreestyleFill.Solid(TextColorOptions.first())) }
-    var newTextBackground by remember { mutableStateOf<FreestyleFill?>(null) }
-    // Non-null while the keyboard-docked text bar is open.
-    var textEntry by remember { mutableStateOf<TextEntry?>(null) }
-
-    val selectedTextLayer = edit.layers.firstOrNull { it.id == selectedLayerId && it.content is FreestyleContent.TextContent }
-    val selectedText = selectedTextLayer?.content as? FreestyleContent.TextContent
-
-    fun commitTextEntry(entry: TextEntry) {
-        // Retyping coalesces into one undo step; closing the bar ends it.
-        onGestureEnd()
-        val layerId = entry.layerId
-        if (layerId == null) {
-            onAddText(entry.text.trim(), newTextFill, newTextFont, newTextBackground)
-        } else if (entry.text.isBlank()) {
-            // Clearing a label's text removes it, rather than leaving an invisible layer behind.
-            onDeleteLayer(layerId)
-            if (selectedLayerId == layerId) selectedLayerId = null
-        }
-        textEntry = null
-    }
-
-    fun openTextEntry(layer: FreestyleLayer?) {
-        val text = (layer?.content as? FreestyleContent.TextContent)?.text.orEmpty()
-        textEntry = TextEntry(layerId = layer?.id, text = text)
+    val openTextTool = { selectedTextId: Long? ->
+        selectedLayerId = null
+        onOpenTextTool(previewSizePx, selectedTextId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
@@ -246,8 +223,8 @@ private fun PipEditorContent(
             panelHeight = ToolPanelHeight,
             modifier = Modifier
                 .background(chrome.surface)
-                // The keyboard is left out on purpose: it slides up over the panels while the picture
-                // keeps its size, and the text bar docks itself above it instead.
+                // The keyboard is left out on purpose: the Text tool's slides up over the editor, which
+                // keeps its size under it (the picture's size is what its layers are placed against).
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
             topBar = {
                 PipEditorTopBar(
@@ -294,18 +271,11 @@ private fun PipEditorContent(
                                 chrome = chrome,
                                 selectedLayerId = selectedLayerId,
                                 onCanvasSizeChanged = { previewSizePx = it },
-                                onTextLayerDoubleTapped = { layer ->
-                                    selectedLayerId = layer.id
-                                    onSelectLayer(layer.id)
-                                    tool = PipTool.Text
-                                    openTextEntry(layer)
-                                },
+                                // Texts are the Text tool's, over the picture, not its layers.
+                                onTextLayerDoubleTapped = {},
                                 onLayerSelected = { id ->
                                     selectedLayerId = id
                                     onSelectLayer(id)
-                                    // Selecting a label opens the panel that edits it (font, color, retyping).
-                                    val isText = edit.layers.any { it.id == id && it.content is FreestyleContent.TextContent }
-                                    if (isText) tool = PipTool.Text
                                 },
                                 onLayerTransformed = onTransformLayer,
                                 onLayerScaleRotated = onScaleRotateLayer,
@@ -314,6 +284,14 @@ private fun PipEditorContent(
                                     selectedLayerId = null
                                 },
                             )
+                            // Above the stickers, as Done bakes them; a tap on one opens the Text tool on it.
+                            if (texts != null) {
+                                TextLayersOverlay(
+                                    layers = texts,
+                                    onTextTapped = { id -> openTextTool(id) },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                         }
 
                         uiState.error != null -> Text(
@@ -327,43 +305,13 @@ private fun PipEditorContent(
                     }
                 }
             },
+            // Text opens the Text tool over the screen, so the stickers are the one panel.
             panel = {
                 if (ready) {
-                    when (tool) {
-                        PipTool.Text -> TextPanel(
-                            chrome = chrome,
-                            selectedText = selectedText,
-                            font = selectedText?.font ?: newTextFont,
-                            fill = selectedText?.fill ?: newTextFill,
-                            background = if (selectedText != null) selectedText.background else newTextBackground,
-                            onFieldClick = { openTextEntry(selectedTextLayer) },
-                            onFontChange = { font ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, font, selectedText.background)
-                                } else {
-                                    newTextFont = font
-                                }
-                            },
-                            onFillChange = { fill ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, fill, selectedText.font, selectedText.background)
-                                } else {
-                                    newTextFill = fill
-                                }
-                            },
-                            onBackgroundChange = { background ->
-                                if (selectedTextLayer != null && selectedText != null) {
-                                    onUpdateText(selectedTextLayer.id, selectedText.text, selectedText.fill, selectedText.font, background)
-                                } else {
-                                    newTextBackground = background
-                                }
-                            },
-                        )
-                        PipTool.Stickers -> StickersPanel(
-                            chrome = chrome,
-                            onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { onAddSticker(emoji) } },
-                        )
-                    }
+                    StickersPanel(
+                        chrome = chrome,
+                        onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { onAddSticker(emoji) } },
+                    )
                 }
             },
             tabs = {
@@ -377,34 +325,20 @@ private fun PipEditorContent(
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_text_editor),
                         label = tr("Text"),
-                        selected = tool == PipTool.Text,
+                        selected = false,
                         enabled = ready,
-                        onClick = { tool = PipTool.Text },
+                        onClick = { openTextTool(null) },
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
                         label = tr("Stickers"),
-                        selected = tool == PipTool.Stickers,
+                        selected = true,
                         enabled = ready,
-                        onClick = { tool = PipTool.Stickers },
+                        onClick = {},
                     )
                 }
             },
         )
-
-        textEntry?.let { entry ->
-            TextEntryBar(
-                chrome = chrome,
-                entry = entry,
-                onTextChange = { text ->
-                    textEntry = entry.copy(text = text)
-                    // An existing label updates live as it's retyped; a blank one is removed on commit.
-                    val layerId = entry.layerId
-                    if (layerId != null && text.isNotBlank()) onRetypeText(layerId, text)
-                },
-                onCommit = { commitTextEntry(entry) },
-            )
-        }
 
         StickerFlightOverlay(stickerFlights)
     }
@@ -590,14 +524,13 @@ private fun PipEditorPreview() {
             uiState = PipEditorUiState(
                 assets = PipFrameAssets(frame = ImageBitmap(612, 612), masks = listOf(ImageBitmap(211, 439))),
             ),
+            texts = null,
             onBack = {},
             onDone = {},
             onPickSlotPhoto = {},
             onTransformSlot = { _, _, _, _, _, _ -> },
             onAddSticker = {},
-            onAddText = { _, _, _, _ -> },
-            onUpdateText = { _, _, _, _, _ -> },
-            onRetypeText = { _, _ -> },
+            onOpenTextTool = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },
             onSelectLayer = {},

@@ -694,8 +694,8 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "سائز بدلنے کے لیے چٹکی لیں",
     "Corner handle" to
         "کونے کا ہینڈل",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "کسی تصویر، اسٹیکر یا متن کو حرکت دینے کے لیے ایک انگلی سے گھسیٹیں۔",
+    "Drag a photo or sticker with one finger to move it." to
+        "کسی تصویر یا اسٹیکر کو ہلانے کے لیے ایک انگلی سے گھسیٹیں۔",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "بڑا یا چھوٹا کرنے کے لیے دو انگلیوں سے چٹکی لیں، اور گھمانے کے لیے انگلیاں گھمائیں۔",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "کسی ایموجی کو کینوس پر رکھنے کے لیے اس پر ٹیپ کریں۔",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "بارڈر کی چوڑائی اور کونے کی گولائی سیٹ کریں۔ صرف ایک تصویر بدلنے کے لیے پہلے اس پر ٹیپ کریں۔",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "متن شامل کریں، پھر اس کا فونٹ، رنگ اور پس منظر منتخب کریں۔ متن میں ترمیم کے لیے اس پر دو بار ٹیپ کریں۔",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "متن شامل کریں اور فونٹ، رنگ، سایہ اور مزید سے اسے سجائیں۔ دوبارہ ترمیم کے لیے کسی متن پر ٹیپ کریں۔",
     "Add another photo. Tap a photo first to replace it instead." to
         "ایک اور تصویر شامل کریں۔ کسی تصویر کو بدلنے کے لیے پہلے اس پر ٹیپ کریں۔",
     "Undo and redo step back and forward through your changes." to

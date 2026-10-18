@@ -694,8 +694,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "القرص لتغيير الحجم",
     "Corner handle" to
         "مقبض الزاوية",
-    "Drag a photo, sticker or text with one finger to move it." to
-        "اسحب صورة أو ملصقًا أو نصًا بإصبع واحد لتحريكه.",
+    "Drag a photo or sticker with one finger to move it." to
+        "اسحب صورة أو ملصقًا بإصبع واحد لتحريكه.",
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it." to
         "اقرص بإصبعين لتكبيره أو تصغيره، وأدر إصبعيك لتدويره.",
     "Tap an item, then drag the handle at its corner to resize and rotate it." to
@@ -708,8 +708,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "اضغط على رمز تعبيري لوضعه على اللوحة.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to
         "اضبط عرض الحد ونصف قطر الزاوية. اضغط على صورة أولًا لتغييرها وحدها.",
-    "Add text, then choose its font, color and background. Double-tap text to edit it." to
-        "أضف نصًا، ثم اختر خطه ولونه وخلفيته. اضغط مرتين على النص لتعديله.",
+    "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again." to
+        "أضف نصًا ونسّقه بالخطوط والألوان والظل والمزيد. اضغط على نص لتعديله مرة أخرى.",
     "Add another photo. Tap a photo first to replace it instead." to
         "أضف صورة أخرى. اضغط على صورة أولًا لاستبدالها بدلًا من ذلك.",
     "Undo and redo step back and forward through your changes." to

@@ -1,5 +1,6 @@
 package org.example.project.ui.setbackground
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
@@ -17,14 +18,13 @@ import org.example.project.data.ImageEditSession
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.freestyle.FreestyleContent
-import org.example.project.ui.freestyle.FreestyleFill
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
-import org.example.project.ui.freestyle.retyped
 import org.example.project.ui.freestyle.transformed
 import org.example.project.ui.freestyle.withScaleRotation
-import org.example.project.ui.freestyle.withText
-import org.example.project.ui.text.TextFontStyleOption
+import org.example.project.ui.text.TextLayers
+import org.example.project.ui.text.TextToolSession
+import org.example.project.ui.text.bakeTextLayers
 
 data class SetBackgroundUiState(
     val edit: SetBackgroundEdit = SetBackgroundEdit(),
@@ -33,12 +33,22 @@ data class SetBackgroundUiState(
 )
 
 /**
- * Reads the transparent cut-out from [ImageEditSession], edits its backdrop and text/sticker layers,
- * and writes the flattened photo back on Done.
+ * One state of Set Background: the backdrop and stickers ([edit]), and the Text tool's texts over
+ * the photo ([TextLayers]), kept live (so a tap opens them again) and baked over everything on Done.
+ */
+private data class SetBackgroundFrame(val edit: SetBackgroundEdit, val texts: TextLayers? = null)
+
+/**
+ * Reads the transparent cut-out from [ImageEditSession], edits its backdrop and sticker layers, and
+ * writes the flattened photo back on Done.
+ *
+ * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
+ * photo with its backdrop and stickers. Its texts come back as [TextLayers] that stay live over the
+ * photo ([texts]), above the stickers, until Done bakes them in.
  *
  * The edit history lives here rather than in the composable because Done pushes the photo editor
  * over this screen, and Back must return to the same backdrop and layers. Like the freestyle
- * editor, continuous edits (a drag, retyping a label) pass a coalesce key and fold into one undo
+ * editor, continuous edits (a drag) pass a coalesce key and fold into one undo
  * step until the screen reports the gesture over via [endGesture].
  */
 class SetBackgroundViewModel(
@@ -50,11 +60,12 @@ class SetBackgroundViewModel(
 
     /**
      * Whether Done should open the paywall once before flattening the photo: `true` a single time,
-     * for a non-subscriber whose edit [isPremium]. It is an offer, not a gate, so asking marks it as
-     * made and the next Done goes through either way.
+     * for a non-subscriber whose edit [isPremium] (the texts are the Text tool's, which makes its own
+     * offer). It is an offer, not a gate, so asking marks it as made and the next Done goes through
+     * either way.
      */
     fun consumePremiumOffer(): Boolean {
-        if (settings.isPremium.value || premiumOfferShown || !history.current.isPremium()) return false
+        if (settings.isPremium.value || premiumOfferShown || !history.current.edit.isPremium()) return false
         premiumOfferShown = true
         return true
     }
@@ -65,7 +76,22 @@ class SetBackgroundViewModel(
      */
     val cutOut: ImageBitmap? = session.image.value
 
-    private var history = EditHistory(SetBackgroundEdit(), maxSize = MaxSetBackgroundHistory)
+    private var history = EditHistory(SetBackgroundFrame(SetBackgroundEdit()), maxSize = MaxSetBackgroundHistory)
+
+    /** Whether the user is subscribed; the Text tool offers everyone else the paywall on its Done. */
+    internal val isPremium: StateFlow<Boolean> = settings.isPremium
+
+    /**
+     * The Text tool open over the screen, or null. Here rather than in the screen because the paywall
+     * (offered from the tool's Done) covers the screen, which leaves composition: the tool has to
+     * still be open on return.
+     */
+    internal val textSession = mutableStateOf<TextToolSession?>(null)
+
+    private val _texts = MutableStateFlow<TextLayers?>(null)
+
+    /** The texts over the photo, not yet baked; null with none. */
+    internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
 
     /** The coalesce key of the continuous edit in progress, or null between gestures. */
     private var gestureKey: String? = null
@@ -96,17 +122,6 @@ class SetBackgroundViewModel(
 
     fun addSticker(emoji: String) = addLayer(FreestyleContent.StickerContent(emoji))
 
-    fun addText(text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) {
-        if (text.isBlank()) return
-        addLayer(FreestyleContent.TextContent(text, fill, font, background))
-    }
-
-    fun updateText(id: Long, text: String, fill: FreestyleFill, font: TextFontStyleOption, background: FreestyleFill?) =
-        updateLayers { it.withText(id, text, fill, font, background) }
-
-    /** Live-retypes text layer [id] while its text bar is open; the whole session is one undo step. */
-    fun retypeText(id: Long, text: String) = updateLayers(coalesceKey = "text:$id") { it.retyped(id, text) }
-
     fun transformLayer(id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) =
         updateLayers(coalesceKey = "transform:$id") { it.transformed(id, panFraction, zoomDelta, rotationDeltaDegrees) }
 
@@ -127,10 +142,38 @@ class SetBackgroundViewModel(
 
     fun redo() = restore(history.redo())
 
-    /** Bakes the edit at the cut-out's resolution; see [bakeBackground] for the preview arguments. */
+    /**
+     * Bakes the edit at the cut-out's resolution, its texts on top; see [bakeBackground] for the
+     * preview arguments.
+     */
     fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float) {
         val image = cutOut ?: return
-        session.set(bakeBackground(image, history.current, textMeasurer, previewWidthPx, previewDensity))
+        val photo = bakeBackground(image, history.current.edit, textMeasurer, previewWidthPx, previewDensity)
+        session.set(history.current.texts?.let { bakeTextLayers(photo, textMeasurer, it) } ?: photo)
+    }
+
+    /**
+     * Opens the Text tool on the photo as it is now, baked as Done would bake it (without the texts,
+     * which the tool shows itself). [selectedTextId] is the text tapped on the photo, if one was.
+     */
+    internal fun openTextTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedTextId: Long?) {
+        val image = cutOut ?: return
+        if (textSession.value != null || previewWidthPx <= 0f) return
+        val snapshot = bakeBackground(image, history.current.edit, textMeasurer, previewWidthPx, previewDensity)
+        textSession.value = TextToolSession(snapshot, history.current.texts, selectedTextId)
+    }
+
+    /** Leaves the Text tool without its changes. */
+    internal fun closeTextTool() {
+        textSession.value = null
+    }
+
+    /** Commits the Text tool's texts as one undoable step (none, when every text was deleted) and closes it. */
+    internal fun applyTexts(layers: TextLayers) {
+        textSession.value = null
+        history = history.push(history.current.copy(texts = layers.takeIf { it.texts.isNotEmpty() }))
+        gestureKey = null
+        publish()
     }
 
     private fun addLayer(content: FreestyleContent) =
@@ -152,7 +195,7 @@ class SetBackgroundViewModel(
         record: Boolean = true,
         transform: (SetBackgroundEdit) -> SetBackgroundEdit,
     ) {
-        val next = transform(history.current)
+        val next = history.current.copy(edit = transform(history.current.edit))
         if (next == history.current) return
         history = when {
             !record -> history.copy(current = next)
@@ -163,14 +206,15 @@ class SetBackgroundViewModel(
         publish()
     }
 
-    private fun restore(restored: EditHistory<SetBackgroundEdit>) {
+    private fun restore(restored: EditHistory<SetBackgroundFrame>) {
         history = restored
         gestureKey = null
         publish()
     }
 
     private fun publish() {
-        _uiState.value = SetBackgroundUiState(history.current, history.canUndo, history.canRedo)
+        _uiState.value = SetBackgroundUiState(history.current.edit, history.canUndo, history.canRedo)
+        _texts.value = history.current.texts
     }
 
     private companion object {
