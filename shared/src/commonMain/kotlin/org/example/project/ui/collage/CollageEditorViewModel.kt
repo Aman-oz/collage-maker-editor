@@ -47,6 +47,8 @@ data class CollagePickerState(
  */
 class CollageEditorViewModel(
     private val imagePaths: List<String>,
+    /** The layout to open on (its name, e.g. `collage_3_5`), when picked on Home; else the first that fits. */
+    private val layoutName: String?,
     private val session: ImageEditSession,
     private val catalog: CollageCatalog,
     private val settings: AppSettings,
@@ -122,8 +124,10 @@ class CollageEditorViewModel(
                 emptyList()
             }
             // Like CollageActivity: show only layouts whose slot count matches the photo count,
-            // falling back to the nearest available count if there's no exact match.
-            val count = images.size
+            // falling back to the nearest available count if there's no exact match. A layout
+            // picked on Home sets the count instead, so it stays on offer if fewer photos came.
+            val requested = layoutName?.let { name -> all.firstOrNull { it.title == name } }
+            val count = requested?.imageCount ?: images.size
             var templates = all.filter { it.imageCount == count }
             if (templates.isEmpty() && all.isNotEmpty()) {
                 val nearest = all.minByOrNull { kotlin.math.abs(it.imageCount - count) }!!.imageCount
@@ -138,7 +142,7 @@ class CollageEditorViewModel(
                 return@launch
             }
 
-            val first = templates.first()
+            val first = requested ?: templates.first()
             _pickerState.value = CollagePickerState(templates = templates, selectedTemplateId = first.id, isLoading = false)
             _uiState.value = CollageEditorUiState.Ready(CollageState(template = first, images = fillSlots(first)))
         }

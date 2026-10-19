@@ -174,7 +174,7 @@ internal fun TemplatesContent(
 }
 
 @Composable
-private fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Unit) {
+internal fun TemplatesTopBar(title: String, onBack: () -> Unit, onGoPro: () -> Unit) {
     // Centered on the screen like the other top bars; the side padding reserves room for the 48dp
     // premium button so a long title ellipsizes instead of running under it.
     Box(
@@ -236,7 +236,7 @@ private val CategoryIndicatorSpring = spring<Float>(dampingRatio = 0.68f, stiffn
  * moves with them, and selecting a tab scrolls it toward the centre.
  */
 @Composable
-private fun CategoryRow(categories: List<TemplateCategory>, selectedId: String?, onSelected: (TemplateCategory) -> Unit) {
+internal fun CategoryRow(categories: List<TemplateCategory>, selectedId: String?, onSelected: (TemplateCategory) -> Unit) {
     val accent = categoryAccent()
     val scrollState = rememberScrollState()
     var viewportWidth by remember { mutableIntStateOf(0) }
@@ -424,7 +424,7 @@ private fun FrameCell(frame: TemplateFrame, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ErrorState(message: String, onRetry: () -> Unit) {
+internal fun ErrorState(message: String, onRetry: () -> Unit) {
     // Capped so a long server error wraps into a readable block on a tablet.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,

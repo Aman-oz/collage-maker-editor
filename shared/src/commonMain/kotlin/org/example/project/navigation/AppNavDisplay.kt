@@ -28,6 +28,8 @@ import org.example.project.ui.editor.EditorScreen
 import org.example.project.ui.frames.FramesScreen
 import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
+import org.example.project.ui.layouts.CollageLayout
+import org.example.project.ui.layouts.LayoutsScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.language.LanguageScreen
 import org.example.project.ui.onboarding.OnboardingScreen
@@ -149,6 +151,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 onOpenTemplateEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
                                 onOpenFrameEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
                                 onOpenPip = { backStack.add(Destination.Pip) },
+                                onOpenLayouts = { backStack.add(Destination.Layouts) },
+                                onOpenLayout = { layout -> backStack.add(layout.galleryDestination()) },
                                 onOpenSettings = { backStack.add(Destination.Settings) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                                 onOpenProject = { imagePath -> backStack.add(Destination.Preview(imagePath)) },
@@ -267,7 +271,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                     GalleryTarget.Editor -> backStack.add(Destination.Editor(imagePaths.first()))
                                     GalleryTarget.EditorFilter ->
                                         backStack.add(Destination.Editor(imagePaths.first(), openFilter = true))
-                                    GalleryTarget.Collage -> backStack.add(Destination.CollageEditor(imagePaths))
+                                    GalleryTarget.Collage ->
+                                        backStack.add(Destination.CollageEditor(imagePaths, key.collageLayout))
                                     GalleryTarget.Freestyle -> backStack.add(Destination.FreestyleEditor(imagePaths))
                                     GalleryTarget.BackgroundRemover ->
                                         backStack.add(Destination.BackgroundRemoverCrop(imagePaths.first()))
@@ -279,9 +284,18 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         )
                     }
 
+                    entry<Destination.Layouts>(metadata = slideUpMetadata()) {
+                        LayoutsScreen(
+                            onBack = { backStack.removeLastOrNull() },
+                            onOpenLayout = { layout -> backStack.add(layout.galleryDestination()) },
+                            onOpenPremium = { backStack.add(Destination.Premium()) },
+                        )
+                    }
+
                     entry<Destination.CollageEditor> { key ->
                         CollageEditorScreen(
                             imagePaths = key.imagePaths,
+                            layoutName = key.layoutName,
                             onBack = { backStack.removeLastOrNull() },
                             // The baked collage is already in the session; the collage stays underneath so
                             // Back from the editor returns to it for further layout tweaks.
@@ -417,3 +431,7 @@ private fun MutableList<NavKey>.closePremium(premium: Destination.Premium) {
         removeLastOrNull()
     }
 }
+
+/** A picked layout's next step: the gallery, for as many photos as the layout holds. */
+private fun CollageLayout.galleryDestination(): Destination.Gallery =
+    Destination.Gallery(photoCount, GalleryTarget.Collage, collageLayout = name)

@@ -67,6 +67,7 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.project.i18n.tr
+import org.example.project.ui.layouts.CollageLayout
 import org.example.project.navigation.GalleryTarget
 import org.example.project.ui.common.TopBarHeight
 import org.example.project.ui.common.isSideBySideEditor
@@ -116,6 +117,8 @@ fun HomeScreen(
     onOpenTemplateEditor: (TemplateFrame) -> Unit,
     onOpenFrameEditor: (TemplateFrame) -> Unit,
     onOpenPip: () -> Unit,
+    onOpenLayouts: () -> Unit,
+    onOpenLayout: (CollageLayout) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPremium: () -> Unit,
     onOpenProject: (imagePath: String) -> Unit,
@@ -146,6 +149,8 @@ fun HomeScreen(
         onOpenPip = onOpenPip,
         onOpenBgRemove = { onOpenGallery(1, GalleryTarget.BackgroundRemover) },
         feed = feed,
+        onOpenLayouts = onOpenLayouts,
+        onOpenLayout = onOpenLayout,
         // View All opens the row's catalog on its category; a thumbnail opens its editor.
         onViewAllFeedSection = { section ->
             when (section.kind) {
@@ -181,6 +186,8 @@ private fun HomeContent(
     onOpenPip: () -> Unit,
     onOpenBgRemove: () -> Unit,
     feed: HomeFeedUiState,
+    onOpenLayouts: () -> Unit,
+    onOpenLayout: (CollageLayout) -> Unit,
     onViewAllFeedSection: (HomeSection) -> Unit,
     onOpenFeedFrame: (HomeSection, TemplateFrame) -> Unit,
     onOpenSettings: () -> Unit,
@@ -223,6 +230,8 @@ private fun HomeContent(
                     onOpenFilters = onOpenFilters,
                     onOpenFrames = onOpenFrames,
                     feed = feed,
+                    onOpenLayouts = onOpenLayouts,
+                    onOpenLayout = onOpenLayout,
                     onViewAllFeedSection = onViewAllFeedSection,
                     onOpenFeedFrame = onOpenFeedFrame,
                     modifier = Modifier.weight(1f),
@@ -295,6 +304,8 @@ private fun HomeTabContent(
     onOpenFilters: () -> Unit,
     onOpenFrames: () -> Unit,
     feed: HomeFeedUiState,
+    onOpenLayouts: () -> Unit,
+    onOpenLayout: (CollageLayout) -> Unit,
     onViewAllFeedSection: (HomeSection) -> Unit,
     onOpenFeedFrame: (HomeSection, TemplateFrame) -> Unit,
     modifier: Modifier = Modifier,
@@ -355,6 +366,14 @@ private fun HomeTabContent(
                 featureCards(Modifier.fillMaxWidth().height(HomeFeatureCardsHeight * scale))
                 toolsCard(Modifier.padding(top = 16.dp))
             }
+
+            HomeLayoutsSection(
+                layouts = feed.layouts,
+                isLoading = feed.isLoadingLayouts,
+                scale = softScale,
+                onViewAll = onOpenLayouts,
+                onLayoutClick = onOpenLayout,
+            )
 
             HomeFeedSections(
                 uiState = feed,
@@ -622,6 +641,8 @@ private fun HomeContentPreview(initialTab: HomeTab) {
             onOpenPip = {},
             onOpenBgRemove = {},
             feed = HomeFeedUiState(),
+            onOpenLayouts = {},
+            onOpenLayout = {},
             onViewAllFeedSection = {},
             onOpenFeedFrame = { _, _ -> },
             onOpenSettings = {},

@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ fun NetworkImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    colorFilter: ColorFilter? = null,
 ) {
     val loader: NetworkImageLoader = koinInject()
     var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
@@ -44,6 +46,7 @@ fun NetworkImage(
                 bitmap = loaded,
                 contentDescription = contentDescription,
                 contentScale = contentScale,
+                colorFilter = colorFilter,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

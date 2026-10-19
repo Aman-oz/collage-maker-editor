@@ -154,6 +154,12 @@ from the back stack.
   `data/collage/RemoteCollages.kt`) and drops entries with no generator. Without the API key, or
   offline, the bundled `composeResources/files/collages.json` is used. A new layout needs both a
   server asset and a generator case.
+- **Layouts** (`ui/layouts/`): Home's Layouts row (two rows that scroll together, under the tools
+  card) and its View All, `Destination.Layouts` (one tab per photo-count sub-category). They come
+  from the server's Layouts category: transparent line pictures, drawn tinted to `onBackground` in
+  both themes. `LayoutsRepository` joins each with the `CollageCatalog` by name for its photo
+  count, and drops what the catalog can't draw. A pick goes `Gallery(photoCount, Collage, collageLayout = name)` →
+  `CollageEditor(imagePaths, layoutName)`, which opens on that layout.
 - **Freestyle** (`ui/freestyle/`): the picked photos open spread over a grid by the pure
   `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. Its Text button opens the photo
   editor's Text tool over the whole screen (`TextToolOverlay` with a `TextToolSession` held in

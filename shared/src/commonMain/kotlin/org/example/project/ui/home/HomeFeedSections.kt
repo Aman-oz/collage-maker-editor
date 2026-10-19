@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +46,8 @@ import org.example.project.ui.common.navSharedElement
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.templateFrameKey
+import org.example.project.ui.layouts.CollageLayout
+import org.example.project.ui.layouts.CollageLayoutCell
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplateFrame
@@ -92,41 +97,14 @@ private fun HomeFeedRow(
     onFrameClick: (TemplateFrame) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = when (section.kind) {
-                    HomeSectionKind.Templates -> tr("{0} Templates", section.category.name)
-                    HomeSectionKind.Frames -> tr("{0} Frames", section.category.name)
-                },
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 17.sp * scale,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            val bounce = rememberSpringBounce()
-            Text(
-                text = tr("View All"),
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 13.sp * scale,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                modifier = Modifier
-                    .springBounce(bounce)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(
-                        interactionSource = bounce.interactionSource,
-                        indication = LocalIndication.current,
-                        role = Role.Button,
-                        onClick = onViewAll,
-                    )
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-            )
-        }
+        HomeRowHeader(
+            title = when (section.kind) {
+                HomeSectionKind.Templates -> tr("{0} Templates", section.category.name)
+                HomeSectionKind.Frames -> tr("{0} Frames", section.category.name)
+            },
+            scale = scale,
+            onViewAll = onViewAll,
+        )
         LazyRow(
             modifier = Modifier.bleedHomeContentPadding().height(HomeFeedRowHeight * scale),
             contentPadding = PaddingValues(horizontal = HomeContentPadding),
@@ -136,6 +114,43 @@ private fun HomeFeedRow(
                 HomeFeedCell(frame = frame, onClick = { onFrameClick(frame) })
             }
         }
+    }
+}
+
+/** A Home row's bold title with View All at its end. */
+@Composable
+private fun HomeRowHeader(title: String, scale: Float, onViewAll: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 17.sp * scale,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        val bounce = rememberSpringBounce()
+        Text(
+            text = tr("View All"),
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 13.sp * scale,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            modifier = Modifier
+                .springBounce(bounce)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = bounce.interactionSource,
+                    indication = LocalIndication.current,
+                    role = Role.Button,
+                    onClick = onViewAll,
+                )
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+        )
     }
 }
 
@@ -182,6 +197,61 @@ private fun HomeFeedCell(frame: TemplateFrame, onClick: () -> Unit) {
         }
     }
 }
+
+/** A layout cell's side on a phone, and the gap between cells. */
+private val HomeLayoutCellSize = 76.dp
+private val HomeLayoutSpacing = 12.dp
+
+/**
+ * The Layouts row under the tools card: a title, View All, and the collage layouts in two rows
+ * that scroll sideways together. Grey squares stand in while they first load; with none (offline,
+ * no API key) the row is left out.
+ */
+@Composable
+internal fun HomeLayoutsSection(
+    layouts: List<CollageLayout>,
+    isLoading: Boolean,
+    scale: Float,
+    onViewAll: () -> Unit,
+    onLayoutClick: (CollageLayout) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (layouts.isEmpty() && !isLoading) return
+    val cell = HomeLayoutCellSize * scale
+    Column(modifier = modifier.fillMaxWidth().padding(top = 20.dp)) {
+        HomeRowHeader(title = tr("Layouts"), scale = scale, onViewAll = onViewAll)
+        LazyHorizontalGrid(
+            rows = GridCells.Fixed(2),
+            modifier = Modifier.bleedHomeContentPadding().height(cell * 2 + HomeLayoutSpacing),
+            contentPadding = PaddingValues(horizontal = HomeContentPadding),
+            horizontalArrangement = Arrangement.spacedBy(HomeLayoutSpacing),
+            verticalArrangement = Arrangement.spacedBy(HomeLayoutSpacing),
+            userScrollEnabled = layouts.isNotEmpty(),
+        ) {
+            if (layouts.isEmpty()) {
+                items(HomeLayoutPlaceholderCount) {
+                    Box(
+                        modifier = Modifier
+                            .size(cell)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                }
+            } else {
+                gridItems(layouts, key = { it.id }) { layout ->
+                    CollageLayoutCell(
+                        layout = layout,
+                        onClick = { onLayoutClick(layout) },
+                        modifier = Modifier.size(cell),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Enough grey squares to fill both rows on any phone while the layouts load. */
+private const val HomeLayoutPlaceholderCount = 16
 
 /** A grey title bar and cells in a row's place while the rows load. */
 @Composable

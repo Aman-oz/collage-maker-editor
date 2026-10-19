@@ -24,6 +24,8 @@ import org.example.project.ui.frames.FramesRepository
 import org.example.project.ui.frames.FramesViewModel
 import org.example.project.ui.home.HomeFeedRepository
 import org.example.project.ui.home.HomeFeedViewModel
+import org.example.project.ui.layouts.LayoutsRepository
+import org.example.project.ui.layouts.LayoutsViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
@@ -69,6 +71,8 @@ val coreModule: Module = module {
     single { TemplatesRepository(get()) }
     single { FramesRepository(get()) }
     single { HomeFeedRepository(get()) }
+    // The Layouts category (Home's Layouts row and its browser), joined with the collage catalog.
+    single { LayoutsRepository(get(), get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -89,8 +93,8 @@ val viewModelModule: Module = module {
     viewModelOf(::GalleryViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get()) }
-    // The image paths come from the navigation key, so they are passed in as a runtime parameter.
-    viewModel { (imagePaths: List<String>) -> CollageEditorViewModel(imagePaths, get(), get(), get()) }
+    // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
+    viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get()) }
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
     viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }
@@ -106,6 +110,7 @@ val viewModelModule: Module = module {
     viewModel { params -> TemplatesViewModel(get(), params.getOrNull()) }
     viewModel { params -> FramesViewModel(get(), params.getOrNull()) }
     viewModelOf(::HomeFeedViewModel)
+    viewModelOf(::LayoutsViewModel)
     viewModelOf(::PremiumViewModel)
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }

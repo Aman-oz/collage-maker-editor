@@ -188,8 +188,9 @@ fun CollageEditorScreen(
     onBack: () -> Unit,
     onOpenEditor: () -> Unit,
     modifier: Modifier = Modifier,
+    layoutName: String? = null,
     onPremium: () -> Unit = {},
-    viewModel: CollageEditorViewModel = koinViewModel { parametersOf(imagePaths) },
+    viewModel: CollageEditorViewModel = koinViewModel { parametersOf(imagePaths, layoutName) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()

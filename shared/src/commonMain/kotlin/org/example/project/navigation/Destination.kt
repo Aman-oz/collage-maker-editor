@@ -76,12 +76,15 @@ sealed interface Destination : NavKey {
      * @param target which editor destination the picked images are routed to.
      * @param pipTemplate the [org.example.project.ui.pip.PipTemplate.name] the photos are for, when
      * [target] is [GalleryTarget.Pip].
+     * @param collageLayout the layout picked on Home, when [target] is [GalleryTarget.Collage]:
+     * passed on as [CollageEditor.layoutName].
      */
     @Serializable
     data class Gallery(
         val maxSelection: Int,
         val target: GalleryTarget,
         val pipTemplate: String? = null,
+        val collageLayout: String? = null,
     ) : Destination
 
     /**
@@ -102,9 +105,15 @@ sealed interface Destination : NavKey {
      *
      * @param imagePaths platform paths of the picked images, in selection order. Each round-trips
      * through `PlatformFile(path)` the same way [Editor.imagePath] does.
+     * @param layoutName the layout to open on (e.g. `collage_3_5`), picked from Home's Layouts;
+     * `null` opens the first layout for the photo count.
      */
     @Serializable
-    data class CollageEditor(val imagePaths: List<String>) : Destination
+    data class CollageEditor(val imagePaths: List<String>, val layoutName: String? = null) : Destination
+
+    /** Every collage layout, by photo count: Home's Layouts row's View All. */
+    @Serializable
+    data object Layouts : Destination
 
     /**
      * Freestyle editor — every picked image starts as a freely draggable/rotatable/scalable layer

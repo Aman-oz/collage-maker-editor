@@ -54,6 +54,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
     @get:Input abstract val templatesCategoryId: Property<String>
     @get:Input abstract val framesCategoryId: Property<String>
     @get:Input abstract val homeCategoryId: Property<String>
+    @get:Input abstract val layoutsCategoryId: Property<String>
     @get:Input abstract val apiKey: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
@@ -74,6 +75,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
             |    const val TEMPLATES_CATEGORY_ID: String = ${literal(templatesCategoryId.get())}
             |    const val FRAMES_CATEGORY_ID: String = ${literal(framesCategoryId.get())}
             |    const val HOME_CATEGORY_ID: String = ${literal(homeCategoryId.get())}
+            |    const val LAYOUTS_CATEGORY_ID: String = ${literal(layoutsCategoryId.get())}
             |    const val API_KEY: String = ${literal(apiKey.get())}
             |}
             |""".trimMargin(),
@@ -110,6 +112,7 @@ val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("gener
     templatesCategoryId = withDefault("CENTRAL_DATA_TEMPLATES_CATEGORY_ID", "6ac5e1b1d78628e67e4bb760")
     framesCategoryId = withDefault("CENTRAL_DATA_FRAMES_CATEGORY_ID", "6ac5e234d78628e67e4bb7e7")
     homeCategoryId = withDefault("CENTRAL_DATA_HOME_CATEGORY_ID", "6acf5d131495d93ad6f8d49b")
+    layoutsCategoryId = withDefault("CENTRAL_DATA_LAYOUTS_CATEGORY_ID", "6ad5c7b6447c5832f735d4a2")
     apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }
