@@ -151,8 +151,8 @@ private fun PositionButton(action: PositionAction, onClick: () -> Unit, modifier
             .background(scheme.onSurface.copy(alpha = 0.05f))
             .border(1.dp, scheme.onSurface.copy(alpha = 0.45f), shape)
             .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.Center,
+            .padding(start = 24.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(

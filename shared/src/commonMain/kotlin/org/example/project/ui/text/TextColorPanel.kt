@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -222,32 +224,38 @@ private fun TextColorTabs(
     val scheme = MaterialTheme.colorScheme
     val isLight = scheme.background.luminance() > 0.5f
     val liquidState = rememberLiquidState()
-    val backdrop = Brush.linearGradient(
-        if (isLight) {
-            listOf(scheme.primary.copy(alpha = 0.04f), scheme.onSurface.copy(alpha = 0.10f), scheme.primary.copy(alpha = 0.08f))
-        } else {
-            listOf(scheme.primary.copy(alpha = 0.12f), scheme.onSurface.copy(alpha = 0.04f), scheme.primary.copy(alpha = 0.10f))
-        },
-    )
     Box(modifier = modifier.fillMaxWidth().height(TabsHeight)) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(CircleShape)
-                .liquefiable(liquidState)
-                .background(backdrop),
-        )
+        // On the white light panel the switch is solid (a grey capsule, a lavender drop): there is
+        // nothing worth refracting, and the glass only smeared the wash into streaks.
+        if (!isLight) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(CircleShape)
+                    .liquefiable(liquidState)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(scheme.primary.copy(alpha = 0.12f), scheme.onSurface.copy(alpha = 0.04f), scheme.primary.copy(alpha = 0.10f)),
+                        ),
+                    ),
+            )
+        }
         LiquidSegmentedTabs(
             labels = TextColorTab.entries.map { it.label },
             selectedIndex = selected.ordinal,
             onSelected = { onSelected(TextColorTab.entries[it]) },
             liquidState = liquidState,
-            capsuleTint = if (isLight) Color(0xFFDCDCE0).copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.18f),
+            capsuleTint = if (isLight) LightTabsCapsule else Color.Black.copy(alpha = 0.18f),
             modifier = Modifier.matchParentSize(),
             labelStyle = MaterialTheme.typography.labelLarge,
+            dropTint = if (isLight) LightTabsDrop else null,
         )
     }
 }
+
+/** The light-mode switch's capsule and selected-tab colours. */
+private val LightTabsCapsule = Color(0xFFE4E4EA)
+private val LightTabsDrop = Color(0xFFDAD3F3)
 
 private val TabsHeight = 44.dp
 

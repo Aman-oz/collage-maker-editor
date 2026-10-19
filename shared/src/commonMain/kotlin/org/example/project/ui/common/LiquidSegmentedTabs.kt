@@ -3,6 +3,7 @@ package org.example.project.ui.common
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -99,6 +100,10 @@ internal fun Modifier.clearLiquidGlass(liquidState: LiquidState, shape: Shape, t
  * equally, so the drop's centre is just a fractional tab index. The drop is sized and placed in
  * layout, never with a `graphicsLayer` scale: Liquid samples the backdrop from layout bounds, so a
  * scaled layer would refract the wrong region.
+ *
+ * A non-null [dropTint] makes the switch solid instead: the capsule is filled with [capsuleTint]
+ * and the drop with [dropTint], with no refraction. On a flat light panel there is nothing behind
+ * the glass worth bending, and a white drop would vanish against it.
  */
 @Composable
 internal fun LiquidSegmentedTabs(
@@ -110,6 +115,7 @@ internal fun LiquidSegmentedTabs(
     modifier: Modifier = Modifier,
     padding: Dp = 4.dp,
     labelStyle: TextStyle = MaterialTheme.typography.titleSmall,
+    dropTint: Color? = null,
 ) {
     val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val rim = Color.White.copy(alpha = if (isLight) 0.75f else 0.35f)
@@ -163,7 +169,13 @@ internal fun LiquidSegmentedTabs(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clearLiquidGlass(liquidState, CircleShape, capsuleTint)
+                    .then(
+                        if (dropTint != null) {
+                            Modifier.clip(CircleShape).background(capsuleTint)
+                        } else {
+                            Modifier.clearLiquidGlass(liquidState, CircleShape, capsuleTint)
+                        },
+                    )
                     .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape),
             )
 
@@ -174,6 +186,7 @@ internal fun LiquidSegmentedTabs(
                 isLight = isLight,
                 tabWidth = tabWidth,
                 padding = padding,
+                dropTint = dropTint,
             )
 
             Row(modifier = Modifier.fillMaxSize().padding(horizontal = padding)) {
@@ -232,12 +245,13 @@ private fun BoxScope.TabSelectionDrop(
     isLight: Boolean,
     tabWidth: Dp,
     padding: Dp,
+    dropTint: Color?,
 ) {
     val press by animateFloatAsState(if (held) 1f else 0f, LiquidDropSpring)
     // The spring overshoots slightly past 0 / 1; only the size may use the overshoot.
     val t = press.coerceIn(0f, 1f)
     // Resting it is a milky white pill; held it clears toward glass so the lens shows.
-    val body = if (isLight) Color.White.copy(alpha = 0.72f - 0.4f * t) else Color.White.copy(alpha = 0.14f - 0.06f * t)
+    val body = if (dropTint != null) dropTint else if (isLight) Color.White.copy(alpha = 0.72f - 0.4f * t) else Color.White.copy(alpha = 0.14f - 0.06f * t)
     val rim = Color.White.copy(alpha = if (isLight) 0.95f else 0.4f + 0.3f * t)
     val rimLow = if (isLight) Color(0xFF787880).copy(alpha = 0.25f + 0.1f * t) else rim.copy(alpha = rim.alpha * 0.4f)
 
@@ -256,25 +270,31 @@ private fun BoxScope.TabSelectionDrop(
                 }
             }
             .clip(CircleShape)
-            .liquid(liquidState) {
-                shape = CircleShape
-                // Gentle, like the magnification of a real drop; no frost, whose blur drags the
-                // transparent pixels outside the lens into the rim as a grey shadow.
-                frost = 0.dp
-                curve = 0.25f + 0.12f * t
-                refraction = 0.18f + 0.12f * t
-                edge = 0.35f + 0.25f * t
-                dispersion = 0.1f * t
-                saturation = 1.2f
-                tint = body
-            }
+            .then(
+                if (dropTint != null) {
+                    Modifier
+                } else {
+                    Modifier.liquid(liquidState) {
+                        shape = CircleShape
+                        // Gentle, like the magnification of a real drop; no frost, whose blur drags the
+                        // transparent pixels outside the lens into the rim as a grey shadow.
+                        frost = 0.dp
+                        curve = 0.25f + 0.12f * t
+                        refraction = 0.18f + 0.12f * t
+                        edge = 0.35f + 0.25f * t
+                        dispersion = 0.1f * t
+                        saturation = 1.2f
+                        tint = body
+                    }
+                },
+            )
             // Over the glass as well: Liquid's tint alone renders far fainter than its alpha.
             .drawWithContent {
                 drawContent()
                 val corner = CornerRadius(size.height / 2f)
                 drawRoundRect(color = body, cornerRadius = corner)
-                // Light focused onto the drop's lower inside edge.
-                drawRoundRect(
+                // Light focused onto the drop's lower inside edge; a solid drop stays flat.
+                if (dropTint == null) drawRoundRect(
                     brush = Brush.verticalGradient(
                         0.6f to Color.White.copy(alpha = 0f),
                         1f to Color.White.copy(alpha = if (isLight) 0.35f + 0.2f * t else 0.08f + 0.06f * t),
@@ -282,10 +302,16 @@ private fun BoxScope.TabSelectionDrop(
                     cornerRadius = corner,
                 )
             }
-            .border(
-                width = 1.dp + 0.5.dp * t,
-                brush = Brush.verticalGradient(0f to rim, 0.5f to rim.copy(alpha = rim.alpha * 0.2f), 1f to rimLow),
-                shape = CircleShape,
+            .then(
+                if (dropTint != null) {
+                    Modifier
+                } else {
+                    Modifier.border(
+                        width = 1.dp + 0.5.dp * t,
+                        brush = Brush.verticalGradient(0f to rim, 0.5f to rim.copy(alpha = rim.alpha * 0.2f), 1f to rimLow),
+                        shape = CircleShape,
+                    )
+                },
             ),
     )
 }
