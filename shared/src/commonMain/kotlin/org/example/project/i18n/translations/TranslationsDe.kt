@@ -884,4 +884,24 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Original",
     "Tap a photo to select it" to
         "Tippe auf ein Foto, um es auszuwählen",
+    "Stickers" to
+        "Sticker",
+    "Couldn't load stickers" to
+        "Sticker konnten nicht geladen werden",
+    "No stickers here yet" to
+        "Hier gibt es noch keine Sticker",
+    "Reshape" to
+        "Umformen",
+    "Effects" to
+        "Effekte",
+    "Fill" to
+        "Füllung",
+    "Outline" to
+        "Kontur",
+    "Mirror" to
+        "Spiegeln",
+    "Intensity" to
+        "Intensität",
+    "Brush size" to
+        "Pinselgröße",
 )

@@ -24,7 +24,8 @@ import org.koin.compose.koinInject
 /**
  * Asynchronously loads [url] through the shared [NetworkImageLoader] and draws it, showing a small
  * spinner while the bytes are in flight. Used for the collage layout thumbnails and the decorative
- * frame preview. Keyed on [url] so recycled rows re-fetch the correct image.
+ * frame preview. Keyed on [url] so recycled rows re-fetch the correct image. An SVG is drawn with
+ * its longer side [svgSidePx] (see [NetworkImageLoader.load]).
  */
 @Composable
 fun NetworkImage(
@@ -33,11 +34,12 @@ fun NetworkImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
     colorFilter: ColorFilter? = null,
+    svgSidePx: Int = 256,
 ) {
     val loader: NetworkImageLoader = koinInject()
-    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    var bitmap by remember(url, svgSidePx) { mutableStateOf<ImageBitmap?>(null) }
 
-    LaunchedEffect(url) { bitmap = loader.load(url) }
+    LaunchedEffect(url, svgSidePx) { bitmap = loader.load(url, svgSidePx) }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         val loaded = bitmap

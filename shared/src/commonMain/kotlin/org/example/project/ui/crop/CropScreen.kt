@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -513,8 +515,10 @@ private fun AspectRatioChip(option: AspectRatioOption, selected: Boolean, onClic
         Box(modifier = Modifier.height(48.dp), contentAlignment = Alignment.Center) {
             Box(
                 modifier = Modifier
-                    .size(frame)
-                    .border(width = 1.5.dp, color = tint, shape = RoundedCornerShape(6.dp)),
+                    // A worded frame (Free, or the Stickers tool's Original) widens to fit its word.
+                    .then(if (option.ratio == null) Modifier.heightIn(min = frame.height).widthIn(min = frame.width) else Modifier.size(frame))
+                    .border(width = 1.5.dp, color = tint, shape = RoundedCornerShape(6.dp))
+                    .then(if (option.ratio == null) Modifier.padding(horizontal = 5.dp) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {
                 when {

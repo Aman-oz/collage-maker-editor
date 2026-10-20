@@ -43,7 +43,7 @@ abstract class GenerateBgRemoverConfig : DefaultTask() {
 
 /**
  * Generates `CentralDataConfig` (the central-data server behind the collage, template and frame
- * catalogs and Home's template/frame rows: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
+ * catalogs, the sticker library and Home's template/frame rows: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
  * way as [GenerateBgRemoverConfig]. A missing key generates "": collages then fall back to the
  * bundled `collages.json`, and Templates / Frames report the error.
  */
@@ -55,6 +55,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
     @get:Input abstract val framesCategoryId: Property<String>
     @get:Input abstract val homeCategoryId: Property<String>
     @get:Input abstract val layoutsCategoryId: Property<String>
+    @get:Input abstract val stickersSuperCategoryId: Property<String>
     @get:Input abstract val apiKey: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
@@ -76,6 +77,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
             |    const val FRAMES_CATEGORY_ID: String = ${literal(framesCategoryId.get())}
             |    const val HOME_CATEGORY_ID: String = ${literal(homeCategoryId.get())}
             |    const val LAYOUTS_CATEGORY_ID: String = ${literal(layoutsCategoryId.get())}
+            |    const val STICKERS_SUPER_CATEGORY_ID: String = ${literal(stickersSuperCategoryId.get())}
             |    const val API_KEY: String = ${literal(apiKey.get())}
             |}
             |""".trimMargin(),
@@ -113,6 +115,7 @@ val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("gener
     framesCategoryId = withDefault("CENTRAL_DATA_FRAMES_CATEGORY_ID", "6ac5e234d78628e67e4bb7e7")
     homeCategoryId = withDefault("CENTRAL_DATA_HOME_CATEGORY_ID", "6acf5d131495d93ad6f8d49b")
     layoutsCategoryId = withDefault("CENTRAL_DATA_LAYOUTS_CATEGORY_ID", "6ad5c7b6447c5832f735d4a2")
+    stickersSuperCategoryId = withDefault("CENTRAL_DATA_STICKERS_SUPER_CATEGORY_ID", "6ad626b4892f28f45336c303")
     apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }
@@ -156,6 +159,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             // Ktor engine backing the shared HttpClient on Android.
             implementation(libs.ktor.client.okhttp)
+            // Renders the sticker library's SVGs; iOS uses Skia's own SVG support.
+            implementation(libs.androidsvg)
             // Google Play Billing, behind the shared AppBillingWrapper.
             implementation(libs.google.billing)
         }

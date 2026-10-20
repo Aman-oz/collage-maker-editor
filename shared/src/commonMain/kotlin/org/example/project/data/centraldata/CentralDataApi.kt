@@ -12,6 +12,15 @@ import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/** One category from the `categories` endpoint (a sticker category pill), under a super-category. */
+@Serializable
+internal data class CentralCategoryDto(
+    val id: String = "",
+    val name: String = "",
+    @SerialName("is_enabled") val isEnabled: Boolean = true,
+    val sequence: Int = 0,
+)
+
 /** One sub-category from the `subcategories` endpoint (a Templates or Frames category pill). */
 @Serializable
 internal data class CentralSubcategoryDto(
@@ -36,16 +45,23 @@ internal data class CentralAssetDto(
 
 /**
  * The per-category payload of an asset: collages carry their preview under [image], templates and
- * frames their frame picture and photo slots under [frames].
+ * frames their frame picture and photo slots under [frames], stickers their picture under [svg].
  */
 @Serializable
 internal data class CentralAssetFieldsDto(
     val image: List<CentralImageDto> = emptyList(),
     val frames: CentralFrameDto? = null,
+    val svg: List<CentralImageDto> = emptyList(),
 )
 
+/** A file of an asset; [width] × [height] is its size in px, or 0 where the server leaves it out. */
 @Serializable
-internal data class CentralImageDto(val url: String = "", val filename: String = "")
+internal data class CentralImageDto(
+    val url: String = "",
+    val filename: String = "",
+    val width: Float = 0f,
+    val height: Float = 0f,
+)
 
 /** A template's or frame's picture ([imageUrl], [width] × [height] px) and its photo slots. */
 @Serializable
@@ -78,15 +94,18 @@ internal fun resolveUrl(baseUrl: String, path: String): String = when {
 }
 
 /**
- * Client for the central-data server that serves the collage, template and frame catalogs:
- * `GET {base}/api/v1/instance/{instanceId}/subcategories?categoryId=…` and `…/assets?categoryId=…`
- * or `?subCategoryId=…`, authenticated with `X-API-Key`. The server's static images need the same
+ * Client for the central-data server that serves the collage, template, frame and sticker catalogs:
+ * `GET {base}/api/v1/instance/{instanceId}/categories?superCategoryId=…`,
+ * `…/subcategories?categoryId=…` and `…/assets?categoryId=…` and/or `?subCategoryId=…`, authenticated with `X-API-Key`. The server's static images need the same
  * header, which [authorize] adds for the image loader.
  */
 class CentralDataApi(private val client: HttpClient) {
 
     val isConfigured: Boolean
         get() = CentralDataConfig.API_KEY.isNotBlank() && CentralDataConfig.BASE_URL.isNotBlank()
+
+    internal suspend fun categories(superCategoryId: String): List<CentralCategoryDto> =
+        request("categories", "superCategoryId" to superCategoryId).body()
 
     internal suspend fun subcategories(categoryId: String): List<CentralSubcategoryDto> =
         request("subcategories", "categoryId" to categoryId).body()
@@ -97,14 +116,18 @@ class CentralDataApi(private val client: HttpClient) {
     internal suspend fun assetsInSubcategory(subCategoryId: String): List<CentralAssetDto> =
         request("assets", "subCategoryId" to subCategoryId).body()
 
+    /** The server only narrows the assets to one sub-category when it is given its category too. */
+    internal suspend fun assets(categoryId: String, subCategoryId: String): List<CentralAssetDto> =
+        request("assets", "categoryId" to categoryId, "subCategoryId" to subCategoryId).body()
+
     /** [path] resolved against the server, for the relative image URLs in its responses. */
     internal fun absoluteUrl(path: String): String = resolveUrl(CentralDataConfig.BASE_URL, path)
 
-    private suspend fun request(endpoint: String, query: Pair<String, String>): HttpResponse {
+    private suspend fun request(endpoint: String, vararg query: Pair<String, String>): HttpResponse {
         check(isConfigured) { "The central-data API key is not set up" }
         val response = client.get(absoluteUrl("api/v1/instance/${CentralDataConfig.INSTANCE_ID}/$endpoint")) {
             header(API_KEY_HEADER, CentralDataConfig.API_KEY)
-            parameter(query.first, query.second)
+            for ((name, value) in query) parameter(name, value)
         }
         if (!response.status.isSuccess()) {
             error("Request failed (${response.status.value}): ${response.bodyAsText().take(200)}")

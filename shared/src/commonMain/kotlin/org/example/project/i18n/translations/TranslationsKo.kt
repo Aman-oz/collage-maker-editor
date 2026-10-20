@@ -884,4 +884,24 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "원본",
     "Tap a photo to select it" to
         "사진을 탭하여 선택하세요",
+    "Stickers" to
+        "스티커",
+    "Couldn't load stickers" to
+        "스티커를 불러올 수 없습니다",
+    "No stickers here yet" to
+        "아직 스티커가 없습니다",
+    "Reshape" to
+        "모양 변경",
+    "Effects" to
+        "효과",
+    "Fill" to
+        "채우기",
+    "Outline" to
+        "외곽선",
+    "Mirror" to
+        "미러",
+    "Intensity" to
+        "강도",
+    "Brush size" to
+        "브러시 크기",
 )

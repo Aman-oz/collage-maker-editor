@@ -884,4 +884,24 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "اصل",
     "Tap a photo to select it" to
         "منتخب کرنے کے لیے کسی تصویر پر ٹیپ کریں",
+    "Stickers" to
+        "اسٹیکرز",
+    "Couldn't load stickers" to
+        "اسٹیکرز لوڈ نہیں ہو سکے",
+    "No stickers here yet" to
+        "یہاں ابھی کوئی اسٹیکر نہیں",
+    "Reshape" to
+        "شکل بدلیں",
+    "Effects" to
+        "اثرات",
+    "Fill" to
+        "بھریں",
+    "Outline" to
+        "آؤٹ لائن",
+    "Mirror" to
+        "آئینہ",
+    "Intensity" to
+        "شدت",
+    "Brush size" to
+        "برش کا سائز",
 )

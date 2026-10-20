@@ -1,5 +1,6 @@
 [versions]
 agp = "9.0.1"
+androidsvg = "1.4"
 android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
@@ -66,6 +67,7 @@ ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotia
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-serialization-kotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+androidsvg = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 

@@ -884,4 +884,24 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Gốc",
     "Tap a photo to select it" to
         "Chạm vào ảnh để chọn",
+    "Stickers" to
+        "Nhãn dán",
+    "Couldn't load stickers" to
+        "Không thể tải nhãn dán",
+    "No stickers here yet" to
+        "Chưa có nhãn dán nào ở đây",
+    "Reshape" to
+        "Định hình lại",
+    "Effects" to
+        "Hiệu ứng",
+    "Fill" to
+        "Tô màu",
+    "Outline" to
+        "Viền",
+    "Mirror" to
+        "Lật gương",
+    "Intensity" to
+        "Cường độ",
+    "Brush size" to
+        "Kích thước cọ",
 )

@@ -119,6 +119,9 @@ import org.example.project.ui.common.topBar
 import org.example.project.ui.crop.CropTool
 import org.example.project.ui.draw.DrawTool
 import org.example.project.ui.emoji.EmojiTool
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersTool
 import org.example.project.ui.filter.FilterTool
 import org.example.project.ui.frame.FrameTool
 import org.example.project.ui.overlay.OverlayTool
@@ -150,6 +153,7 @@ import photocollagemaker.shared.generated.resources.ic_rotate_editor
 import photocollagemaker.shared.generated.resources.ic_s_blur_editor
 import photocollagemaker.shared.generated.resources.ic_s_splash_editor
 import photocollagemaker.shared.generated.resources.ic_splash_editor
+import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
 import photocollagemaker.shared.generated.resources.ic_undo
@@ -162,7 +166,8 @@ internal enum class EditorTool(private val englishLabel: String, val icon: Drawa
     Overlay("Overlay", Res.drawable.ic_overlay_editor),
     Ratio("Ratio", Res.drawable.ic_ratio_editor),
     Text("Text", Res.drawable.ic_text_editor),
-    Sticker("Emoji", Res.drawable.ic_stickers_editor),
+    Emoji("Emoji", Res.drawable.ic_stickers_editor),
+    Sticker("Stickers", Res.drawable.ic_sticker_editor),
     Blur("Blur", Res.drawable.ic_blur_editor),
     SelectiveBlur("s-Blur", Res.drawable.ic_s_blur_editor),
     Rotate("Rotate", Res.drawable.ic_rotate_editor),
@@ -185,8 +190,9 @@ private val CanvasVerticalPadding = 12.dp
  * re-apply its edit to its own result while it slides away. Identity matters (not a data class):
  * each opening is its own session.
  *
- * The Text tool also gets the [texts] live over the photo, to open with, and the one tapped in the
- * editor ([selectedTextId]) when that is what opened it.
+ * The Text and Stickers tools also get the [texts] and [stickers] live over the photo, to open with
+ * (each edits its own and shows the other), and the one tapped in the editor ([selectedTextId],
+ * [selectedStickerId]) when that is what opened it.
  */
 @Stable
 internal class ToolSession(
@@ -194,6 +200,8 @@ internal class ToolSession(
     val image: ImageBitmap,
     val texts: TextLayers? = null,
     val selectedTextId: Long? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+    val selectedStickerId: Long? = null,
 )
 
 /**
@@ -238,6 +246,8 @@ fun EditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     // Bakes the live texts into the photo when something needs it as pixels.
     val textMeasurer = rememberTextMeasurer()
@@ -253,6 +263,7 @@ fun EditorScreen(
         EditorContent(
             uiState = uiState,
             texts = texts,
+            stickers = stickers,
             toolSession = viewModel.toolSession,
             isPremium = isPremium,
             openFilterOnLoad = openFilterOnLoad,
@@ -261,16 +272,19 @@ fun EditorScreen(
                 if (viewModel.consumePremiumOffer()) {
                     onOpenPremium()
                 } else {
-                    // The save screen reads the session, so the texts go into the photo first.
-                    viewModel.flattenTexts(textMeasurer)
-                    onDone()
+                    // The save screen reads the session, so the stickers and texts go into the photo first.
+                    scope.launch {
+                        viewModel.flattenLayers(textMeasurer)
+                        onDone()
+                    }
                 }
             },
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onApplyEdit = viewModel::applyEdit,
             onApplyTexts = viewModel::applyTexts,
-            onFlattenTexts = { viewModel.flattenTexts(textMeasurer) },
+            onApplyStickers = viewModel::applyStickers,
+            onFlatten = { viewModel.flattenLayers(textMeasurer) },
             onOpenPremium = onOpenPremium,
             modifier = Modifier.liquefiable(liquidState),
         )
@@ -284,10 +298,10 @@ fun EditorScreen(
  * [InlineToolHostState] for the choreography). ✓ commits the tool's bitmap through [onApplyEdit],
  * ✕ and system back just close it.
  *
- * The Text tool commits [texts] instead ([onApplyTexts]), which stay live over the photo: a tap on
- * one opens the tool again on it. Any other tool opens on the photo with them baked in
- * ([onFlattenTexts]), since it edits pixels and texts left floating over a cropped or turned photo
- * would no longer sit where they were put.
+ * The Text and Stickers tools commit [texts] and [stickers] instead ([onApplyTexts],
+ * [onApplyStickers]), which stay live over the photo: a tap on one opens its tool again on it. Any
+ * other tool opens on the photo with them baked in ([onFlatten]), since it edits pixels and layers
+ * left floating over a cropped or turned photo would no longer sit where they were put.
  *
  * @param toolSession the tool the user asked for. It is handed in as the state itself (the
  * ViewModel's, see [EditorViewModel.toolSession]) so the tool's callbacks read it at call time.
@@ -296,6 +310,7 @@ fun EditorScreen(
 private fun EditorContent(
     uiState: EditorUiState,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     toolSession: MutableState<ToolSession?>,
     isPremium: Boolean,
     openFilterOnLoad: Boolean,
@@ -305,7 +320,8 @@ private fun EditorContent(
     onRedo: () -> Unit,
     onApplyEdit: (ImageBitmap) -> Unit,
     onApplyTexts: (TextLayers) -> Unit,
-    onFlattenTexts: () -> ImageBitmap?,
+    onApplyStickers: (List<PlacedSticker>) -> Unit,
+    onFlatten: suspend () -> ImageBitmap?,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -345,18 +361,36 @@ private fun EditorContent(
             onDone = onDone,
         )
     }
+    val scope = rememberCoroutineScope()
+    // Set while the live layers are being baked for a tool, so a second tap doesn't open another.
+    var flattening by remember { mutableStateOf(false) }
     val onToolSelected = { tool: EditorTool ->
         // Taps that land while the toolbar is already on its way out are ignored.
-        if (session == null && ready != null) {
-            session = if (tool == EditorTool.Text) {
-                ToolSession(tool, ready.image, texts)
+        if (session == null && ready != null && !flattening) {
+            if (tool == EditorTool.Text || tool == EditorTool.Sticker) {
+                session = ToolSession(tool, ready.image, texts, stickers = stickers)
             } else {
-                ToolSession(tool, onFlattenTexts() ?: ready.image)
+                flattening = true
+                scope.launch {
+                    try {
+                        val image = onFlatten() ?: ready.image
+                        if (session == null) session = ToolSession(tool, image)
+                    } finally {
+                        flattening = false
+                    }
+                }
             }
         }
     }
     val onTextTapped = { id: Long ->
-        if (session == null && ready != null) session = ToolSession(EditorTool.Text, ready.image, texts, selectedTextId = id)
+        if (session == null && ready != null && !flattening) {
+            session = ToolSession(EditorTool.Text, ready.image, texts, selectedTextId = id, stickers = stickers)
+        }
+    }
+    val onStickerTapped = { id: Long ->
+        if (session == null && ready != null && !flattening) {
+            session = ToolSession(EditorTool.Sticker, ready.image, texts, stickers = stickers, selectedStickerId = id)
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -375,7 +409,9 @@ private fun EditorContent(
                         chrome = chrome,
                         uiState = uiState,
                         texts = texts,
+                        stickers = stickers,
                         onTextTapped = onTextTapped,
+                        onStickerTapped = onStickerTapped,
                         host = host,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
@@ -404,7 +440,9 @@ private fun EditorContent(
                         chrome = chrome,
                         uiState = uiState,
                         texts = texts,
+                        stickers = stickers,
                         onTextTapped = onTextTapped,
+                        onStickerTapped = onStickerTapped,
                         host = host,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -445,6 +483,12 @@ private fun EditorContent(
                                 session = null
                             }
                         },
+                        onApplyStickers = { placed ->
+                            if (session === mounted) {
+                                onApplyStickers(placed)
+                                session = null
+                            }
+                        },
                     )
                 }
             }
@@ -459,6 +503,7 @@ private fun EditorToolContent(
     onClose: () -> Unit,
     onApply: (ImageBitmap) -> Unit,
     onApplyTexts: (TextLayers) -> Unit,
+    onApplyStickers: (List<PlacedSticker>) -> Unit,
     onOpenPremium: () -> Unit,
 ) {
     val image = session.image
@@ -469,8 +514,27 @@ private fun EditorToolContent(
         EditorTool.Adjust -> AdjustTool(image, isPremium, onClose, onApply, onOpenPremium)
         EditorTool.Overlay -> OverlayTool(image, isPremium, onClose, onApply, onOpenPremium)
         EditorTool.Ratio -> RatioTool(image, onClose, onApply)
-        EditorTool.Text -> TextTool(image, session.texts, session.selectedTextId, isPremium, onClose, onApplyTexts, onOpenPremium)
-        EditorTool.Sticker -> EmojiTool(image, isPremium, onClose, onApply, onOpenPremium)
+        EditorTool.Text -> TextTool(
+            sourceImage = image,
+            initialTexts = session.texts,
+            selectedTextId = session.selectedTextId,
+            isPremium = isPremium,
+            onClose = onClose,
+            onApply = onApplyTexts,
+            onOpenPremium = onOpenPremium,
+            underlay = { StickerLayersOverlay(session.stickers, Modifier.fillMaxSize()) },
+        )
+        EditorTool.Emoji -> EmojiTool(image, isPremium, onClose, onApply, onOpenPremium)
+        EditorTool.Sticker -> StickersTool(
+            sourceImage = image,
+            initialStickers = session.stickers,
+            selectedStickerId = session.selectedStickerId,
+            texts = session.texts,
+            isPremium = isPremium,
+            onClose = onClose,
+            onApply = onApplyStickers,
+            onOpenPremium = onOpenPremium,
+        )
         EditorTool.Blur -> BlurTool(image, onClose, onApply)
         EditorTool.SelectiveBlur -> SelectiveBlurTool(image, onClose, onApply)
         EditorTool.Rotate -> RotateTool(image, onClose, onApply)
@@ -639,7 +703,9 @@ private fun EditorCanvas(
     chrome: EditorChrome,
     uiState: EditorUiState,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     onTextTapped: (Long) -> Unit,
+    onStickerTapped: (Long) -> Unit,
     host: InlineToolHostState<*>,
     modifier: Modifier = Modifier,
 ) {
@@ -662,7 +728,7 @@ private fun EditorCanvas(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                // Sized to the photo itself, so the texts over it land where they were put on it.
+                // Sized to the photo itself, so the stickers and texts over it land where they were put on it.
                 Box(modifier = Modifier.aspectRatio(uiState.image.width.toFloat() / uiState.image.height)) {
                     Image(
                         bitmap = uiState.image,
@@ -670,6 +736,9 @@ private fun EditorCanvas(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
+                    if (stickers.isNotEmpty()) {
+                        StickerLayersOverlay(stickers, Modifier.fillMaxSize(), onStickerTapped = onStickerTapped)
+                    }
                     if (texts != null) {
                         TextLayersOverlay(layers = texts, onTextTapped = onTextTapped, modifier = Modifier.fillMaxSize())
                     }
@@ -876,6 +945,7 @@ private fun EditorScreenPreview() {
         EditorContent(
             uiState = EditorUiState.Loading,
             texts = null,
+            stickers = emptyList(),
             toolSession = remember { mutableStateOf(null) },
             isPremium = false,
             openFilterOnLoad = false,
@@ -885,7 +955,8 @@ private fun EditorScreenPreview() {
             onRedo = {},
             onApplyEdit = {},
             onApplyTexts = {},
-            onFlattenTexts = { null },
+            onApplyStickers = {},
+            onFlatten = { null },
             onOpenPremium = {},
         )
     }

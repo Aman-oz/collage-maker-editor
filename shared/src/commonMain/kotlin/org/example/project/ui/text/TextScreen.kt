@@ -154,6 +154,7 @@ internal fun TextTool(
     onApply: (TextLayers) -> Unit,
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
+    underlay: @Composable () -> Unit = {},
 ) {
     val library = koinInject<FontLibrary>()
     // Parsed as the tool opens, so the catalog is ready by the time the Font panel is.
@@ -170,6 +171,7 @@ internal fun TextTool(
         onOpenPremium = onOpenPremium,
         onDone = onApply,
         modifier = modifier,
+        underlay = underlay,
     )
 }
 
@@ -219,6 +221,9 @@ private fun TextContent(
     onOpenPremium: () -> Unit,
     onDone: (TextLayers) -> Unit,
     modifier: Modifier = Modifier,
+    // Drawn over the photo under the texts: the photo editor's live stickers, which aren't the
+    // Text tool's to edit but sit on the photo all the same.
+    underlay: @Composable () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     // The edit itself is saveable, unlike most tools': the paywall covers the editor, which drops
@@ -483,6 +488,7 @@ private fun TextContent(
                                 modifier = Modifier.fillMaxSize().liquefiable(photoLiquidState),
                                 contentScale = ContentScale.Fit,
                             )
+                            underlay()
                             for (item in items) {
                                 key(item.id) {
                                     val font = fontOf(item)

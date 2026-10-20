@@ -77,7 +77,8 @@ private val EdgeBarThickness = 5.dp
  * (and a tap on the selected text types in it), one finger drags, two fingers pinch-zoom and twist.
  * When [selected] it draws the selection: a thin rectangle with a dot on each corner, which scales
  * the text, and a bar in the middle of each side, which moves that side to give the words more room
- * or less. A [locked] text only takes the tap, and shows its rectangle without the handles.
+ * or less. A [locked] text only takes the tap, and shows its rectangle without the handles. The
+ * Stickers tool uses it too, without the side bars ([showEdgeHandles]): a sticker has no text area.
  *
  * Because the box itself is turned, a drag on a handle arrives in the text's own frame, which is
  * what [onEdgeDrag] wants; [onMove] pans are turned back by [rotationDegrees] into photo coordinates.
@@ -95,6 +96,7 @@ internal fun TextSelectionBox(
     onScale: (factorFromStart: Float) -> Unit,
     onEdgeDrag: (edge: TextBoxEdge, delta: Offset) -> Unit,
     modifier: Modifier = Modifier,
+    showEdgeHandles: Boolean = true,
 ) {
     val density = LocalDensity.current
     val currentOnTap by rememberUpdatedState(onTap)
@@ -126,7 +128,7 @@ internal fun TextSelectionBox(
                     onScale = onScale,
                 )
             }
-            for (edge in TextBoxEdge.entries) {
+            if (showEdgeHandles) for (edge in TextBoxEdge.entries) {
                 EdgeHandle(edge = edge, onDrag = { onEdgeDrag(edge, it) })
             }
         }
@@ -353,8 +355,9 @@ internal fun TextMoreMenu(
     }
 }
 
+/** One row of a ⋯ menu: [label] and [icon] in [color], over a hairline when [showDivider]. */
 @Composable
-private fun MenuRow(
+internal fun MenuRow(
     label: String,
     icon: ImageVector,
     color: Color,

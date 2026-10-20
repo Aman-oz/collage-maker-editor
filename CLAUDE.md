@@ -135,6 +135,25 @@ stickers; its texts are the Text tool's, which makes its own offer), and so does
 by the same rule applied to its sticker layers. Set Background does as well
 (`SetBackgroundEdit.isPremium`: that rule, or a backdrop from the Gradient tab).
 
+The Stickers tool (`ui/stickers/`, distinct from the Emoji tool) is server-driven:
+`StickersRepository` reads `categories?superCategoryId=` (the pills), `subcategories?categoryId=`
+(the tiles, which have no picture of their own and show their first sticker) and
+`assets?categoryId=&subCategoryId=` (the server needs both). Stickers are SVG, drawn by the
+`expect fun rasterizeSvg` (AndroidSVG on Android, Skia's SVG module on iOS, which ignores `<style>`
+sheets, so `inlineSvgClassStyles` copies Illustrator's class rules onto the shapes first).
+Like texts, stickers stay live: the tool returns `PlacedSticker`s, which `EditorViewModel.applyStickers`
+pushes into the `EditorFrame` history, the editor draws (`StickerLayersOverlay`, under the texts) and
+a tap reopens the tool on (`ToolSession.selectedStickerId`). `flattenLayers` (suspend: it redraws
+each SVG at full size) bakes stickers then texts before any other tool and on Done. The Text tool
+draws the stickers as its `underlay`, and the Stickers tool draws the texts untouchably over its stage.
+With a sticker selected, the library panel gives way to the Text tool's glass bar (`GlassOptionsBar`)
+of `StickerOption`s; Shadow, Nudge and Position reuse the Text tool's panels through a `TextItem` shim.
+Every edit is a field of `PlacedSticker` (crop and eraser strokes in source fractions, the rest
+fractions of the sticker or photo), and `StickerRendering.kt` draws them all the same way for the
+stage, the editor and the bake: a cached *body* (crop, stretch, colour matrix, eraser mask) and
+blurred silhouette, then `drawSticker` places them with tilt, flips, shadow, outline and opacity.
+A premium sticker or premium effect is a hard gate on applying.
+
 The background remover's crop step still uses the full-screen `CropContent`; it shares
 `CropState` / `CropStage` with the editor's `CropTool`.
 
@@ -300,7 +319,7 @@ The collage, template and frame catalogs come from one central-data server,
 `data/centraldata/CentralDataApi` (`GET /api/v1/instance/{instanceId}/subcategories` and
 `/assets`, authenticated with an `X-API-Key` header). The key comes from `local.properties`
 (`CENTRAL_DATA_API_KEY`, or `COLLAGES_API_KEY`) through the generated `CentralDataConfig`, which also
-holds the instance and the three category ids. The server's image URLs are relative paths that
+holds the instance, the category ids and the stickers super-category id. The server's image URLs are relative paths that
 need the key too: `NetworkImageLoader` sends the key to that host only.
 
 ### Billing — `AppBillingWrapper`

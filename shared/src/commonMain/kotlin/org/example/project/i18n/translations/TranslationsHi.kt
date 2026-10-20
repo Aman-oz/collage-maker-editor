@@ -884,4 +884,24 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "मूल",
     "Tap a photo to select it" to
         "चुनने के लिए किसी फ़ोटो पर टैप करें",
+    "Stickers" to
+        "स्टिकर",
+    "Couldn't load stickers" to
+        "स्टिकर लोड नहीं हो सके",
+    "No stickers here yet" to
+        "यहाँ अभी कोई स्टिकर नहीं है",
+    "Reshape" to
+        "आकार बदलें",
+    "Effects" to
+        "इफ़ेक्ट",
+    "Fill" to
+        "भरें",
+    "Outline" to
+        "आउटलाइन",
+    "Mirror" to
+        "मिरर",
+    "Intensity" to
+        "तीव्रता",
+    "Brush size" to
+        "ब्रश का आकार",
 )

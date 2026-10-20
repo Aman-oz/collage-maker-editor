@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.bakeTextLayers
 
@@ -28,10 +31,15 @@ sealed interface EditorUiState {
 }
 
 /**
- * One state of the editor: the photo, and the texts kept live over it ([TextLayers]) until something
- * needs them as pixels. Undo and redo move between these, so a text edit is a step like any other.
+ * One state of the editor: the photo, and the stickers and texts kept live over it until something
+ * needs them as pixels (stickers under texts). Undo and redo move between these, so a sticker or
+ * text edit is a step like any other.
  */
-internal class EditorFrame(val image: ImageBitmap, val texts: TextLayers? = null)
+internal class EditorFrame(
+    val image: ImageBitmap,
+    val texts: TextLayers? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+)
 
 /**
  * Decodes the picked image so the editing tools can work on it, and keeps [uiState] in sync with
@@ -42,9 +50,10 @@ internal class EditorFrame(val image: ImageBitmap, val texts: TextLayers? = null
  * no tool needs to know history exists. Undo/redo write the restored bitmap back to the session
  * too, so the save screen and the next tool see it.
  *
- * The Text tool is the exception: its texts stay live over the photo ([texts], [applyTexts]) so a tap
- * can open them again, and become pixels only when something needs the photo with them on it
- * ([flattenTexts]): another tool, or the save screen.
+ * The Text and Stickers tools are the exception: their texts and stickers stay live over the photo
+ * ([texts], [stickers], [applyTexts], [applyStickers]) so a tap can open them again, and become
+ * pixels only when something needs the photo with them on it ([flattenLayers]): another tool, or
+ * the save screen.
  *
  * [imagePath] is passed in from the navigation key via Koin's `parametersOf`. When it is `null` the
  * image was already put in the session by another editor (e.g. a baked collage), so nothing is
@@ -54,10 +63,11 @@ class EditorViewModel(
     private val imagePath: String?,
     private val session: ImageEditSession,
     settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel() {
 
     /**
-     * Whether the user is subscribed; some tools (Filter, Overlay, Adjust, Text, Sticker) show
+     * Whether the user is subscribed; some tools (Filter, Overlay, Adjust, Text, Emoji, Stickers) show
      * everyone else the paywall on Done.
      */
     val isPremium: StateFlow<Boolean> = settings.isPremium
@@ -75,6 +85,11 @@ class EditorViewModel(
 
     /** The texts over the photo, not yet baked into it; null with none. */
     internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
+
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The stickers over the photo (under the texts), not yet baked into it. */
+    internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
 
     /**
      * Whether the session holds *this* editor's image. Until the picked file is decoded, the
@@ -117,8 +132,8 @@ class EditorViewModel(
                     current == null -> EditHistory(EditorFrame(bitmap))
                     // Our own undo/redo write echoing back from the session — already recorded.
                     bitmap === current.current.image -> current
-                    // A tool's result. Texts are flattened before any other tool opens, so a new
-                    // photo never has live texts over it.
+                    // A tool's result. Texts and stickers are flattened before any other tool
+                    // opens, so a new photo never has live layers over it.
                     else -> current.push(EditorFrame(bitmap))
                 }
                 publish()
@@ -140,21 +155,34 @@ class EditorViewModel(
      */
     internal fun applyTexts(layers: TextLayers) {
         val current = history ?: return
-        history = current.push(EditorFrame(current.current.image, layers.takeIf { it.texts.isNotEmpty() }))
+        val frame = current.current
+        history = current.push(EditorFrame(frame.image, layers.takeIf { it.texts.isNotEmpty() }, frame.stickers))
+        publish()
+    }
+
+    /** Commits the Stickers tool's stickers as one undoable step, as [applyTexts] does texts. */
+    internal fun applyStickers(stickers: List<PlacedSticker>) {
+        val current = history ?: return
+        val frame = current.current
+        history = current.push(EditorFrame(frame.image, frame.texts, stickers))
         publish()
     }
 
     /**
-     * The photo with its live texts baked in, for whatever needs it as pixels: a tool other than Text
-     * about to open on it, or the save screen. The bake replaces the current step rather than adding
-     * one — it looks the same, so it isn't an edit to undo (nor one that counts towards the paywall's
-     * offer) — and goes to the session, so the save screen reads it. Null before the image is in.
+     * The photo with its live stickers and texts baked in, for whatever needs it as pixels: a tool
+     * other than Text and Stickers about to open on it, or the save screen. The bake replaces the
+     * current step rather than adding one — it looks the same, so it isn't an edit to undo (nor one
+     * that counts towards the paywall's offer) — and goes to the session, so the save screen reads
+     * it. Null before the image is in. Suspends while the stickers' SVGs are drawn at full size.
      */
-    internal fun flattenTexts(textMeasurer: TextMeasurer): ImageBitmap? {
+    internal suspend fun flattenLayers(textMeasurer: TextMeasurer): ImageBitmap? {
         val current = history ?: return null
         val frame = current.current
-        val texts = frame.texts ?: return frame.image
-        val baked = bakeTextLayers(frame.image, textMeasurer, texts)
+        if (frame.texts == null && frame.stickers.isEmpty()) return frame.image
+        val withStickers = bakeStickers(frame.image, frame.stickers, imageLoader::renderSvg)
+        val baked = frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers
+        // Something else may have moved the history on while the stickers were drawn; that wins.
+        if (history !== current) return history?.current?.image
         // Update history before writing, so the collector recognizes the echo instead of pushing it.
         history = current.copy(current = EditorFrame(baked))
         session.set(baked)
@@ -194,5 +222,6 @@ class EditorViewModel(
         val current = history ?: return
         _uiState.value = EditorUiState.Ready(current.current.image, current.canUndo, current.canRedo)
         _texts.value = current.current.texts
+        _stickers.value = current.current.stickers
     }
 }

@@ -884,4 +884,24 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Asli",
     "Tap a photo to select it" to
         "Ketuk foto untuk memilihnya",
+    "Stickers" to
+        "Stiker",
+    "Couldn't load stickers" to
+        "Tidak dapat memuat stiker",
+    "No stickers here yet" to
+        "Belum ada stiker di sini",
+    "Reshape" to
+        "Ubah bentuk",
+    "Effects" to
+        "Efek",
+    "Fill" to
+        "Isi",
+    "Outline" to
+        "Garis tepi",
+    "Mirror" to
+        "Cermin",
+    "Intensity" to
+        "Intensitas",
+    "Brush size" to
+        "Ukuran kuas",
 )

@@ -884,4 +884,24 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "الأصلي",
     "Tap a photo to select it" to
         "اضغط على صورة لتحديدها",
+    "Stickers" to
+        "ملصقات",
+    "Couldn't load stickers" to
+        "تعذّر تحميل الملصقات",
+    "No stickers here yet" to
+        "لا توجد ملصقات هنا بعد",
+    "Reshape" to
+        "إعادة تشكيل",
+    "Effects" to
+        "تأثيرات",
+    "Fill" to
+        "تعبئة",
+    "Outline" to
+        "حدود",
+    "Mirror" to
+        "مرآة",
+    "Intensity" to
+        "الشدة",
+    "Brush size" to
+        "حجم الفرشاة",
 )

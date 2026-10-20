@@ -30,10 +30,10 @@ import kotlin.math.roundToInt
  * tool, rather than by the whole overlay: a pointer handler over the whole picture would take every
  * touch from what is underneath, and the freestyle canvas's photos and stickers there still have to
  * be dragged and pinched everywhere a text isn't. Where texts overlap the last drawn (the top one)
- * gets the tap.
+ * gets the tap. Without [onTextTapped] the texts are only drawn (over the Stickers tool's stage).
  */
 @Composable
-internal fun TextLayersOverlay(layers: TextLayers, onTextTapped: (Long) -> Unit, modifier: Modifier = Modifier) {
+internal fun TextLayersOverlay(layers: TextLayers, onTextTapped: ((Long) -> Unit)?, modifier: Modifier = Modifier) {
     val textMeasurer = rememberTextMeasurer()
     val measured = remember(layers, textMeasurer) { measureTextLayers(textMeasurer, layers) }
     val currentOnTextTapped by rememberUpdatedState(onTextTapped)
@@ -42,7 +42,7 @@ internal fun TextLayersOverlay(layers: TextLayers, onTextTapped: (Long) -> Unit,
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawMeasuredTexts(measured, layers.canvasWidthPx)
         }
-        if (layers.canvasWidthPx <= 0f) return@BoxWithConstraints
+        if (layers.canvasWidthPx <= 0f || onTextTapped == null) return@BoxWithConstraints
         val widthPx = constraints.maxWidth.toFloat()
         val heightPx = constraints.maxHeight.toFloat()
         val scale = widthPx / layers.canvasWidthPx
@@ -61,7 +61,7 @@ internal fun TextLayersOverlay(layers: TextLayers, onTextTapped: (Long) -> Unit,
                         .size(with(density) { boxWidthPx.toDp() }, with(density) { boxHeightPx.toDp() })
                         // Turned like the text, so a tap's hit test follows its turned box.
                         .graphicsLayer { rotationZ = text.item.rotationDegrees }
-                        .pointerInput(text.item.id) { detectTapGestures { currentOnTextTapped(text.item.id) } },
+                        .pointerInput(text.item.id) { detectTapGestures { currentOnTextTapped?.invoke(text.item.id) } },
                 )
             }
         }

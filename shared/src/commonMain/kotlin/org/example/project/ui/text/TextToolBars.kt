@@ -162,8 +162,30 @@ internal fun Modifier.cascadeIn(cascade: Animatable<Float, *>, index: Int, count
         scaleY = scaleX
     }
 
+/** The Text tool's options in a [GlassOptionsBar]. */
+@Composable
+internal fun TextOptionsBar(
+    onOptionSelected: (TextOption) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    cascadeDelayMillis: Int = 0,
+) {
+    val options = TextOption.entries
+    GlassOptionsBar(
+        options = options.map { GlassBarOption(it.label, it.icon, it.tinted) },
+        onOptionSelected = { onOptionSelected(options[it]) },
+        onClose = onClose,
+        modifier = modifier,
+        cascadeDelayMillis = cascadeDelayMillis,
+    )
+}
+
+/** One item of a [GlassOptionsBar]: its icon over its label. [tinted] is false for an icon in its own colours. */
+internal class GlassBarOption(val label: String, val icon: DrawableResource, val tinted: Boolean = true)
+
 /**
- * The floating Liquid Glass bar of [TextOption]s, scrolling sideways under a glass ✕ at its end.
+ * A floating Liquid Glass bar of [options] (the Text tool's, the Stickers tool's), scrolling
+ * sideways under a glass ✕ at its end; [onOptionSelected] gets the tapped one's index.
  *
  * The options rise in one after another ([cascadeIn]) once the editor has slid the panel most of
  * the way up.
@@ -173,8 +195,9 @@ internal fun Modifier.cascadeIn(cascade: Animatable<Float, *>, index: Int, count
  * give the glass nothing to refract.
  */
 @Composable
-internal fun TextOptionsBar(
-    onOptionSelected: (TextOption) -> Unit,
+internal fun GlassOptionsBar(
+    options: List<GlassBarOption>,
+    onOptionSelected: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     // Holds the cascade back while the bar itself is still waiting to rise (coming back from the
@@ -193,7 +216,6 @@ internal fun TextOptionsBar(
     )
     val rim = if (isLight) scheme.onSurface.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f)
 
-    val options = TextOption.entries
     val cascade = remember { Animatable(0f) }
     val host = LocalInlineToolHost.current
     LaunchedEffect(Unit) {
@@ -249,9 +271,9 @@ internal fun TextOptionsBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             itemsIndexed(options) { index, option ->
-                TextOptionItem(
+                GlassOptionItem(
                     option = option,
-                    onClick = { onOptionSelected(option) },
+                    onClick = { onOptionSelected(index) },
                     modifier = Modifier.cascadeIn(cascade, index, options.size),
                 )
             }
@@ -266,7 +288,7 @@ internal fun TextOptionsBar(
 }
 
 @Composable
-private fun TextOptionItem(option: TextOption, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun GlassOptionItem(option: GlassBarOption, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val bounce = rememberSpringBounce()
     Column(

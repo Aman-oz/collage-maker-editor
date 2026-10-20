@@ -39,6 +39,7 @@ import org.example.project.ui.projects.ProjectsViewModel
 import org.example.project.ui.save.SaveImageViewModel
 import org.example.project.ui.settings.SettingsViewModel
 import org.example.project.ui.share.ShareImageViewModel
+import org.example.project.ui.stickers.StickersRepository
 import org.example.project.ui.templates.TemplateFrame
 import org.example.project.ui.templates.TemplatesEditorViewModel
 import org.example.project.ui.templates.TemplatesRepository
@@ -74,6 +75,8 @@ val coreModule: Module = module {
     single { HomeFeedRepository(get()) }
     // The Layouts category (Home's Layouts row and its browser), joined with the collage catalog.
     single { LayoutsRepository(get(), get()) }
+    // The editor's sticker library (categories, sub-categories, stickers), kept for the process.
+    single { StickersRepository(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -93,7 +96,7 @@ val viewModelModule: Module = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::GalleryViewModel)
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
-    viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get()) }
+    viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get(), get()) }
     // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
     viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get()) }
     // The layout to open on comes from the navigation key.
