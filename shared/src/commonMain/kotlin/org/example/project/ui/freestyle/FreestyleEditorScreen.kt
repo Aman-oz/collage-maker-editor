@@ -105,7 +105,7 @@ import photocollagemaker.shared.generated.resources.ic_undo
 /** [icon] is composable so a tool can use a drawable resource, which only loads in composition. */
 private enum class FreestyleTool(private val englishLabel: String, val icon: @Composable () -> ImageVector) {
     Background("Background", { vectorResource(Res.drawable.ic_background) }),
-    Stickers("Stickers", { Icons.Outlined.EmojiEmotions }),
+    Stickers("Emoji", { Icons.Outlined.EmojiEmotions }),
     Border("Border", { Icons.Outlined.BorderClear }),
     Text("Text", { Icons.Outlined.TextFields }),
     ;

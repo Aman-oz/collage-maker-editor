@@ -36,8 +36,6 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Настройки",
     "Text" to
         "Текст",
-    "Stickers" to
-        "Стикеры",
     "Background" to
         "Фон",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Коррекция",
     "Overlay" to
         "Наложение",
-    "Sticker" to
-        "Стикер",
     "Blur" to
         "Размытие",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "По горизонтали",
     "Padding shows around a background color" to
         "Отступы видны вокруг цвета фона",
+    "Canvas" to
+        "Холст",
+    "Layout" to
+        "Макет",
+    "Margin" to
+        "Поля",
+    "Space" to
+        "Интервал",
+    "Thickness" to
+        "Толщина",
+    "Transform" to
+        "Трансформация",
+    "Height" to
+        "Высота",
+    "Original" to
+        "Оригинал",
+    "Tap a photo to select it" to
+        "Нажмите на фото, чтобы выбрать его",
 )

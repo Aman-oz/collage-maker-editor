@@ -331,7 +331,7 @@ private fun PipEditorContent(
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
-                        label = tr("Stickers"),
+                        label = tr("Emoji"),
                         selected = true,
                         enabled = ready,
                         onClick = {},

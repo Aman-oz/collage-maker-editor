@@ -18,6 +18,7 @@ data class CollageLayout(
     val photoCount: Int,
     /** The layout's lines on a transparent ground, drawn tinted to the theme. */
     val previewUrl: String,
+    /** The server's own flag for this layout; the collage catalog's premium layouts don't count here. */
     val isPremium: Boolean,
 )
 
@@ -43,6 +44,10 @@ class LayoutsRepository(
     /** The browser's tabs: one sub-category per photo count, in server order. */
     suspend fun getCategories(): List<TemplateCategory> =
         api.subcategories(CentralDataConfig.LAYOUTS_CATEGORY_ID).toCategories()
+
+    /** The names of the layouts the server marks premium, for the layout editor's gate. */
+    suspend fun premiumLayoutNames(): Set<String> =
+        getAll().filter { it.isPremium }.mapTo(HashSet()) { it.name }
 
     suspend fun getLayouts(subCategoryId: String): List<CollageLayout> =
         api.assetsInSubcategory(subCategoryId).toLayouts()
@@ -73,7 +78,7 @@ internal fun List<CentralAssetDto>.toCollageLayouts(
                 name = name,
                 photoCount = template.imageCount,
                 previewUrl = absoluteUrl(path),
-                isPremium = asset.isPremium || template.isPremium,
+                isPremium = asset.isPremium,
             )
         }
         .distinctBy { it.name }

@@ -36,8 +36,6 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Cài đặt",
     "Text" to
         "Văn bản",
-    "Stickers" to
-        "Nhãn dán",
     "Background" to
         "Nền",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Điều chỉnh",
     "Overlay" to
         "Lớp phủ",
-    "Sticker" to
-        "Nhãn dán",
     "Blur" to
         "Làm mờ",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Ngang",
     "Padding shows around a background color" to
         "Khoảng đệm hiện quanh màu nền",
+    "Canvas" to
+        "Khung vẽ",
+    "Layout" to
+        "Bố cục",
+    "Margin" to
+        "Lề",
+    "Space" to
+        "Khoảng cách",
+    "Thickness" to
+        "Độ dày",
+    "Transform" to
+        "Biến đổi",
+    "Height" to
+        "Chiều cao",
+    "Original" to
+        "Gốc",
+    "Tap a photo to select it" to
+        "Chạm vào ảnh để chọn",
 )

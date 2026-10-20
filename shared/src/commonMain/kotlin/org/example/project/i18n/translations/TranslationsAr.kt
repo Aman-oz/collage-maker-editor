@@ -36,8 +36,6 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "الإعدادات",
     "Text" to
         "نص",
-    "Stickers" to
-        "ملصقات",
     "Background" to
         "الخلفية",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "ضبط",
     "Overlay" to
         "تراكب",
-    "Sticker" to
-        "ملصق",
     "Blur" to
         "تمويه",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "أفقي",
     "Padding shows around a background color" to
         "يظهر الحشو حول لون الخلفية",
+    "Canvas" to
+        "اللوحة",
+    "Layout" to
+        "التخطيط",
+    "Margin" to
+        "الهامش",
+    "Space" to
+        "المسافة",
+    "Thickness" to
+        "السُمك",
+    "Transform" to
+        "تحويل",
+    "Height" to
+        "الارتفاع",
+    "Original" to
+        "الأصلي",
+    "Tap a photo to select it" to
+        "اضغط على صورة لتحديدها",
 )

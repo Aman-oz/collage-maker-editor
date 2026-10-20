@@ -36,8 +36,6 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Ayarlar",
     "Text" to
         "Metin",
-    "Stickers" to
-        "Çıkartmalar",
     "Background" to
         "Arka plan",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Ayarla",
     "Overlay" to
         "Katman",
-    "Sticker" to
-        "Çıkartma",
     "Blur" to
         "Bulanıklık",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Yatay",
     "Padding shows around a background color" to
         "İç boşluk bir arka plan renginin çevresinde görünür",
+    "Canvas" to
+        "Tuval",
+    "Layout" to
+        "Düzen",
+    "Margin" to
+        "Kenar boşluğu",
+    "Space" to
+        "Boşluk",
+    "Thickness" to
+        "Kalınlık",
+    "Transform" to
+        "Dönüştür",
+    "Height" to
+        "Yükseklik",
+    "Original" to
+        "Orijinal",
+    "Tap a photo to select it" to
+        "Seçmek için bir fotoğrafa dokunun",
 )

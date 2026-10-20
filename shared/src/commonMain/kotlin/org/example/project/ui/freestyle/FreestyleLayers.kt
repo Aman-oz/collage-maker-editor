@@ -588,7 +588,7 @@ internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (emoji: Str
     var recent by remember { mutableStateOf(emptyList<String>()) }
 
     Column {
-        PanelHeader(chrome = chrome, title = tr("Stickers"))
+        PanelHeader(chrome = chrome, title = tr("Emoji"))
         EmojiCategoryTabs(selected = category, onSelected = { category = it })
         EmojiGrid(
             emojis = category?.let { EmojisByCategory[it].orEmpty() } ?: recent,

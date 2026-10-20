@@ -36,8 +36,6 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Pengaturan",
     "Text" to
         "Teks",
-    "Stickers" to
-        "Stiker",
     "Background" to
         "Latar belakang",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Sesuaikan",
     "Overlay" to
         "Overlay",
-    "Sticker" to
-        "Stiker",
     "Blur" to
         "Blur",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Horizontal",
     "Padding shows around a background color" to
         "Padding terlihat di sekitar warna latar",
+    "Canvas" to
+        "Kanvas",
+    "Layout" to
+        "Tata letak",
+    "Margin" to
+        "Margin",
+    "Space" to
+        "Jarak",
+    "Thickness" to
+        "Ketebalan",
+    "Transform" to
+        "Transformasi",
+    "Height" to
+        "Tinggi",
+    "Original" to
+        "Asli",
+    "Tap a photo to select it" to
+        "Ketuk foto untuk memilihnya",
 )

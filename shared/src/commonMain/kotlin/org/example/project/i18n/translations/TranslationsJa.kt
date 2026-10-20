@@ -36,8 +36,6 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "設定",
     "Text" to
         "テキスト",
-    "Stickers" to
-        "スタンプ",
     "Background" to
         "背景",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "調整",
     "Overlay" to
         "オーバーレイ",
-    "Sticker" to
-        "スタンプ",
     "Blur" to
         "ぼかし",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "左右",
     "Padding shows around a background color" to
         "余白は背景色の周りに表示されます",
+    "Canvas" to
+        "キャンバス",
+    "Layout" to
+        "レイアウト",
+    "Margin" to
+        "余白",
+    "Space" to
+        "間隔",
+    "Thickness" to
+        "太さ",
+    "Transform" to
+        "変形",
+    "Height" to
+        "高さ",
+    "Original" to
+        "オリジナル",
+    "Tap a photo to select it" to
+        "写真をタップして選択してください",
 )

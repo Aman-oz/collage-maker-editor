@@ -158,8 +158,19 @@ from the back stack.
   card) and its View All, `Destination.Layouts` (one tab per photo-count sub-category). They come
   from the server's Layouts category: transparent line pictures, drawn tinted to `onBackground` in
   both themes. `LayoutsRepository` joins each with the `CollageCatalog` by name for its photo
-  count, and drops what the catalog can't draw. A pick goes `Gallery(photoCount, Collage, collageLayout = name)` →
-  `CollageEditor(imagePaths, layoutName)`, which opens on that layout.
+  count, and drops what the catalog can't draw. A layout is premium only by its own server
+  `is_premium` (the layout editor's crown and Done gate too, via `premiumLayoutNames`), never by the
+  collage catalog's flag. A pick opens `LayoutEditor(layoutName)` directly, with no
+  gallery step.
+- **Layout editor** (`ui/layouteditor/`): the picked layout with every slot empty (dashed outline and a ＋);
+  a tap picks that slot's photo (FileKit), which then pans/pinches inside it (the collage editor's
+  `detectSlotTransformGestures`). Tools: Canvas (Original = first photo's shape, plus the crop ratios), Layout
+  (every catalog layout; photos stay keyed by slot index), Edit (a bar that slides up: Margin / Border /
+  Frame / Transform), Background, Emoji (the freestyle sticker layers), and Text, Filter and Ratio, which open the
+  photo editor's tools over the screen (Filter and Ratio on the selected slot's photo, replacing it). Its
+  measures are layout units (1/360 of the canvas's shorter side, `layoutUnitPx`), so preview and bake agree
+  without passing sizes; only the stickers need the preview width. History, the text session and the
+  photo-tool session live in `LayoutEditorViewModel`, which also implements `LayoutEditorActions`.
 - **Freestyle** (`ui/freestyle/`): the picked photos open spread over a grid by the pure
   `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. Its Text button opens the photo
   editor's Text tool over the whole screen (`TextToolOverlay` with a `TextToolSession` held in

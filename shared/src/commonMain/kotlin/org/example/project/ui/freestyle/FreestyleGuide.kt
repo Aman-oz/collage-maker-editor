@@ -80,7 +80,7 @@ private val GuidePoints = listOf(
     GuidePoint("Background", "Pick a color or a gradient behind your photos, or mix your own color.") {
         vectorResource(Res.drawable.ic_background)
     },
-    GuidePoint("Stickers", "Tap an emoji to place it on the canvas.") { Icons.Outlined.EmojiEmotions },
+    GuidePoint("Emoji", "Tap an emoji to place it on the canvas.") { Icons.Outlined.EmojiEmotions },
     GuidePoint("Border", "Set the border width and corner radius. Tap a photo first to change only that one.") {
         Icons.Outlined.BorderClear
     },

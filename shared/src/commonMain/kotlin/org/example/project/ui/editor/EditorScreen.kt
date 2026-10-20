@@ -162,7 +162,7 @@ internal enum class EditorTool(private val englishLabel: String, val icon: Drawa
     Overlay("Overlay", Res.drawable.ic_overlay_editor),
     Ratio("Ratio", Res.drawable.ic_ratio_editor),
     Text("Text", Res.drawable.ic_text_editor),
-    Sticker("Sticker", Res.drawable.ic_stickers_editor),
+    Sticker("Emoji", Res.drawable.ic_stickers_editor),
     Blur("Blur", Res.drawable.ic_blur_editor),
     SelectiveBlur("s-Blur", Res.drawable.ic_s_blur_editor),
     Rotate("Rotate", Res.drawable.ic_rotate_editor),

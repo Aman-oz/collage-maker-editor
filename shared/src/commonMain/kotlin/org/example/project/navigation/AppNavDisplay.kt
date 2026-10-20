@@ -28,8 +28,8 @@ import org.example.project.ui.editor.EditorScreen
 import org.example.project.ui.frames.FramesScreen
 import org.example.project.ui.freestyle.FreestyleEditorScreen
 import org.example.project.ui.gallery.GalleryScreen
-import org.example.project.ui.layouts.CollageLayout
 import org.example.project.ui.layouts.LayoutsScreen
+import org.example.project.ui.layouteditor.LayoutEditorScreen
 import org.example.project.ui.home.HomeScreen
 import org.example.project.ui.language.LanguageScreen
 import org.example.project.ui.onboarding.OnboardingScreen
@@ -152,7 +152,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 onOpenFrameEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
                                 onOpenPip = { backStack.add(Destination.Pip) },
                                 onOpenLayouts = { backStack.add(Destination.Layouts) },
-                                onOpenLayout = { layout -> backStack.add(layout.galleryDestination()) },
+                                onOpenLayout = { layout -> backStack.add(Destination.LayoutEditor(layout.name)) },
                                 onOpenSettings = { backStack.add(Destination.Settings) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                                 onOpenProject = { imagePath -> backStack.add(Destination.Preview(imagePath)) },
@@ -287,8 +287,19 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Layouts>(metadata = slideUpMetadata()) {
                         LayoutsScreen(
                             onBack = { backStack.removeLastOrNull() },
-                            onOpenLayout = { layout -> backStack.add(layout.galleryDestination()) },
+                            onOpenLayout = { layout -> backStack.add(Destination.LayoutEditor(layout.name)) },
                             onOpenPremium = { backStack.add(Destination.Premium()) },
+                        )
+                    }
+
+                    entry<Destination.LayoutEditor> { key ->
+                        LayoutEditorScreen(
+                            layoutName = key.layoutName,
+                            onBack = { backStack.removeLastOrNull() },
+                            // Like Collage: the baked layout is in the session and this screen stays
+                            // underneath, so Back from the photo editor returns to it for further tweaks.
+                            onDone = { backStack.add(Destination.Editor()) },
+                            onPremium = { backStack.add(Destination.Premium()) },
                         )
                     }
 
@@ -336,10 +347,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     }
 
                     entry<Destination.ShareImage> { key ->
-                        // The collage editor stays underneath Editor → Save → Share, so its presence in
-                        // the back stack says this image came from the collage flow. Someone who just
-                        // made a collage is offered Freestyle instead; every other flow offers a collage.
-                        val suggestion = if (backStack.any { it is Destination.CollageEditor }) {
+                        // The collage (or layout) editor stays underneath Editor → Save → Share, so its
+                        // presence in the back stack says this image came from a collage flow. Someone who
+                        // just made a collage is offered Freestyle instead; every other flow offers a collage.
+                        val suggestion = if (backStack.any { it is Destination.CollageEditor || it is Destination.LayoutEditor }) {
                             ShareSuggestion.Freestyle
                         } else {
                             ShareSuggestion.NewCollage
@@ -431,7 +442,3 @@ private fun MutableList<NavKey>.closePremium(premium: Destination.Premium) {
         removeLastOrNull()
     }
 }
-
-/** A picked layout's next step: the gallery, for as many photos as the layout holds. */
-private fun CollageLayout.galleryDestination(): Destination.Gallery =
-    Destination.Gallery(photoCount, GalleryTarget.Collage, collageLayout = name)

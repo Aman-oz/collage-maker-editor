@@ -36,8 +36,6 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "सेटिंग्स",
     "Text" to
         "टेक्स्ट",
-    "Stickers" to
-        "स्टिकर",
     "Background" to
         "बैकग्राउंड",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "एडजस्ट",
     "Overlay" to
         "ओवरले",
-    "Sticker" to
-        "स्टिकर",
     "Blur" to
         "ब्लर",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "क्षैतिज",
     "Padding shows around a background color" to
         "पैडिंग पृष्ठभूमि रंग के चारों ओर दिखती है",
+    "Canvas" to
+        "कैनवास",
+    "Layout" to
+        "लेआउट",
+    "Margin" to
+        "मार्जिन",
+    "Space" to
+        "स्पेस",
+    "Thickness" to
+        "मोटाई",
+    "Transform" to
+        "ट्रांसफ़ॉर्म",
+    "Height" to
+        "ऊंचाई",
+    "Original" to
+        "मूल",
+    "Tap a photo to select it" to
+        "चुनने के लिए किसी फ़ोटो पर टैप करें",
 )

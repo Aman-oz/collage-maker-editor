@@ -36,8 +36,6 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "ترتیبات",
     "Text" to
         "متن",
-    "Stickers" to
-        "اسٹیکرز",
     "Background" to
         "پس منظر",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "ایڈجسٹ",
     "Overlay" to
         "اوورلے",
-    "Sticker" to
-        "اسٹیکر",
     "Blur" to
         "دھندلا",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "افقی",
     "Padding shows around a background color" to
         "پیڈنگ پس منظر کے رنگ کے گرد نظر آتی ہے",
+    "Canvas" to
+        "کینوس",
+    "Layout" to
+        "لے آؤٹ",
+    "Margin" to
+        "حاشیہ",
+    "Space" to
+        "فاصلہ",
+    "Thickness" to
+        "موٹائی",
+    "Transform" to
+        "تبدیل کریں",
+    "Height" to
+        "اونچائی",
+    "Original" to
+        "اصل",
+    "Tap a photo to select it" to
+        "منتخب کرنے کے لیے کسی تصویر پر ٹیپ کریں",
 )

@@ -116,6 +116,13 @@ sealed interface Destination : NavKey {
     data object Layouts : Destination
 
     /**
+     * Layout editor: the collage layout [layoutName] (e.g. `collage_3_5`), picked on Home's Layouts
+     * row or in [Layouts], opened with its slots empty for the user to fill one at a time.
+     */
+    @Serializable
+    data class LayoutEditor(val layoutName: String) : Destination
+
+    /**
      * Freestyle editor — every picked image starts as a freely draggable/rotatable/scalable layer
      * on one open canvas, alongside stickers and text the user adds there.
      *

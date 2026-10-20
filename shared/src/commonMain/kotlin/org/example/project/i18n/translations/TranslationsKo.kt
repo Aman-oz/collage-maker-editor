@@ -36,8 +36,6 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "설정",
     "Text" to
         "텍스트",
-    "Stickers" to
-        "스티커",
     "Background" to
         "배경",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "조정",
     "Overlay" to
         "오버레이",
-    "Sticker" to
-        "스티커",
     "Blur" to
         "블러",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "가로",
     "Padding shows around a background color" to
         "여백은 배경색 주위에 표시됩니다",
+    "Canvas" to
+        "캔버스",
+    "Layout" to
+        "레이아웃",
+    "Margin" to
+        "여백",
+    "Space" to
+        "간격",
+    "Thickness" to
+        "두께",
+    "Transform" to
+        "변형",
+    "Height" to
+        "높이",
+    "Original" to
+        "원본",
+    "Tap a photo to select it" to
+        "사진을 탭하여 선택하세요",
 )

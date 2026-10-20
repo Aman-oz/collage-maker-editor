@@ -36,8 +36,6 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Configurações",
     "Text" to
         "Texto",
-    "Stickers" to
-        "Adesivos",
     "Background" to
         "Fundo",
     "Border" to
@@ -118,8 +116,6 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Ajustar",
     "Overlay" to
         "Sobreposição",
-    "Sticker" to
-        "Adesivo",
     "Blur" to
         "Desfoque",
     "s-Blur" to
@@ -870,4 +866,22 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Horizontal",
     "Padding shows around a background color" to
         "O preenchimento aparece ao redor de uma cor de fundo",
+    "Canvas" to
+        "Tela",
+    "Layout" to
+        "Layout",
+    "Margin" to
+        "Margem",
+    "Space" to
+        "Espaço",
+    "Thickness" to
+        "Espessura",
+    "Transform" to
+        "Transformar",
+    "Height" to
+        "Altura",
+    "Original" to
+        "Original",
+    "Tap a photo to select it" to
+        "Toque em uma foto para selecioná-la",
 )

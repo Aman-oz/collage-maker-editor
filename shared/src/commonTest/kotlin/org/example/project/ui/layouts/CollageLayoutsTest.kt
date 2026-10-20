@@ -42,4 +42,16 @@ class CollageLayoutsTest {
 
         assertEquals(listOf("a", "b"), layouts.map { it.id })
     }
+
+    @Test
+    fun toCollageLayouts_takesPremiumFromTheServerOnly_notFromTheCollageCatalog() {
+        val catalogPremium = { name: String ->
+            FrameImageUtils.createTemplateItems("$name.png")?.apply { isPremium = true }
+        }
+        val layouts = json.decodeFromString<List<CentralAssetDto>>(
+            listOf(asset("free", "collage_2_0.png"), asset("paid", "collage_2_1.png", premium = true)).joinToString(",", "[", "]"),
+        ).toCollageLayouts({ resolveUrl(base, it) }, catalogPremium)
+
+        assertEquals(listOf(false, true), layouts.map { it.isPremium })
+    }
 }

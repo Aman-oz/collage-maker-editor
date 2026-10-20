@@ -503,7 +503,7 @@ private fun CollagePreview(
  * across a border keeps moving the same photo. Past touch slop it consumes the moves, which cancels
  * the tap detector — a drag never also selects or swaps. Gestures on empty slots are left alone.
  */
-private suspend fun PointerInputScope.detectSlotTransformGestures(
+internal suspend fun PointerInputScope.detectSlotTransformGestures(
     geometries: List<SlotGeometry>,
     hasImage: (Int) -> Boolean,
     onTransform: (slot: SlotGeometry, pan: Offset, zoom: Float) -> Unit,

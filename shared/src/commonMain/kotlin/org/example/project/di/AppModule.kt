@@ -26,6 +26,7 @@ import org.example.project.ui.home.HomeFeedRepository
 import org.example.project.ui.home.HomeFeedViewModel
 import org.example.project.ui.layouts.LayoutsRepository
 import org.example.project.ui.layouts.LayoutsViewModel
+import org.example.project.ui.layouteditor.LayoutEditorViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
 import org.example.project.ui.language.LanguageViewModel
@@ -95,6 +96,8 @@ val viewModelModule: Module = module {
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get()) }
     // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
     viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get()) }
+    // The layout to open on comes from the navigation key.
+    viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get()) }
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
     viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }

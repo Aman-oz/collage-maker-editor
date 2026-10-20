@@ -328,7 +328,7 @@ private fun SetBackgroundContent(
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
-                        label = tr("Stickers"),
+                        label = tr("Emoji"),
                         selected = tool == SetBackgroundTool.Stickers,
                         enabled = sourceImage != null,
                         onClick = { tool = SetBackgroundTool.Stickers },
