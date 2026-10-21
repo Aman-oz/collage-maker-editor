@@ -49,7 +49,7 @@ import photocollagemaker.shared.generated.resources.ic_double_layer_arrow
 import photocollagemaker.shared.generated.resources.ic_single_layer_arrow
 
 /** The Position panel's tabs, in the order of its bottom bar. */
-private enum class PositionTab(private val englishLabel: String, val icon: DrawableResource) {
+internal enum class PositionTab(private val englishLabel: String, val icon: DrawableResource) {
     Arrange("Arrange", Res.drawable.ic_arrange),
     Align("Align", Res.drawable.ic_align),
     ;
@@ -89,11 +89,12 @@ private val AlignActions: List<Pair<TextPhotoAlign, PositionAction>> = listOf(
 internal fun TextPositionPanel(
     onArrange: (TextLayerMove) -> Unit,
     onAlign: (TextPhotoAlign) -> Unit,
+    tab: PositionTab,
+    onTabSelected: (PositionTab) -> Unit,
     onClose: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var tab by remember { mutableStateOf(PositionTab.Arrange) }
     TextPanelColumn(title = tr("Position"), onClose = onClose, onDone = onDone, modifier = modifier) {
         // One height for both tabs (Align's three rows), so the bar under it never moves.
         Box(
@@ -115,7 +116,7 @@ internal fun TextPositionPanel(
                     icon = entry.icon,
                     label = entry.label,
                     selected = entry == tab,
-                    onClick = { tab = entry },
+                    onClick = { onTabSelected(entry) },
                     modifier = Modifier.width(76.dp),
                 )
             }

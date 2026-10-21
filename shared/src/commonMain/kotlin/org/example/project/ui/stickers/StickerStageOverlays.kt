@@ -36,10 +36,12 @@ private val CropHandleTouch = 36.dp
 private val CropCornerArm = 14.dp
 
 /**
- * The Crop panel's frame over the uncut sticker [full] on a [photoSize] photo: turned with it, the
- * area outside [crop] (display fractions, see [sourceToDisplayCrop]) dimmed, corners that resize the
- * crop (keeping [ratio], width / height as seen, when set) and the inside that slides it. A drag
- * inside the turned box arrives in the box's own frame, so it maps straight onto the crop.
+ * The Crop panel's frame over the uncut sticker [full] on a [photoSize] photo: a rectangle turned
+ * with it, round what it draws ([stickerSelectionRect], so a reshaped or tilted sticker is framed
+ * like its selection), the area outside [crop] (display fractions, see [sourceToDisplayCrop], taken
+ * as fractions of that rectangle) dimmed, corners that resize the crop (keeping [ratio], width /
+ * height as seen, when set) and the inside that slides it. A drag inside the turned box arrives in
+ * the box's own frame, so it maps straight onto the crop.
  */
 @Composable
 internal fun BoxScope.StickerCropFrame(
@@ -50,23 +52,22 @@ internal fun BoxScope.StickerCropFrame(
     onCropChange: (Rect) -> Unit,
 ) {
     val density = LocalDensity.current
-    val width = full.widthFraction * photoSize.width
-    val height = width / full.aspectRatio
+    val frame = stickerSelectionRect(full, photoSize.width.toFloat(), photoSize.height.toFloat())
+    val width = frame.width
+    val height = frame.height
     if (width <= 0f || height <= 0f) return
     val currentCrop by rememberUpdatedState(crop)
     val currentOnChange by rememberUpdatedState(onCropChange)
     val currentSize by rememberUpdatedState(Size(width, height))
     val currentRatio by rememberUpdatedState(ratio)
-    val fullAspect = full.aspectRatio
+    // The ratio as seen is the frame's, which a reshape or tilt may have changed from the box's.
+    val fullAspect = width / height
 
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
             .offset {
-                IntOffset(
-                    (full.centerX * photoSize.width - width / 2f).roundToInt(),
-                    (full.centerY * photoSize.height - height / 2f).roundToInt(),
-                )
+                IntOffset(frame.left.roundToInt(), frame.top.roundToInt())
             }
             .size(with(density) { width.toDp() }, with(density) { height.toDp() })
             .graphicsLayer { rotationZ = full.rotationDegrees },

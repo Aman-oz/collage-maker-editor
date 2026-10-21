@@ -1,9 +1,12 @@
 package org.example.project.ui.stickers
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.example.project.ui.text.rotateVector
 import org.example.project.data.centraldata.CentralAssetDto
 import org.example.project.data.centraldata.CentralAssetFieldsDto
 import org.example.project.data.centraldata.CentralImageDto
@@ -235,4 +238,151 @@ class StickerEditMathTest {
         assertNear(-90f, sliderToRotation(rotationToSlider(-90f)))
         assertNear(0.5f, sliderToStickerSize(stickerSizeToSlider(0.5f)))
     }
+
+    @Test
+    fun stickerAdjust_tintIsKeptApartFromThePhotoAdjustments() {
+        val adjust = StickerAdjust().with(StickerAdjustment.Tint, 40f).with(StickerAdjustment.Exposure, -20f)
+        assertEquals(40f, adjust[StickerAdjustment.Tint])
+        assertEquals(-20f, adjust[StickerAdjustment.Exposure])
+        assertEquals(0f, adjust[StickerAdjustment.Brightness])
+    }
+
+    @Test
+    fun stickerAdjust_clarityAndTintSurviveAPhotoAdjustment() {
+        val adjust = StickerAdjust()
+            .with(StickerAdjustment.Clarity, 30f)
+            .with(StickerAdjustment.Tint, -10f)
+            .with(StickerAdjustment.Contrast, 50f)
+        assertEquals(30f, adjust[StickerAdjustment.Clarity])
+        assertEquals(-10f, adjust[StickerAdjustment.Tint])
+        assertEquals(50f, adjust[StickerAdjustment.Contrast])
+    }
+
+    @Test
+    fun stickerDrawnBounds_plainStickerIsItsBox() {
+        val bounds = stickerDrawnBounds(sticker(aspect = 2f), 200f, 100f)
+        assertEquals(-100f, bounds.left, 1e-3f)
+        assertEquals(-50f, bounds.top, 1e-3f)
+        assertEquals(100f, bounds.right, 1e-3f)
+        assertEquals(50f, bounds.bottom, 1e-3f)
+    }
+
+    @Test
+    fun stickerDrawnBounds_followsAReshapedCorner() {
+        // The bottom-right corner pulled out by a quarter of the box each way.
+        val reshaped = sticker(aspect = 1f).copy(cornerOffsets = listOf(0f, 0f, 0f, 0f, 0.25f, 0.25f, 0f, 0f))
+        val bounds = stickerDrawnBounds(reshaped, 100f, 100f)
+        assertEquals(-50f, bounds.left, 1e-3f)
+        assertEquals(-50f, bounds.top, 1e-3f)
+        assertEquals(75f, bounds.right, 1e-3f)
+        assertEquals(75f, bounds.bottom, 1e-3f)
+    }
+
+    @Test
+    fun stickerSelectionRect_centresOnTheReshapedShape() {
+        val reshaped = sticker(aspect = 1f).copy(widthFraction = 0.25f, cornerOffsets = listOf(0f, 0f, 0f, 0f, 0.25f, 0.25f, 0f, 0f))
+        val rect = stickerSelectionRect(reshaped, 400f, 400f)
+        // A 100 px box at (200, 200) reaching 25 px further right and down.
+        assertEquals(212.5f, rect.center.x, 1e-3f)
+        assertEquals(212.5f, rect.center.y, 1e-3f)
+        assertEquals(125f, rect.width, 1e-3f)
+    }
+
+    @Test
+    fun stickerBoxFraction_roundTripsThroughReshapeTiltAndTurn() {
+        val shaped = sticker(aspect = 1.5f, rotation = 30f).copy(
+            cornerOffsets = listOf(0.1f, -0.05f, 0.2f, 0.1f, -0.05f, 0.15f, 0f, -0.1f),
+            tiltX = 70f,
+            tiltY = 40f,
+        )
+        for (fraction in listOf(Offset(0f, 0f), Offset(1f, 0f), Offset(0.3f, 0.7f), Offset(0.5f, 0.5f))) {
+            val onPhoto = stickerBoxFractionToPhoto(shaped, fraction, 400f, 300f)
+            val back = photoToStickerBoxFraction(shaped, onPhoto, 400f, 300f)
+            assertNear(fraction.x, back.x)
+            assertNear(fraction.y, back.y)
+        }
+    }
+
+    /** Where [sticker] draws the point [source] (fractions of its source picture) on a 400 × 300 photo. */
+    private fun drawnAt(sticker: PlacedSticker, source: Offset): Offset {
+        var u = (source.x - sticker.cropLeft) / (sticker.cropRight - sticker.cropLeft)
+        var v = (source.y - sticker.cropTop) / (sticker.cropBottom - sticker.cropTop)
+        if (sticker.flippedHorizontally) u = 1f - u
+        if (sticker.flippedVertically) v = 1f - v
+        return stickerBoxFractionToPhoto(sticker, Offset(u, v), 400f, 300f)
+    }
+
+    private val reshapedSticker = sticker(aspect = 1.2f, rotation = 20f, flipH = true).copy(
+        cornerOffsets = listOf(-0.15f, 0.05f, 0.1f, -0.1f, 0.05f, 0.2f, -0.05f, 0f),
+        tiltX = 65f,
+        tiltY = 40f,
+    )
+
+    @Test
+    fun stickerWithCrop_keepsAReshapedStickerWhereItWasDrawn() {
+        val cut = stickerWithCrop(reshapedSticker, Rect(0.1f, 0.2f, 0.55f, 0.9f), photoAspect = 400f / 300f)
+        for (source in listOf(Offset(0.1f, 0.2f), Offset(0.55f, 0.9f), Offset(0.3f, 0.5f), Offset(0.5f, 0.25f))) {
+            val before = drawnAt(reshapedSticker, source)
+            val after = drawnAt(cut, source)
+            assertEquals(before.x, after.x, 0.05f, "x of $source")
+            assertEquals(before.y, after.y, 0.05f, "y of $source")
+        }
+    }
+
+    @Test
+    fun stickerWithCrop_uncroppingAReshapedCutRestoresItsPlace() {
+        val cut = stickerWithCrop(reshapedSticker, Rect(0.2f, 0.1f, 0.8f, 0.6f), photoAspect = 400f / 300f)
+        val whole = stickerWithCrop(cut, Rect(0f, 0f, 1f, 1f), photoAspect = 400f / 300f)
+        for (source in listOf(Offset(0f, 0f), Offset(1f, 1f), Offset(0.7f, 0.2f))) {
+            val before = drawnAt(reshapedSticker, source)
+            val after = drawnAt(whole, source)
+            assertEquals(before.x, after.x, 0.05f)
+            assertEquals(before.y, after.y, 0.05f)
+        }
+    }
+
+    @Test
+    fun cropFrame_isTheBoxOnAPlainSticker() {
+        val plain = sticker(rotation = 30f)
+        val crop = Rect(0.1f, 0.2f, 0.6f, 0.9f)
+        val frame = boxToCropFrame(plain, crop, 400f, 300f)
+        assertNear(crop.left, frame.left)
+        assertNear(crop.bottom, frame.bottom)
+        val back = cropFrameToBox(plain, frame, 400f, 300f)
+        assertNear(crop.right, back.right)
+        assertNear(crop.top, back.top)
+    }
+
+    @Test
+    fun cropFrameToBox_cutsTheLeftOfASlantedSticker() {
+        // Its top-left corner pulled in and its bottom-left out, as a reshape leaning to the left:
+        // the frame's left side misses the picture at the top.
+        val slanted = sticker(aspect = 1f).copy(cornerOffsets = listOf(0.2f, 0f, 0f, 0f, 0.1f, 0.1f, -0.2f, 0.1f))
+        val box = cropFrameToBox(slanted, Rect(0.25f, 0f, 1f, 1f), 400f, 300f)
+        assertTrue(box.left > 0.1f, "left ${box.left}")
+        assertTrue(box.right > 0.95f, "right ${box.right}")
+    }
+
+    @Test
+    fun cropFrameToBox_keepsNothingOutsideTheFrame() {
+        val frame = Rect(0.25f, 0f, 0.75f, 0.8f)
+        for (shaped in listOf(
+            sticker(aspect = 1f),
+            sticker(aspect = 1f).copy(cornerOffsets = listOf(-0.3f, -0.05f, 0.25f, 0f, 0.35f, 0.1f, -0.2f, 0.05f)),
+            sticker(aspect = 1f, rotation = 15f).copy(tiltX = 70f, tiltY = 35f),
+        )) {
+            val selection = stickerSelectionRect(shaped, 400f, 300f)
+            val box = cropFrameToBox(shaped, frame, 400f, 300f)
+            val cut = stickerWithCrop(shaped, displayToSourceCrop(shaped, box), photoAspect = 400f / 300f)
+            // The cut's corners, in the uncut sticker's frame fractions.
+            for (corner in listOf(Offset(0f, 0f), Offset(1f, 0f), Offset(1f, 1f), Offset(0f, 1f))) {
+                val local = rotateVector(stickerBoxFractionToPhoto(cut, corner, 400f, 300f) - selection.center, -shaped.rotationDegrees)
+                val x = local.x / selection.width + 0.5f
+                val y = local.y / selection.height + 0.5f
+                assertTrue(x >= frame.left - 1e-3f && x <= frame.right + 1e-3f, "x $x of $corner")
+                assertTrue(y >= frame.top - 1e-3f && y <= frame.bottom + 1e-3f, "y $y of $corner")
+            }
+        }
+    }
 }
+

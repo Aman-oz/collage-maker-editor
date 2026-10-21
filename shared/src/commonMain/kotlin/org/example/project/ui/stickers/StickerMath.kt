@@ -12,7 +12,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.example.project.ui.adjust.AdjustValues
+import org.example.project.ui.adjust.AdjustmentType
+import org.example.project.ui.adjust.contrastMatrix
 import org.example.project.ui.adjust.multiplyColorMatrices
+import org.example.project.ui.adjust.saturationAdjustMatrix
 import org.example.project.ui.adjust.toColorMatrix
 import org.example.project.ui.filter.PhotoFilters
 import org.example.project.ui.filter.blendWithIdentity
@@ -84,10 +87,21 @@ internal data class PlacedSticker(
     /** The Transform option's tilts, 0–100, 50 flat. */
     val tiltX: Float = StickerTiltFlat,
     val tiltY: Float = StickerTiltFlat,
+    /** The Mirror option: the half kept and mirrored onto the other, or null for none. */
+    val mirror: StickerMirror? = null,
 ) {
     val sourceAspect: Float get() = if (naturalAspect > 0f) naturalAspect else aspectRatio
     val crop: Rect get() = Rect(cropLeft, cropTop, cropRight, cropBottom)
     val isCropped: Boolean get() = cropLeft > 0f || cropTop > 0f || cropRight < 1f || cropBottom < 1f
+}
+
+/** Which half of a sticker its Mirror keeps (and mirrors onto the other half). */
+@Serializable
+internal enum class StickerMirror(val englishLabel: String) {
+    Left("Left"),
+    Right("Right"),
+    Top("Top"),
+    Bottom("Bottom"),
 }
 
 /**
@@ -97,7 +111,25 @@ internal data class PlacedSticker(
 @Serializable
 internal data class StickerStroke(val points: List<Float>, val radius: Float, val restore: Boolean = false)
 
-/** The Adjust option's six values, -100..100 each, as the photo editor's Adjust tool has them. */
+/**
+ * The Adjust panel's tabs: the photo editor's six adjustments ([photo]), then Clarity and Tint,
+ * which only stickers have.
+ */
+internal enum class StickerAdjustment(val photo: AdjustmentType?) {
+    Brightness(AdjustmentType.Brightness),
+    Contrast(AdjustmentType.Contrast),
+    Saturation(AdjustmentType.Saturation),
+    Hue(AdjustmentType.Hue),
+    Sharpen(AdjustmentType.Sharpen),
+    Exposure(AdjustmentType.Exposure),
+    Clarity(null),
+    Tint(null),
+}
+
+/**
+ * The Adjust option's values, -100..100 each: the photo editor's Adjust tool's six, plus [clarity]
+ * and [tint] (green at -100, magenta at 100).
+ */
 @Serializable
 internal data class StickerAdjust(
     val brightness: Float = 0f,
@@ -106,14 +138,60 @@ internal data class StickerAdjust(
     val hue: Float = 0f,
     val sharpen: Float = 0f,
     val exposure: Float = 0f,
+    val tint: Float = 0f,
+    val clarity: Float = 0f,
 ) {
     fun toAdjustValues() = AdjustValues(brightness, contrast, saturation, hue, sharpen, exposure)
+
+    operator fun get(type: StickerAdjustment): Float = when (type) {
+        StickerAdjustment.Clarity -> clarity
+        StickerAdjustment.Tint -> tint
+        else -> toAdjustValues()[checkNotNull(type.photo)]
+    }
+
+    fun with(type: StickerAdjustment, value: Float): StickerAdjust =
+        when (type) {
+            StickerAdjustment.Clarity -> copy(clarity = value)
+            StickerAdjustment.Tint -> copy(tint = value)
+            else -> from(toAdjustValues().with(checkNotNull(type.photo), value)).copy(tint = tint, clarity = clarity)
+        }
+
+    /** The photo editor's adjustments, then the clarity, then the tint. */
+    fun toColorMatrix(): FloatArray =
+        multiplyColorMatrices(tintMatrix(tint), multiplyColorMatrices(clarityMatrix(clarity), toAdjustValues().toColorMatrix()))
 
     companion object {
         fun from(values: AdjustValues) = StickerAdjust(
             values.brightness, values.contrast, values.saturation, values.hue, values.sharpen, values.exposure,
         )
     }
+}
+
+/**
+ * [value] -100..100 -> clarity. Real clarity is contrast in the midtones' local detail, a spatial
+ * filter a [androidx.compose.ui.graphics.ColorMatrix] can't express (as with Sharpen); this stand-in
+ * is a gentle contrast with a touch of saturation, so 100 gives crisper, punchier colours and -100
+ * softer, hazier ones.
+ */
+internal fun clarityMatrix(value: Float): FloatArray {
+    val t = value.coerceIn(-100f, 100f)
+    return multiplyColorMatrices(saturationAdjustMatrix(t * 0.15f), contrastMatrix(t * 0.3f))
+}
+
+/**
+ * [value] -100..100 -> a green–magenta shift: the green channel is scaled against red and blue,
+ * so 100 takes green down and lifts red and blue (magenta), and -100 the reverse.
+ */
+internal fun tintMatrix(value: Float): FloatArray {
+    val t = value.coerceIn(-100f, 100f) / 100f
+    val redBlue = 1f + 0.15f * t
+    val green = 1f - 0.3f * t
+    return floatArrayOf(
+        redBlue, 0f, 0f, 0f, 0f,
+        0f, green, 0f, 0f, 0f,
+        0f, 0f, redBlue, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f,
+    )
 }
 
 /** A new sticker's longer side, as a fraction of the photo's matching side. */
@@ -330,7 +408,16 @@ internal fun applyProjective(map: FloatArray, u: Float, v: Float): Offset {
  */
 internal fun stickerReshapeMap(sticker: PlacedSticker, width: Float, height: Float): FloatArray? {
     if (sticker.cornerOffsets.none { it != 0f } || width <= 0f || height <= 0f) return null
-    val h = squareToQuad(stickerCorners(sticker, width, height)) ?: return null
+    return boxToQuadMap(width, height, stickerCorners(sticker, width, height))
+}
+
+/**
+ * The map (row-major 3×3) that takes a [width] × [height] box centred on the origin onto [quad]
+ * (top-left, top-right, bottom-right, bottom-left): the box to the unit square, then the square
+ * onto the shape.
+ */
+private fun boxToQuadMap(width: Float, height: Float, quad: List<Offset>): FloatArray? {
+    val h = squareToQuad(quad) ?: return null
     // Box → unit square: u = x / width + 0.5, v = y / height + 0.5.
     val box = floatArrayOf(1f / width, 0f, 0.5f, 0f, 1f / height, 0.5f, 0f, 0f, 1f)
     return FloatArray(9) { i ->
@@ -338,6 +425,192 @@ internal fun stickerReshapeMap(sticker: PlacedSticker, width: Float, height: Flo
         val col = i % 3
         (0 until 3).sumOf { k -> (h[row * 3 + k] * box[k * 3 + col]).toDouble() }.toFloat()
     }
+}
+
+/**
+ * The bounds, in its turned frame and about its centre, of what [sticker] draws on a [width] ×
+ * [height] box: its corners as [org.example.project.ui.stickers.drawSticker] places them, through
+ * the Transform tilt and then the Reshape map. Those are projective, so the shape stays a convex
+ * quad and its corners bound it. The plain box when neither is set.
+ */
+internal fun stickerDrawnBounds(sticker: PlacedSticker, width: Float, height: Float): Rect {
+    if (width <= 0f || height <= 0f) return Rect(0f, 0f, 0f, 0f)
+    val corners = listOf(
+        Offset(-width / 2f, -height / 2f),
+        Offset(width / 2f, -height / 2f),
+        Offset(width / 2f, height / 2f),
+        Offset(-width / 2f, height / 2f),
+    ).map { stickerShapePoint(sticker, it, width, height) }
+    return Rect(corners.minOf { it.x }, corners.minOf { it.y }, corners.maxOf { it.x }, corners.maxOf { it.y })
+}
+
+/**
+ * Where a [point] of [sticker]'s [width] × [height] box (px about its centre, as seen, so after any
+ * flip) is drawn, in its turned frame: through the Transform tilt and then the Reshape map, as
+ * [org.example.project.ui.stickers.drawSticker] stacks them.
+ */
+internal fun stickerShapePoint(sticker: PlacedSticker, point: Offset, width: Float, height: Float): Offset {
+    // The tilt as stickerTiltMatrix has it: w = 1 + px·x + py·y.
+    val px = tiltAmount(sticker.tiltX) / (width / 2f)
+    val py = tiltAmount(sticker.tiltY) / (height / 2f)
+    val w = 1f + px * point.x + py * point.y
+    val tilted = Offset(point.x / w, point.y / w)
+    val reshape = stickerReshapeMap(sticker, width, height) ?: return tilted
+    return applyProjective(reshape, tilted)
+}
+
+/** The inverse of [stickerShapePoint]: the point of the box drawn at [point] (turned frame, px). */
+internal fun stickerShapePointInverse(sticker: PlacedSticker, point: Offset, width: Float, height: Float): Offset {
+    val unshaped = stickerReshapeMap(sticker, width, height)?.let(::invert3x3)?.let { applyProjective(it, point) } ?: point
+    return untiltPoint(sticker, unshaped, width, height)
+}
+
+/** The box point that [sticker]'s Transform tilt (alone) takes to [point]. */
+private fun untiltPoint(sticker: PlacedSticker, point: Offset, width: Float, height: Float): Offset {
+    // Undoing q = p / (1 + a·p): p = q / (1 - a·q).
+    val px = tiltAmount(sticker.tiltX) / (width / 2f)
+    val py = tiltAmount(sticker.tiltY) / (height / 2f)
+    val w = 1f - px * point.x - py * point.y
+    return Offset(point.x / w, point.y / w)
+}
+
+/** The unit square's corners, in the order the Reshape corners go. */
+private val UnitCorners = listOf(Offset(0f, 0f), Offset(1f, 0f), Offset(1f, 1f), Offset(0f, 1f))
+
+/** The middles of the unit square's sides: left, top, right, bottom. */
+private val UnitSideMiddles = listOf(Offset(0f, 0.5f), Offset(0.5f, 0f), Offset(1f, 0.5f), Offset(0.5f, 1f))
+
+/** How far a cut corner may sit outside the Crop frame and still count as in it, in frame fractions. */
+private const val CropFrameSlack = 1e-4f
+
+/**
+ * The Crop frame's [frame] (fractions of the selection rectangle round the uncut sticker [full],
+ * [stickerSelectionRect]) as a crop of [full]'s box, as seen: the cut that keeps nothing outside the
+ * frame. On a reshaped or tilted sticker the picture is a slanted quad, so a cut side can't follow a
+ * straight frame side all along; it starts where the middle of the frame's side falls on the box,
+ * then moves in until both of its corners are drawn inside the frame. A plain sticker's frame is its
+ * box, and its cut is exactly the frame.
+ */
+internal fun cropFrameToBox(full: PlacedSticker, frame: Rect, photoWidth: Float, photoHeight: Float): Rect {
+    val selection = stickerSelectionRect(full, photoWidth, photoHeight)
+    if (selection.width <= 0f || selection.height <= 0f) return frame
+    val (startLeft, startTop, startRight, startBottom) = UnitSideMiddles.map { side ->
+        val inFrame = Offset(frame.left + side.x * frame.width, frame.top + side.y * frame.height)
+        val onPhoto = selection.center +
+            rotateVector(Offset((inFrame.x - 0.5f) * selection.width, (inFrame.y - 0.5f) * selection.height), full.rotationDegrees)
+        photoToStickerBoxFraction(full, onPhoto, photoWidth, photoHeight)
+    }
+    val start = sidesWithin(startLeft.x, startTop.y, startRight.x, startBottom.y)
+    var left = start.left
+    var top = start.top
+    var right = start.right
+    var bottom = start.bottom
+
+    fun inFrame(u: Float, v: Float) = boxPointInCropFrame(full, Offset(u, v), selection, photoWidth, photoHeight)
+    // Each side moves in only as far as its two corners need; the sides move each other's corners,
+    // so a few rounds settle them.
+    repeat(3) {
+        left = moveIn(left, right - MinStickerCrop) { l -> inFrame(l, top).x >= frame.left - CropFrameSlack && inFrame(l, bottom).x >= frame.left - CropFrameSlack }
+        right = moveIn(right, left + MinStickerCrop) { r -> inFrame(r, top).x <= frame.right + CropFrameSlack && inFrame(r, bottom).x <= frame.right + CropFrameSlack }
+        top = moveIn(top, bottom - MinStickerCrop) { t -> inFrame(left, t).y >= frame.top - CropFrameSlack && inFrame(right, t).y >= frame.top - CropFrameSlack }
+        bottom = moveIn(bottom, top + MinStickerCrop) { b -> inFrame(left, b).y <= frame.bottom + CropFrameSlack && inFrame(right, b).y <= frame.bottom + CropFrameSlack }
+    }
+    return Rect(left, top, right, bottom)
+}
+
+/**
+ * The value nearest [from], on the way to [limit], that [fits]: [from] itself when it does, [limit]
+ * when nothing does, else found by halving. Fitting is taken to hold from some point on to [limit].
+ */
+private inline fun moveIn(from: Float, limit: Float, fits: (Float) -> Boolean): Float {
+    if (fits(from)) return from
+    if (!fits(limit)) return limit
+    var bad = from
+    var good = limit
+    repeat(24) {
+        val mid = (bad + good) / 2f
+        if (fits(mid)) good = mid else bad = mid
+    }
+    return good
+}
+
+/** Where the point [boxPoint] of [full]'s box (fractions, as seen) is drawn, in fractions of its Crop frame's [selection]. */
+private fun boxPointInCropFrame(full: PlacedSticker, boxPoint: Offset, selection: Rect, photoWidth: Float, photoHeight: Float): Offset {
+    val onPhoto = stickerBoxFractionToPhoto(full, boxPoint, photoWidth, photoHeight)
+    val local = rotateVector(onPhoto - selection.center, -full.rotationDegrees)
+    return Offset(local.x / selection.width + 0.5f, local.y / selection.height + 0.5f)
+}
+
+/**
+ * Where a crop of [full]'s box (as seen) shows in the Crop frame: round the four corners it is drawn
+ * at, as the sticker's selection goes round it once cut. [cropFrameToBox] takes that frame back to
+ * (very nearly) the same cut.
+ */
+internal fun boxToCropFrame(full: PlacedSticker, box: Rect, photoWidth: Float, photoHeight: Float): Rect {
+    val selection = stickerSelectionRect(full, photoWidth, photoHeight)
+    if (selection.width <= 0f || selection.height <= 0f) return box
+    val inFrame = UnitCorners.map { corner ->
+        boxPointInCropFrame(full, Offset(box.left + corner.x * box.width, box.top + corner.y * box.height), selection, photoWidth, photoHeight)
+    }
+    return sidesWithin(inFrame.minOf { it.x }, inFrame.minOf { it.y }, inFrame.maxOf { it.x }, inFrame.maxOf { it.y })
+}
+
+/** A crop from its four sides, kept within the unit square and at least [MinStickerCrop] a side. */
+private fun sidesWithin(left: Float, top: Float, right: Float, bottom: Float): Rect {
+    val l = min(left, right).coerceIn(0f, 1f - MinStickerCrop)
+    val t = min(top, bottom).coerceIn(0f, 1f - MinStickerCrop)
+    return Rect(l, t, max(left, right).coerceIn(l + MinStickerCrop, 1f), max(top, bottom).coerceIn(t + MinStickerCrop, 1f))
+}
+
+/** A fraction of [sticker]'s box, as seen, to where it is drawn on a [photoWidth] × [photoHeight] px photo. */
+internal fun stickerBoxFractionToPhoto(sticker: PlacedSticker, fraction: Offset, photoWidth: Float, photoHeight: Float): Offset {
+    val width = sticker.widthFraction * photoWidth
+    val height = width / sticker.aspectRatio
+    val shaped = stickerShapePoint(sticker, Offset((fraction.x - 0.5f) * width, (fraction.y - 0.5f) * height), width, height)
+    return Offset(sticker.centerX * photoWidth, sticker.centerY * photoHeight) + rotateVector(shaped, sticker.rotationDegrees)
+}
+
+/** The inverse of [stickerBoxFractionToPhoto]: the fraction of the box, as seen, drawn at [point] (photo px). */
+internal fun photoToStickerBoxFraction(sticker: PlacedSticker, point: Offset, photoWidth: Float, photoHeight: Float): Offset {
+    val width = sticker.widthFraction * photoWidth
+    val height = width / sticker.aspectRatio
+    val local = rotateVector(point - Offset(sticker.centerX * photoWidth, sticker.centerY * photoHeight), -sticker.rotationDegrees)
+    val box = stickerShapePointInverse(sticker, local, width, height)
+    return Offset(box.x / width + 0.5f, box.y / height + 0.5f)
+}
+
+/** [point] through the row-major projective map [m]. */
+private fun applyProjective(m: FloatArray, point: Offset): Offset {
+    val d = m[6] * point.x + m[7] * point.y + m[8]
+    return Offset((m[0] * point.x + m[1] * point.y + m[2]) / d, (m[3] * point.x + m[4] * point.y + m[5]) / d)
+}
+
+/** The inverse of a row-major 3×3 matrix, or null when it has none. */
+internal fun invert3x3(m: FloatArray): FloatArray? {
+    val c0 = m[4] * m[8] - m[5] * m[7]
+    val c1 = m[5] * m[6] - m[3] * m[8]
+    val c2 = m[3] * m[7] - m[4] * m[6]
+    val det = m[0] * c0 + m[1] * c1 + m[2] * c2
+    if (abs(det) < 1e-12f) return null
+    val k = 1f / det
+    return floatArrayOf(
+        c0 * k, (m[2] * m[7] - m[1] * m[8]) * k, (m[1] * m[5] - m[2] * m[4]) * k,
+        c1 * k, (m[0] * m[8] - m[2] * m[6]) * k, (m[2] * m[3] - m[0] * m[5]) * k,
+        c2 * k, (m[1] * m[6] - m[0] * m[7]) * k, (m[0] * m[4] - m[1] * m[3]) * k,
+    )
+}
+
+/**
+ * Where [sticker]'s selection box goes on a photo [photoWidth] × [photoHeight] px: round what it
+ * draws ([stickerDrawnBounds]), unturned, to be turned by its rotation about its own centre. A
+ * reshaped or tilted sticker's drawn centre is off its box's, so that centre is turned with it.
+ */
+internal fun stickerSelectionRect(sticker: PlacedSticker, photoWidth: Float, photoHeight: Float): Rect {
+    val width = sticker.widthFraction * photoWidth
+    val bounds = stickerDrawnBounds(sticker, width, width / sticker.aspectRatio)
+    val center = Offset(sticker.centerX * photoWidth, sticker.centerY * photoHeight) +
+        rotateVector(bounds.center, sticker.rotationDegrees)
+    return Rect(center - Offset(bounds.width / 2f, bounds.height / 2f), bounds.size)
 }
 
 /** The tilt's perspective across the sticker, -[MaxStickerTilt]..[MaxStickerTilt], from its 0–100 slider. */
@@ -376,7 +649,7 @@ internal fun stickerWithCrop(sticker: PlacedSticker, crop: Rect, photoAspect: Fl
     val newCenter = fullCenter + offsetOf(left, top, right, bottom)
     val newWidth = fullWidth * (right - left)
     val newHeight = fullHeight * (bottom - top)
-    return sticker.copy(
+    val cut = sticker.copy(
         cropLeft = left,
         cropTop = top,
         cropRight = right,
@@ -386,6 +659,36 @@ internal fun stickerWithCrop(sticker: PlacedSticker, crop: Rect, photoAspect: Fl
         centerX = newCenter.x,
         centerY = newCenter.y * photoAspect,
     )
+    if (sticker.cornerOffsets.none { it != 0f } && tiltAmount(sticker.tiltX) == 0f && tiltAmount(sticker.tiltY) == 0f) return cut
+
+    // Reshaped or tilted, the sticker is drawn through a projective map, and the cut must stay
+    // drawn where it was. Find where the old sticker draws the cut's four corners (in photo-width
+    // units)...
+    val drawnCorners = UnitCorners.map { seen ->
+        val su = if (sticker.flippedHorizontally) 1f - seen.x else seen.x
+        val sv = if (sticker.flippedVertically) 1f - seen.y else seen.y
+        // That corner of the new cut, in the old cut's fractions, as seen.
+        var ou = (left + su * (right - left) - sticker.cropLeft) / (sticker.cropRight - sticker.cropLeft)
+        var ov = (top + sv * (bottom - top) - sticker.cropTop) / (sticker.cropBottom - sticker.cropTop)
+        if (sticker.flippedHorizontally) ou = 1f - ou
+        if (sticker.flippedVertically) ov = 1f - ov
+        val shaped = stickerShapePoint(sticker, Offset((ou - 0.5f) * width, (ov - 0.5f) * height), width, height)
+        center + rotateVector(shaped, sticker.rotationDegrees)
+    }
+    // ...centre the new box among them, so it turns and scales about what it shows...
+    val pivot = Offset(drawnCorners.sumOf { it.x.toDouble() }.toFloat() / 4f, drawnCorners.sumOf { it.y.toDouble() }.toFloat() / 4f)
+    val quad = drawnCorners.map { rotateVector(it - pivot, -sticker.rotationDegrees) }
+    // ...and give it the corners that land its box there. Projective maps agree everywhere once
+    // they agree on four corners, so the whole cut stays put. The tilt is drawn before the reshape,
+    // so the reshape's corners are where that map takes the box corners the tilt would send to them.
+    val target = boxToQuadMap(newWidth, newHeight, quad) ?: return cut
+    val placed = cut.copy(centerX = pivot.x, centerY = pivot.y * photoAspect)
+    val offsets = UnitCorners.flatMap { corner ->
+        val base = Offset((corner.x - 0.5f) * newWidth, (corner.y - 0.5f) * newHeight)
+        val k = applyProjective(target, untiltPoint(placed, base, newWidth, newHeight))
+        listOf((k.x - base.x) / newWidth, (k.y - base.y) / newHeight)
+    }
+    return placed.copy(cornerOffsets = if (offsets.all { abs(it) < 1e-5f }) emptyList() else offsets)
 }
 
 /**
@@ -451,15 +754,13 @@ internal fun moveCrop(crop: Rect, dx: Float, dy: Float): Rect {
 
 /**
  * Where a point on the photo ([point], px on a [photoWidthPx] × [photoHeightPx] photo) falls on
- * [sticker]'s source picture, in its fractions: undoing the turn, the flips and the crop. The
- * Transform tilt is left out; strokes land a little off on a strongly tilted sticker.
+ * [sticker]'s source picture, in its fractions: undoing the turn, the Reshape and tilt
+ * ([photoToStickerBoxFraction]), the flips and the crop.
  */
 internal fun photoPointToSticker(sticker: PlacedSticker, point: Offset, photoWidthPx: Float, photoHeightPx: Float): Offset {
-    val width = sticker.widthFraction * photoWidthPx
-    val height = width / sticker.aspectRatio
-    val local = rotateVector(point - Offset(sticker.centerX * photoWidthPx, sticker.centerY * photoHeightPx), -sticker.rotationDegrees)
-    var u = local.x / width + 0.5f
-    var v = local.y / height + 0.5f
+    val seen = photoToStickerBoxFraction(sticker, point, photoWidthPx, photoHeightPx)
+    var u = seen.x
+    var v = seen.y
     if (sticker.flippedHorizontally) u = 1f - u
     if (sticker.flippedVertically) v = 1f - v
     return Offset(
@@ -489,7 +790,7 @@ internal fun stickerColorMatrix(sticker: PlacedSticker): FloatArray? {
         if (sticker.filterIntensity > 0f) then(blendWithIdentity(filter, sticker.filterIntensity))
     }
     val adjust = sticker.adjust
-    if (adjust != StickerAdjust()) then(adjust.toAdjustValues().toColorMatrix())
+    if (adjust != StickerAdjust()) then(adjust.toColorMatrix())
     val fill = sticker.fillArgb
     if (fill != null && sticker.fillIntensity > 0f) then(fillColorMatrix(Color(fill), sticker.fillIntensity / 100f))
     return matrix

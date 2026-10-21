@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -167,6 +168,7 @@ internal fun Modifier.cascadeIn(cascade: Animatable<Float, *>, index: Int, count
 internal fun TextOptionsBar(
     onOptionSelected: (TextOption) -> Unit,
     onClose: () -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
     cascadeDelayMillis: Int = 0,
 ) {
@@ -175,6 +177,7 @@ internal fun TextOptionsBar(
         options = options.map { GlassBarOption(it.label, it.icon, it.tinted) },
         onOptionSelected = { onOptionSelected(options[it]) },
         onClose = onClose,
+        listState = listState,
         modifier = modifier,
         cascadeDelayMillis = cascadeDelayMillis,
     )
@@ -185,7 +188,9 @@ internal class GlassBarOption(val label: String, val icon: DrawableResource, val
 
 /**
  * A floating Liquid Glass bar of [options] (the Text tool's, the Stickers tool's), scrolling
- * sideways under a glass ✕ at its end; [onOptionSelected] gets the tapped one's index.
+ * sideways under a glass ✕ at its end; [onOptionSelected] gets the tapped one's index. The bar
+ * leaves composition while a panel is open, so its caller keeps [listState] to come back to the
+ * same scroll position.
  *
  * The options rise in one after another ([cascadeIn]) once the editor has slid the panel most of
  * the way up.
@@ -199,6 +204,7 @@ internal fun GlassOptionsBar(
     options: List<GlassBarOption>,
     onOptionSelected: (Int) -> Unit,
     onClose: () -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
     // Holds the cascade back while the bar itself is still waiting to rise (coming back from the
     // Font panel, which drops away first).
@@ -249,6 +255,7 @@ internal fun GlassOptionsBar(
                 .border(1.dp, rim, OptionsBarShape),
         )
         LazyRow(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .clip(OptionsBarShape)

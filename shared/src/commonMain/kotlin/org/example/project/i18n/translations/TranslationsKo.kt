@@ -904,4 +904,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "강도",
     "Brush size" to
         "브러시 크기",
+    "Tint" to
+        "색조",
+    "Clarity" to
+        "선명도",
 )

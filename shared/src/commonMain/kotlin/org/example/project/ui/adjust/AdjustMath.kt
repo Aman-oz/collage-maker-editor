@@ -3,10 +3,10 @@ package org.example.project.ui.adjust
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChangeHistory
 import androidx.compose.material.icons.outlined.Contrast
-import androidx.compose.material.icons.outlined.Exposure
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ColorFilter
@@ -20,19 +20,36 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import org.example.project.i18n.tr
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.vectorResource
+import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.icon_exposure
 
-internal enum class AdjustmentType(private val englishLabel: String, val icon: ImageVector) {
+internal enum class AdjustmentType(
+    private val englishLabel: String,
+    private val materialIcon: ImageVector? = null,
+    private val drawableIcon: DrawableResource? = null,
+) {
     Brightness("Brightness", Icons.Outlined.LightMode),
     Contrast("Contrast", Icons.Outlined.Contrast),
     Saturation("Saturation", Icons.Outlined.WaterDrop),
     Hue("Hue", Icons.Outlined.Thermostat),
     Sharpen("Sharpen", Icons.Outlined.ChangeHistory),
-    Exposure("Exposure", Icons.Outlined.Exposure),
+    Exposure("Exposure", drawableIcon = Res.drawable.icon_exposure),
     ;
+
+    val icon: ImageVector
+        @Composable get() = materialIcon ?: vectorResource(checkNotNull(drawableIcon))
+
+    /** How much to enlarge [icon] in its slot: the drawn icons leave more room round them than Material's. */
+    val iconScale: Float get() = if (drawableIcon != null) DrawableAdjustIconScale else 1f
 
     /** In the app's current language; read it where it is shown, never keep it. */
     val label: String get() = tr(englishLabel)
 }
+
+/** The scale [AdjustmentType.iconScale] gives the app's own adjustment icons (Exposure, the stickers' Tint and Clarity). */
+internal const val DrawableAdjustIconScale = 1.25f
 
 /** Each slider is -100..100; 0 is "no change" for every one of them. */
 internal data class AdjustValues(

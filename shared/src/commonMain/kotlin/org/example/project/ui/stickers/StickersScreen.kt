@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -64,7 +65,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
-import org.example.project.ui.adjust.AdjustmentType
 import org.example.project.ui.common.PreventScreenCapture
 import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.ToolDropMillis
@@ -80,9 +80,11 @@ import org.example.project.ui.text.TextItem
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextNudgePanel
+import org.example.project.ui.text.PositionTab
 import org.example.project.ui.text.TextPositionPanel
 import org.example.project.ui.text.TextSelectionBox
 import org.example.project.ui.text.TextSelectionToolbar
+import org.example.project.ui.text.ShadowTab
 import org.example.project.ui.text.TextShadowPanel
 import org.example.project.ui.text.TextSliderPanel
 import org.example.project.ui.text.TextToolbarHeight
@@ -263,6 +265,9 @@ private fun StickersContent(
 
     // The Crop panel's frame, in display fractions of the uncut sticker, and its shape.
     var cropDraft by remember { mutableStateOf<Rect?>(null) }
+    // The draft as the panel opened. On a reshaped sticker the frame and the crop don't map onto
+    // each other exactly, so an untouched frame leaves the crop as it was rather than nudging it.
+    var cropDraftAtOpen by remember { mutableStateOf<Rect?>(null) }
     var cropRatio by remember { mutableStateOf(StickerCropOptions.first()) }
     // The Eraser panel's mode and brush, the stroke being drawn, and what Redo puts back.
     var eraserRestore by remember { mutableStateOf(false) }
@@ -279,9 +284,23 @@ private fun StickersContent(
     var liveStroke by remember { mutableStateOf<StickerStroke?>(null) }
     var eraserRedo by remember { mutableStateOf(emptyList<StickerStroke>()) }
     var strokesAtOpen by remember { mutableIntStateOf(0) }
-    var adjustType by remember { mutableStateOf(AdjustmentType.Brightness) }
+    // Kept while the options bar and the panels swap in and out of composition, so each comes back
+    // where it was left: the bar's scroll, the Adjust panel's adjustment, the Shadow and Position tabs.
+    var adjustType by remember { mutableStateOf(StickerAdjustment.Brightness) }
+    val optionsListState = rememberLazyListState()
+    var shadowTab by remember { mutableStateOf(ShadowTab.Opacity) }
+    var positionTab by remember { mutableStateOf(PositionTab.Arrange) }
 
     val selected = placed.firstOrNull { it.id == selectedId }
+
+    /**
+     * The width / height of [sticker] as the Crop frame shows it: round what it draws, which a
+     * reshape or tilt may have stretched from its box's own shape.
+     */
+    fun seenAspect(sticker: PlacedSticker): Float {
+        val rect = stickerSelectionRect(sticker, photoSizePx.width.toFloat().coerceAtLeast(1f), photoSizePx.height.toFloat().coerceAtLeast(1f))
+        return if (rect.height > 0f) rect.width / rect.height else sticker.aspectRatio
+    }
     val photoAspect = if (photoSizePx.height > 0) photoSizePx.width.toFloat() / photoSizePx.height else 1f
     val showPro = needsPremium(placed) && !isSubscribed
 
@@ -303,7 +322,10 @@ private fun StickersContent(
         panelChanged = true
         when (target) {
             StickerPanel.Crop -> {
-                cropDraft = sourceToDisplayCrop(sticker, sticker.crop)
+                // The draft is in the frame's fractions: round the uncut sticker as drawn.
+                val full = stickerWithCrop(sticker, Rect(0f, 0f, 1f, 1f), photoAspect)
+                cropDraft = boxToCropFrame(full, sourceToDisplayCrop(sticker, sticker.crop), photoSizePx.width.toFloat(), photoSizePx.height.toFloat())
+                cropDraftAtOpen = cropDraft
                 cropRatio = StickerCropOptions.first()
             }
             StickerPanel.Eraser -> {
@@ -326,9 +348,16 @@ private fun StickersContent(
             placed = placed.map { if (it.id == before.id) before else it }
                 .sortedBy { sticker -> order.indexOf(sticker.id).let { if (it < 0) Int.MAX_VALUE else it } }
         } else if (panel == StickerPanel.Crop) {
-            cropDraft?.let { draft -> update(selectedId) { stickerWithCrop(it, displayToSourceCrop(it, draft), photoAspect) } }
+            cropDraft?.takeIf { it != cropDraftAtOpen }?.let { draft ->
+                update(selectedId) {
+                    val full = stickerWithCrop(it, Rect(0f, 0f, 1f, 1f), photoAspect)
+                    val box = cropFrameToBox(full, draft, photoSizePx.width.toFloat(), photoSizePx.height.toFloat())
+                    stickerWithCrop(it, displayToSourceCrop(it, box), photoAspect)
+                }
+            }
         }
         cropDraft = null
+        cropDraftAtOpen = null
         liveStroke = null
         beforePanel = null
         panelName = (if (placed.any { it.id == selectedId }) StickerPanel.Options else StickerPanel.Library).name
@@ -420,15 +449,19 @@ private fun StickersContent(
                             .onSizeChanged { photoSizePx = it }
                             .onGloballyPositioned { photoTopLeftInRoot = it.positionInRoot() },
                     ) {
+                        // Round what the sticker draws, so a reshaped, tilted or cropped one is framed as it now is.
+                        fun selectionRectOf(sticker: PlacedSticker): Rect =
+                            stickerSelectionRect(sticker, photoSizePx.width.toFloat(), photoSizePx.height.toFloat())
                         fun sizeOf(sticker: PlacedSticker): IntSize {
-                            val width = sticker.widthFraction * photoSizePx.width
-                            return IntSize(width.roundToInt().coerceAtLeast(1), (width / sticker.aspectRatio).roundToInt().coerceAtLeast(1))
+                            val rect = selectionRectOf(sticker)
+                            return IntSize(rect.width.roundToInt().coerceAtLeast(1), rect.height.roundToInt().coerceAtLeast(1))
                         }
                         fun topLeftOf(sticker: PlacedSticker): IntOffset {
+                            val rect = selectionRectOf(sticker)
                             val size = sizeOf(sticker)
                             return IntOffset(
-                                (sticker.centerX * photoSizePx.width - size.width / 2f).roundToInt(),
-                                (sticker.centerY * photoSizePx.height - size.height / 2f).roundToInt(),
+                                (rect.center.x - size.width / 2f).roundToInt(),
+                                (rect.center.y - size.height / 2f).roundToInt(),
                             )
                         }
 
@@ -454,7 +487,7 @@ private fun StickersContent(
                                             crop = draft,
                                             photoSize = photoSizePx,
                                             // Original keeps the uncut sticker's own shape.
-                                            ratio = if (cropRatio == OriginalCropOption) full.aspectRatio else cropRatio.ratio,
+                                            ratio = if (cropRatio == OriginalCropOption) seenAspect(full) else cropRatio.ratio,
                                             onCropChange = { cropDraft = it },
                                         )
                                     }
@@ -550,12 +583,12 @@ private fun StickersContent(
                                         .offset {
                                             // Over the turned sticker's bounding box, or under it when
                                             // there's no room above.
-                                            val size = sizeOf(selected)
-                                            val halfHeight = rotatedHalfSize(size.width.toFloat(), size.height.toFloat(), selected.rotationDegrees).height
+                                            val rect = selectionRectOf(selected)
+                                            val halfHeight = rotatedHalfSize(rect.width, rect.height, selected.rotationDegrees).height
                                             val toolbarHeightPx = TextToolbarHeight.toPx()
                                             val gapPx = ToolbarGap.toPx()
-                                            val centerX = selected.centerX * photoSizePx.width
-                                            val centerY = selected.centerY * photoSizePx.height
+                                            val centerX = rect.center.x
+                                            val centerY = rect.center.y
                                             val above = centerY - halfHeight - gapPx - toolbarHeightPx
                                             val y = if (above >= -toolbarHeightPx / 2f) above else centerY + halfHeight + gapPx
                                             IntOffset((centerX - toolbarWidthPx / 2f).roundToInt(), y.roundToInt())
@@ -655,6 +688,7 @@ private fun StickersContent(
                                     },
                                     // As the Text tool's bar: its ✕ finishes, keeping the stickers.
                                     onClose = ::finish,
+                                    listState = optionsListState,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                                     // Back from a panel the bar waits out the first beat before it rises.
                                     cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
@@ -704,7 +738,7 @@ private fun StickersContent(
                                     when {
                                         // The whole sticker, as it came.
                                         choice == OriginalCropOption -> cropDraft = Rect(0f, 0f, 1f, 1f)
-                                        ratio != null && full != null -> cropDraft = centeredCrop(ratio, full.aspectRatio)
+                                        ratio != null && full != null -> cropDraft = centeredCrop(ratio, seenAspect(full))
                                     }
                                 },
                                 onClose = closeReverting,
@@ -769,6 +803,8 @@ private fun StickersContent(
                             StickerPanel.Shadow -> TextShadowPanel(
                                 item = sticker?.shadowAsText(),
                                 onChange = { change -> update(id) { it.withShadowOf(change(it.shadowAsText())) } },
+                                tab = shadowTab,
+                                onTabSelected = { shadowTab = it },
                                 onPickCustom = pickColor,
                                 onClose = closeReverting,
                                 onDone = closeKeeping,
@@ -792,6 +828,8 @@ private fun StickersContent(
                                         }
                                     }
                                 },
+                                tab = positionTab,
+                                onTabSelected = { positionTab = it },
                                 onClose = closeReverting,
                                 onDone = closeKeeping,
                             )
@@ -817,23 +855,16 @@ private fun StickersContent(
                                 onDone = closeKeeping,
                             )
 
-                            StickerPanel.Rotate -> TextSliderPanel(
-                                title = tr("Rotate"),
-                                sliders = listOf(
-                                    PanelSlider(
-                                        tr("Angle {0}°", (sticker?.rotationDegrees ?: 0f).roundToInt()),
-                                        rotationToSlider(sticker?.rotationDegrees ?: 0f),
-                                    ) { value -> update(id) { it.copy(rotationDegrees = snapTextRotation(sliderToRotation(value))) } },
-                                ),
+                            StickerPanel.Rotate -> StickerRotatePanel(
+                                rotationDegrees = sticker?.rotationDegrees ?: 0f,
+                                onRotationChange = { degrees -> update(id) { it.copy(rotationDegrees = degrees) } },
                                 onClose = closeReverting,
                                 onDone = closeKeeping,
                             )
 
                             StickerPanel.Mirror -> StickerMirrorPanel(
-                                flippedHorizontally = sticker?.flippedHorizontally == true,
-                                flippedVertically = sticker?.flippedVertically == true,
-                                onFlipHorizontally = { update(id) { it.copy(flippedHorizontally = !it.flippedHorizontally) } },
-                                onFlipVertically = { update(id) { it.copy(flippedVertically = !it.flippedVertically) } },
+                                mirror = sticker?.mirror,
+                                onMirrorChange = { mirror -> update(id) { it.copy(mirror = mirror) } },
                                 onClose = closeReverting,
                                 onDone = closeKeeping,
                             )

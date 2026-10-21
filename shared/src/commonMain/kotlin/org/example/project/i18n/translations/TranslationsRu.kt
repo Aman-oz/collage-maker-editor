@@ -904,4 +904,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Интенсивность",
     "Brush size" to
         "Размер кисти",
+    "Tint" to
+        "Оттенок",
+    "Clarity" to
+        "Четкость",
 )

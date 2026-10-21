@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -349,6 +350,11 @@ private fun TextContent(
     val pickFont = { font: FontEntry -> update(activeId) { it.copy(fontFamily = font.family) } }
     // The Color panel's tab, kept while the panel closes and opens again.
     var colorTab by remember { mutableStateOf(TextColorTab.Text) }
+    // Likewise the options bar's scroll and the Shadow and Position panels' tabs: the bar and panels
+    // leave composition while another is shown.
+    val optionsListState = rememberLazyListState()
+    var shadowTab by remember { mutableStateOf(ShadowTab.Opacity) }
+    var positionTab by remember { mutableStateOf(PositionTab.Arrange) }
     // The keyboard bar's colour wheel always colours the words; the Color panel's, its tab's colour;
     // the Shadow panel's, the shadow.
     val pickingPanelColor = panel == TextPanel.Color
@@ -653,6 +659,7 @@ private fun TextContent(
                                         }
                                     },
                                     onClose = finish,
+                                    listState = optionsListState,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                                     // Back from a panel the bar waits out the first beat before it rises.
                                     cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
@@ -707,6 +714,8 @@ private fun TextContent(
                             TextPanel.Shadow -> TextShadowPanel(
                                 item = active,
                                 onChange = { change -> update(activeId, change) },
+                                tab = shadowTab,
+                                onTabSelected = { shadowTab = it },
                                 onPickCustom = pickColor,
                                 onClose = { closePanel(true) },
                                 onDone = { closePanel(false) },
@@ -731,6 +740,8 @@ private fun TextContent(
                                         }
                                     }
                                 },
+                                tab = positionTab,
+                                onTabSelected = { positionTab = it },
                                 onClose = { closePanel(true) },
                                 onDone = { closePanel(false) },
                             )

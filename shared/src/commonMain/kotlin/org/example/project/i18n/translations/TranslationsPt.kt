@@ -904,4 +904,8 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Intensidade",
     "Brush size" to
         "Tamanho do pincel",
+    "Tint" to
+        "Matiz",
+    "Clarity" to
+        "Clareza",
 )

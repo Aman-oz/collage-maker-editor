@@ -904,4 +904,8 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "شدت",
     "Brush size" to
         "برش کا سائز",
+    "Tint" to
+        "رنگت",
+    "Clarity" to
+        "وضاحت",
 )

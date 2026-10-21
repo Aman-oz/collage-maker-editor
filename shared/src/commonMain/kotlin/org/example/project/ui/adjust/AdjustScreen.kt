@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -315,7 +316,7 @@ private fun AdjustmentTypeItem(type: AdjustmentType, selected: Boolean, active: 
             imageVector = type.icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier.size(26.dp).scale(type.iconScale),
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(

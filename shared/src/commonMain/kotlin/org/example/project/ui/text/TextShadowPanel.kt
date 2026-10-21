@@ -50,7 +50,7 @@ import photocollagemaker.shared.generated.resources.ic_opacity
 import photocollagemaker.shared.generated.resources.ic_spacing
 
 /** The Shadow panel's tabs, in the order of its bottom bar. [tinted] is false for the colour wheel. */
-private enum class ShadowTab(private val englishLabel: String, val icon: DrawableResource, val tinted: Boolean = true) {
+internal enum class ShadowTab(private val englishLabel: String, val icon: DrawableResource, val tinted: Boolean = true) {
     Opacity("Opacity", Res.drawable.ic_opacity),
     Distance("Distance", Res.drawable.ic_spacing),
     Angle("Angle", Res.drawable.ic_angle),
@@ -85,12 +85,13 @@ private enum class ShadowNudge(private val englishLabel: String, val step: Offse
 internal fun TextShadowPanel(
     item: TextItem?,
     onChange: ((TextItem) -> TextItem) -> Unit,
+    tab: ShadowTab,
+    onTabSelected: (ShadowTab) -> Unit,
     onPickCustom: () -> Unit,
     onClose: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var tab by remember { mutableStateOf(ShadowTab.Opacity) }
     val shadow = item ?: TextItem(id = -1)
     // Beside the photo the tab's controls get all the room between the bar and the tabs: centred, or
     // the colours as a grid that scrolls down. Under it, one height for every tab, so the tabs never move.
@@ -175,7 +176,7 @@ internal fun TextShadowPanel(
                     label = entry.label,
                     tinted = entry.tinted,
                     selected = entry == tab,
-                    onClick = { tab = entry },
+                    onClick = { onTabSelected(entry) },
                     modifier = Modifier.weight(1f),
                 )
             }

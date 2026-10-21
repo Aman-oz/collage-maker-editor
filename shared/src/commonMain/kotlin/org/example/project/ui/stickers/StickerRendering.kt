@@ -145,6 +145,39 @@ internal fun renderStickerBody(source: ImageBitmap, sticker: PlacedSticker, maxS
         }
         canvas.restore()
     }
+    return sticker.mirror?.let { mirrorStickerBody(output, it) } ?: output
+}
+
+/**
+ * [body] made symmetric: the half [mirror] names is kept, and drawn again, flipped, over the other
+ * half. It works on the finished body, so the sticker's crop, colours and eraser are mirrored too.
+ */
+private fun mirrorStickerBody(body: ImageBitmap, mirror: StickerMirror): ImageBitmap {
+    val width = body.width
+    val height = body.height
+    val horizontal = mirror == StickerMirror.Left || mirror == StickerMirror.Right
+    // Rounded up, so an odd middle column or row isn't lost.
+    val keptSize = if (horizontal) IntSize((width + 1) / 2, height) else IntSize(width, (height + 1) / 2)
+    val keptOffset = when (mirror) {
+        StickerMirror.Right -> IntOffset(width - keptSize.width, 0)
+        StickerMirror.Bottom -> IntOffset(0, height - keptSize.height)
+        else -> IntOffset.Zero
+    }
+    val output = ImageBitmap(width, height)
+    val canvas = Canvas(output)
+    val paint = Paint()
+    canvas.drawImageRect(body, keptOffset, keptSize, keptOffset, keptSize, paint)
+    // The same half again through a flip about the middle, which lands it on the other side.
+    canvas.save()
+    if (horizontal) {
+        canvas.translate(width.toFloat(), 0f)
+        canvas.scale(-1f, 1f)
+    } else {
+        canvas.translate(0f, height.toFloat())
+        canvas.scale(1f, -1f)
+    }
+    canvas.drawImageRect(body, keptOffset, keptSize, keptOffset, keptSize, paint)
+    canvas.restore()
     return output
 }
 
@@ -413,17 +446,12 @@ internal fun StickerLayersOverlay(
         val heightPx = constraints.maxHeight.toFloat()
         for (sticker in stickers) {
             key(sticker.id) {
-                val boxWidth = sticker.widthFraction * widthPx
-                val boxHeight = boxWidth / sticker.aspectRatio
+                // Round what it draws, so a reshaped or tilted sticker is tapped where it shows.
+                val rect = stickerSelectionRect(sticker, widthPx, heightPx)
                 Box(
                     modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                (sticker.centerX * widthPx - boxWidth / 2f).roundToInt(),
-                                (sticker.centerY * heightPx - boxHeight / 2f).roundToInt(),
-                            )
-                        }
-                        .size(with(density) { boxWidth.toDp() }, with(density) { boxHeight.toDp() })
+                        .offset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
+                        .size(with(density) { rect.width.toDp() }, with(density) { rect.height.toDp() })
                         .graphicsLayer { rotationZ = sticker.rotationDegrees }
                         .pointerInput(sticker.id) { detectTapGestures { currentOnTapped?.invoke(sticker.id) } },
                 )

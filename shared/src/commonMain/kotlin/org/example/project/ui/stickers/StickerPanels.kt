@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.luminance
@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.i18n.tr
-import org.example.project.ui.adjust.AdjustmentType
+import org.example.project.ui.adjust.DrawableAdjustIconScale
 import org.example.project.ui.adjust.signedAdjustLabel
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.crop.AspectRatioGrid
@@ -60,27 +60,35 @@ import org.example.project.ui.text.PanelSliderRow
 import org.example.project.ui.text.TextPanelColumn
 import org.example.project.ui.text.TextPanelPlacement
 import org.example.project.ui.text.TextSwatchGrid
+import org.example.project.ui.text.normalizeDegrees
+import org.example.project.ui.text.snapTextRotation
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.vectorResource
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_duplicate
 import photocollagemaker.shared.generated.resources.ic_premium_icon
 import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_reset
 import photocollagemaker.shared.generated.resources.ic_undo
 import photocollagemaker.shared.generated.resources.icon_adjust
+import photocollagemaker.shared.generated.resources.icon_clearity
 import photocollagemaker.shared.generated.resources.icon_crop
 import photocollagemaker.shared.generated.resources.icon_effect
 import photocollagemaker.shared.generated.resources.icon_eraser
 import photocollagemaker.shared.generated.resources.icon_fill
 import photocollagemaker.shared.generated.resources.icon_mirro
+import photocollagemaker.shared.generated.resources.icon_mirror
 import photocollagemaker.shared.generated.resources.icon_nudge
 import photocollagemaker.shared.generated.resources.icon_opaciy
 import photocollagemaker.shared.generated.resources.icon_outline
 import photocollagemaker.shared.generated.resources.icon_position
 import photocollagemaker.shared.generated.resources.icon_reshape
+import photocollagemaker.shared.generated.resources.icon_rotate_90
 import photocollagemaker.shared.generated.resources.icon_rotate
 import photocollagemaker.shared.generated.resources.icon_shadow
 import photocollagemaker.shared.generated.resources.icon_size
+import photocollagemaker.shared.generated.resources.icon_tint
 import photocollagemaker.shared.generated.resources.icon_transfom
 
 /** The Stickers tool's options for the selected sticker, in the order of its floating bar. */
@@ -112,6 +120,7 @@ internal enum class StickerOption(private val englishLabel: String, val icon: Dr
 internal fun StickerOptionsBar(
     onOptionSelected: (StickerOption) -> Unit,
     onClose: () -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
     cascadeDelayMillis: Int = 0,
 ) {
@@ -120,6 +129,7 @@ internal fun StickerOptionsBar(
         options = options.map { GlassBarOption(it.label, it.icon) },
         onOptionSelected = { onOptionSelected(options[it]) },
         onClose = onClose,
+        listState = listState,
         modifier = modifier,
         cascadeDelayMillis = cascadeDelayMillis,
     )
@@ -315,22 +325,24 @@ internal fun StickerColorPanel(
     }
 }
 
-/** The Adjust panel: the photo editor's six adjustments, one at a time on a -100..100 slider. */
+/**
+ * The Adjust panel: the photo editor's six adjustments and Tint, one at a time on a -100..100
+ * slider, then Reset, which puts them all back to zero.
+ */
 @Composable
 internal fun StickerAdjustPanel(
     adjust: StickerAdjust,
-    type: AdjustmentType,
-    onTypeSelected: (AdjustmentType) -> Unit,
+    type: StickerAdjustment,
+    onTypeSelected: (StickerAdjustment) -> Unit,
     onChange: (StickerAdjust) -> Unit,
     onClose: () -> Unit,
     onDone: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val values = adjust.toAdjustValues()
     TextPanelColumn(title = tr("Adjust"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
         CenterFillSlider(
-            value = values[type],
-            onValueChange = { onChange(StickerAdjust.from(values.with(type, it))) },
+            value = adjust[type],
+            onValueChange = { onChange(adjust.with(type, it)) },
             range = -100f..100f,
             referenceValue = 0f,
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
@@ -347,14 +359,33 @@ internal fun StickerAdjustPanel(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            items(AdjustmentType.entries) { entry ->
+            items(StickerAdjustment.entries) { entry ->
+                val photo = entry.photo
                 PanelVectorTab(
-                    icon = entry.icon,
-                    label = entry.label,
+                    icon = when {
+                        photo != null -> photo.icon
+                        entry == StickerAdjustment.Clarity -> vectorResource(Res.drawable.icon_clearity)
+                        else -> vectorResource(Res.drawable.icon_tint)
+                    },
+                    label = when {
+                        photo != null -> photo.label
+                        entry == StickerAdjustment.Clarity -> tr("Clarity")
+                        else -> tr("Tint")
+                    },
+                    iconScale = photo?.iconScale ?: DrawableAdjustIconScale,
                     selected = entry == type,
                     // A dot under the ones moved off zero.
-                    marked = values[entry] != 0f,
+                    marked = adjust[entry] != 0f,
                     onClick = { onTypeSelected(entry) },
+                )
+            }
+            item {
+                PanelVectorTab(
+                    icon = vectorResource(Res.drawable.ic_reset),
+                    label = tr("Reset"),
+                    selected = false,
+                    marked = false,
+                    onClick = { onChange(StickerAdjust()) },
                 )
             }
         }
@@ -362,48 +393,99 @@ internal fun StickerAdjustPanel(
     }
 }
 
-/** The Mirror panel: flip the sticker side to side or upside down. */
+/**
+ * The Rotate panel: a 0–100 slider over the sticker's whole turn (50 upright, [rotationToSlider]),
+ * then Rotate (a quarter turn to the left, anticlockwise) and Reset (upright again).
+ */
+@Composable
+internal fun StickerRotatePanel(
+    rotationDegrees: Float,
+    onRotationChange: (Float) -> Unit,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+) {
+    TextPanelColumn(title = tr("Rotate"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
+        PanelSliderRow(
+            PanelSlider(tr("Rotate"), rotationToSlider(rotationDegrees)) { value ->
+                onRotationChange(snapTextRotation(sliderToRotation(value)))
+            },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        ) {
+            PanelVectorTab(
+                icon = vectorResource(Res.drawable.icon_rotate_90),
+                label = tr("Rotate"),
+                selected = false,
+                marked = false,
+                onClick = { onRotationChange(normalizeDegrees(rotationDegrees - 90f)) },
+                iconScale = RotateActionIconScale * DrawableAdjustIconScale,
+            )
+            PanelVectorTab(
+                icon = vectorResource(Res.drawable.ic_reset),
+                label = tr("Reset"),
+                selected = false,
+                marked = false,
+                onClick = { onRotationChange(0f) },
+                iconScale = RotateActionIconScale,
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+/** The Rotate panel's two buttons are its only controls besides the slider, so they are drawn larger. */
+private const val RotateActionIconScale = 1.15f
+
+/**
+ * The Mirror panel: Left, Right, Top or Bottom keeps that half of the sticker and mirrors it onto the
+ * other ([PlacedSticker.mirror]); tapping the chosen one again, or Reset, takes the mirror off. The
+ * buttons share [Res.drawable.icon_mirror] (its filled half on the right), turned to put the filled
+ * half on the side they keep.
+ */
 @Composable
 internal fun StickerMirrorPanel(
-    flippedHorizontally: Boolean,
-    flippedVertically: Boolean,
-    onFlipHorizontally: () -> Unit,
-    onFlipVertically: () -> Unit,
+    mirror: StickerMirror?,
+    onMirrorChange: (StickerMirror?) -> Unit,
     onClose: () -> Unit,
     onDone: () -> Unit,
 ) {
     TextPanelColumn(title = tr("Mirror"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            MirrorButton(Icons.Outlined.SwapHoriz, tr("Flip horizontally"), flippedHorizontally, onFlipHorizontally, Modifier.weight(1f))
-            MirrorButton(Icons.Outlined.SwapVert, tr("Flip vertically"), flippedVertically, onFlipVertically, Modifier.weight(1f))
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
+            for (entry in StickerMirror.entries) {
+                PanelVectorTab(
+                    icon = vectorResource(Res.drawable.icon_mirror),
+                    label = tr(entry.englishLabel),
+                    selected = entry == mirror,
+                    marked = false,
+                    onClick = { onMirrorChange(if (entry == mirror) null else entry) },
+                    iconScale = DrawableAdjustIconScale,
+                    iconRotation = entry.iconRotation,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            PanelVectorTab(
+                icon = vectorResource(Res.drawable.ic_reset),
+                label = tr("Reset"),
+                selected = false,
+                marked = false,
+                onClick = { onMirrorChange(null) },
+                modifier = Modifier.weight(1f),
+            )
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
-@Composable
-private fun MirrorButton(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(14.dp)
-    val bounce = rememberSpringBounce()
-    Column(
-        modifier = modifier
-            .springBounce(bounce)
-            .clip(shape)
-            .background(if (active) scheme.primary.copy(alpha = 0.12f) else scheme.onSurface.copy(alpha = 0.06f))
-            .border(1.dp, if (active) scheme.primary else scheme.onSurface.copy(alpha = 0.25f), shape)
-            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
-            .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (active) scheme.primary else scheme.onSurface, modifier = Modifier.size(28.dp))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (active) scheme.primary else scheme.onSurface)
+/** How far each Mirror button turns [Res.drawable.icon_mirror], whose filled half is on the right. */
+private val StickerMirror.iconRotation: Float
+    get() = when (this) {
+        StickerMirror.Left -> 180f
+        StickerMirror.Right -> 0f
+        StickerMirror.Top -> -90f
+        StickerMirror.Bottom -> 90f
     }
-}
 
 /** A pill to pick one of a few modes or shapes, brand-tinted while [selected]. */
 @Composable
@@ -452,12 +534,21 @@ private fun PanelIconButton(
 }
 
 @Composable
-private fun PanelVectorTab(icon: ImageVector, label: String, selected: Boolean, marked: Boolean, onClick: () -> Unit) {
+private fun PanelVectorTab(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    marked: Boolean,
+    onClick: () -> Unit,
+    iconScale: Float = 1f,
+    iconRotation: Float = 0f,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
     val bounce = rememberSpringBounce()
     val tint = if (selected) scheme.primary else scheme.onSurface
     Column(
-        modifier = Modifier
+        modifier = modifier
             .springBounce(bounce)
             .width(68.dp)
             .clip(RoundedCornerShape(12.dp))
@@ -465,7 +556,8 @@ private fun PanelVectorTab(icon: ImageVector, label: String, selected: Boolean, 
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
+        // Scaled within its slot, so a larger icon doesn't push its label out of line with the others'.
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp).scale(iconScale).rotate(iconRotation))
         Spacer(modifier = Modifier.height(2.dp))
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Box(

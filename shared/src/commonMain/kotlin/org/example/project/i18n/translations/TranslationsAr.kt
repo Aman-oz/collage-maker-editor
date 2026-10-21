@@ -904,4 +904,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "الشدة",
     "Brush size" to
         "حجم الفرشاة",
+    "Tint" to
+        "صبغة",
+    "Clarity" to
+        "الوضوح",
 )

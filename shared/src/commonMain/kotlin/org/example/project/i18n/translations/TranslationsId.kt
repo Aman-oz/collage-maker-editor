@@ -904,4 +904,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Intensitas",
     "Brush size" to
         "Ukuran kuas",
+    "Tint" to
+        "Rona",
+    "Clarity" to
+        "Kejernihan",
 )

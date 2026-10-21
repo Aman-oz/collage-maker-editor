@@ -904,4 +904,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Cường độ",
     "Brush size" to
         "Kích thước cọ",
+    "Tint" to
+        "Sắc thái",
+    "Clarity" to
+        "Độ rõ nét",
 )

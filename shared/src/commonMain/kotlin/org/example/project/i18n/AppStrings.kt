@@ -456,4 +456,6 @@ internal val AppStrings: List<String> = listOf(
     "Mirror",
     "Intensity",
     "Brush size",
+    "Tint",
+    "Clarity",
 )
