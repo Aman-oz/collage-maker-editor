@@ -908,4 +908,8 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "ティント",
     "Clarity" to
         "明瞭度",
+    "Couldn't load fonts" to
+        "フォントを読み込めませんでした",
+    "No fonts here yet" to
+        "ここにはまだフォントがありません",
 )

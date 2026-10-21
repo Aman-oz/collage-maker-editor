@@ -908,4 +908,8 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Matiz",
     "Clarity" to
         "Clareza",
+    "Couldn't load fonts" to
+        "Não foi possível carregar as fontes",
+    "No fonts here yet" to
+        "Ainda não há fontes aqui",
 )

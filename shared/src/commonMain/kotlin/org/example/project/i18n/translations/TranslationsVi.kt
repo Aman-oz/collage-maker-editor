@@ -908,4 +908,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Sắc thái",
     "Clarity" to
         "Độ rõ nét",
+    "Couldn't load fonts" to
+        "Không thể tải phông chữ",
+    "No fonts here yet" to
+        "Chưa có phông chữ nào ở đây",
 )

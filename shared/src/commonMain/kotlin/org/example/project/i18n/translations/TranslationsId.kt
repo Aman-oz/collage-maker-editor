@@ -908,4 +908,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Rona",
     "Clarity" to
         "Kejernihan",
+    "Couldn't load fonts" to
+        "Tidak dapat memuat font",
+    "No fonts here yet" to
+        "Belum ada font di sini",
 )

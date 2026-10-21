@@ -84,7 +84,11 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
+import org.example.project.data.cache.AssetCache
 import org.example.project.data.network.NetworkImageLoader
+import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.shimmer
 import org.example.project.i18n.tr
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.PreventScreenCapture
@@ -141,15 +145,14 @@ internal val StickerGridHeight = 160.dp
 internal fun StickerGrid(
     stickers: StickerLoad<List<StickerAsset>>,
     selectedAssetId: String?,
+    isSubscribed: Boolean,
     onRetry: () -> Unit,
     onStickerTapped: (asset: StickerAsset, image: ImageBitmap?, imageBoundsInRoot: Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     when (stickers) {
-        StickerLoad.Loading -> Box(modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = scheme.primary, modifier = Modifier.size(24.dp))
-        }
+        StickerLoad.Loading -> StickerGridPlaceholder(modifier)
 
         StickerLoad.Failed -> Column(
             modifier = modifier,
@@ -176,6 +179,8 @@ internal fun StickerGrid(
                     StickerCell(
                         asset = asset,
                         selected = asset.id == selectedAssetId,
+                        // A premium sticker a non-subscriber is only trying out isn't kept on the disk.
+                        keepOnTap = !asset.isPremium || isSubscribed,
                         onClick = { image, bounds -> onStickerTapped(asset, image, bounds) },
                     )
                 }
@@ -184,14 +189,40 @@ internal fun StickerGrid(
     }
 }
 
+/** The sticker grid before its stickers have come in: shimmering tiles in the same places. */
+@Composable
+private fun StickerGridPlaceholder(modifier: Modifier) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(78.dp),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        userScrollEnabled = false,
+        modifier = modifier,
+    ) {
+        items(12) { Box(modifier = Modifier.aspectRatio(1f).shimmer(StickerCellShape)) }
+    }
+}
+
 /**
  * One sticker, large in its tile. It loads its own picture (rather than through `NetworkImage`) so
  * a tap can hand the picture and where it is drawn to the flight onto the photo.
+ *
+ * A tap also keeps the sticker's SVG on the disk when [keepOnTap], with a ring in the corner while it
+ * downloads; the sticker flies onto the photo meanwhile, as ever, and is redrawn sharp once it is in.
  */
 @Composable
-private fun StickerCell(asset: StickerAsset, selected: Boolean, onClick: (image: ImageBitmap?, imageBoundsInRoot: Rect) -> Unit) {
+private fun StickerCell(
+    asset: StickerAsset,
+    selected: Boolean,
+    keepOnTap: Boolean,
+    onClick: (image: ImageBitmap?, imageBoundsInRoot: Rect) -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
     val loader: NetworkImageLoader = koinInject()
+    val assetCache: AssetCache = koinInject()
+    val scope = rememberCoroutineScope()
+    val download by remember(asset.imageUrl) { assetCache.progressOf(asset.imageUrl) }.collectAsState(null)
     val bounce = rememberSpringBounce()
     var image by remember(asset.thumbnailUrl) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(asset.thumbnailUrl) { image = loader.load(asset.thumbnailUrl) }
@@ -207,6 +238,7 @@ private fun StickerCell(asset: StickerAsset, selected: Boolean, onClick: (image:
             .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current) {
                 val coordinates = imageCoordinates[0]
                 val bounds = if (coordinates?.isAttached == true) coordinates.boundsInRoot() else Rect.Zero
+                if (keepOnTap) scope.launch { loader.keepSvg(asset.imageUrl) }
                 onClick(image, bounds)
             },
         contentAlignment = Alignment.Center,
@@ -222,10 +254,11 @@ private fun StickerCell(asset: StickerAsset, selected: Boolean, onClick: (image:
             if (loaded != null) {
                 Image(bitmap = loaded, contentDescription = asset.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             } else {
-                CircularProgressIndicator(color = scheme.primary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                Box(modifier = Modifier.fillMaxSize().shimmer(RoundedCornerShape(10.dp)))
             }
         }
         if (asset.isPremium) PremiumBadge(Modifier.align(Alignment.TopEnd).padding(5.dp))
+        DownloadRing(progress = download, modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp))
     }
 }
 

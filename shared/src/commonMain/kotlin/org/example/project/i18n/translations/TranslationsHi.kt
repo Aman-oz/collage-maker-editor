@@ -908,4 +908,8 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "टिंट",
     "Clarity" to
         "स्पष्टता",
+    "Couldn't load fonts" to
+        "फ़ॉन्ट लोड नहीं हो सके",
+    "No fonts here yet" to
+        "यहाँ अभी कोई फ़ॉन्ट नहीं है",
 )

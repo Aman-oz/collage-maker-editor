@@ -908,4 +908,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "색조",
     "Clarity" to
         "선명도",
+    "Couldn't load fonts" to
+        "글꼴을 불러올 수 없습니다",
+    "No fonts here yet" to
+        "아직 여기에 글꼴이 없습니다",
 )

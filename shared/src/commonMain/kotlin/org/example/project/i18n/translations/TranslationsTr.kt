@@ -908,4 +908,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Ton",
     "Clarity" to
         "Netlik",
+    "Couldn't load fonts" to
+        "Yazı tipleri yüklenemedi",
+    "No fonts here yet" to
+        "Burada henüz yazı tipi yok",
 )

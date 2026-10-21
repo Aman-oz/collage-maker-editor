@@ -630,6 +630,7 @@ private fun StickersContent(
                                 StickerGrid(
                                     stickers = library.stickers,
                                     selectedAssetId = sticker?.assetId,
+                                    isSubscribed = isSubscribed,
                                     onRetry = library.onRetry,
                                     onStickerTapped = { asset, image, imageBoundsInRoot ->
                                         val newSticker = newPlacedSticker(nextId, asset, photoSizePx.width.toFloat(), photoSizePx.height.toFloat())

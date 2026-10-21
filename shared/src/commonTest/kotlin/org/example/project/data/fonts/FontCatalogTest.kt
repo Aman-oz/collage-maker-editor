@@ -2,64 +2,60 @@ package org.example.project.data.fonts
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.example.project.data.centraldata.CentralFontAssetDto
+import org.example.project.data.centraldata.CentralFontFieldsDto
+import org.example.project.data.centraldata.CentralFontFileDto
 
 class FontCatalogTest {
 
-    private val tsv = listOf(
-        "Roboto\tsans-serif\t2\t2\thttps://f/s/roboto.ttf\t/Expressive/Calm=90;/Sans/Neo Grotesque=100",
-        "Lobster\tdisplay\t1\t0\thttps://f/s/lobster.ttf\t/Expressive/Playful=80;/Expressive/Calm=10",
-        "Caveat\thandwriting\t1\t1\thttps://f/s/caveat.ttf\t/Expressive/Playful=60;/Script/Handwritten=95",
-        "Lora\tserif\t2\t1\thttps://f/s/lora.ttf\t/Slab/Humanist=70",
-        "broken line",
-    ).joinToString("\n")
-
-    private val fonts = parseFontCatalog(tsv)
+    private fun asset(
+        name: String,
+        sequence: Int,
+        file: String? = "https://f/$name.ttf",
+        enabled: Boolean = true,
+        premium: Boolean = false,
+    ) =
+        CentralFontAssetDto(
+            name = name,
+            isEnabled = enabled,
+            isPremium = premium,
+            sequence = sequence,
+            moreFields = CentralFontFieldsDto(file?.let { CentralFontFileDto(it) }),
+        )
 
     @Test
-    fun parseFontCatalog_readsColumnsAndSkipsShortLines() {
-        assertEquals(listOf("Roboto", "Lobster", "Caveat", "Lora"), fonts.map { it.family })
-        assertEquals(mapOf("/Expressive/Calm" to 90, "/Sans/Neo Grotesque" to 100), fonts[0].tags)
-        assertEquals(2, fonts[0].axes)
+    fun toFonts_keepsEnabledFontsWithAFileInServerOrder() {
+        val fonts = listOf(
+            asset("Lobster", 2, premium = true),
+            asset("Roboto", 1),
+            asset("Hidden", 0, enabled = false),
+            asset("NoFile", 3, file = null),
+            asset("Blank", 4, file = ""),
+        ).toFonts()
+        assertEquals(listOf(FontEntry("Roboto", "https://f/Roboto.ttf"), FontEntry("Lobster", "https://f/Lobster.ttf", isPremium = true)), fonts)
     }
 
     @Test
-    fun buildFontSections_listsTheMainCategoriesInOrder() {
-        val titles = buildFontSections(fonts).map { it.title }
-        assertEquals(listOf("Feeling", "Appearance", "Calligraphy", "Serif", "Sans Serif", "Seasonal", "Technology"), titles)
+    fun toFonts_keepsTheFirstOfAFamilyListedTwice() {
+        val fonts = listOf(asset("Caveat", 1, "https://f/a.ttf"), asset("Caveat", 2, "https://f/b.ttf")).toFonts()
+        assertEquals(listOf(FontEntry("Caveat", "https://f/a.ttf")), fonts)
     }
 
     @Test
-    fun technology_listsTheVariableFonts() {
-        val technology = buildFontSections(fonts).last()
-        assertEquals(listOf<FontFilter>(FontFilter.Variable), technology.filters)
-        assertEquals(listOf("Roboto", "Caveat", "Lora"), applyFontFilter(fonts, FontFilter.Variable).map { it.family })
+    fun knownFonts_roundTripWithTheirCrown() {
+        val fonts = listOf(FontEntry("Open Sans", "https://f/open.ttf"), FontEntry("Lobster", "https://f/lobster.ttf", isPremium = true))
+        assertEquals(fonts.associateBy { it.family }, decodeKnownFonts(encodeKnownFonts(fonts)))
     }
 
     @Test
-    fun buildFontSections_dropsTagsNoFontFitsAndLeadsWithAll() {
-        val sections = buildFontSections(fonts).associateBy { it.title }
-        assertEquals(listOf("Calm", "Playful"), sections.getValue("Feeling").filters.map { it.label })
-        assertEquals(listOf("All", "Handwritten"), sections.getValue("Calligraphy").filters.map { it.label })
-        assertEquals(listOf("All", "Slab Humanist"), sections.getValue("Serif").filters.map { it.label })
+    fun knownFonts_skipBrokenLinesAndReadAMissingFlagAsFree() {
+        val decoded = decodeKnownFonts("broken\n\tno-family\nNoUrl\t\nLora\thttps://f/lora.ttf")
+        assertEquals(mapOf("Lora" to FontEntry("Lora", "https://f/lora.ttf")), decoded)
     }
 
     @Test
-    fun applyFontFilter_keepsGoodMatchesBestFirst() {
-        val playful = FontFilter.Tag("/Expressive/Playful", "Playful")
-        assertEquals(listOf("Lobster", "Caveat"), applyFontFilter(fonts, playful).map { it.family })
-    }
-
-    @Test
-    fun featuredFonts_takesDisplayAndHandwritingInCatalogOrder() {
-        assertEquals(listOf("Lobster", "Caveat"), featuredFonts(fonts).map { it.family })
-    }
-
-    @Test
-    fun pushRecentFont_movesToFrontWithoutDuplicatesAndCaps() {
+    fun pushRecentFont_movesToFrontAndCaps() {
         assertEquals(listOf("B", "A", "C"), pushRecentFont(listOf("A", "B", "C"), "B"))
-        val capped = pushRecentFont((1..MaxRecentFonts).map { "F$it" }, "New")
-        assertEquals(MaxRecentFonts, capped.size)
-        assertTrue(capped.first() == "New" && "F$MaxRecentFonts" !in capped)
+        assertEquals(listOf("D", "A"), pushRecentFont(listOf("A", "B"), "D", max = 2))
     }
 }

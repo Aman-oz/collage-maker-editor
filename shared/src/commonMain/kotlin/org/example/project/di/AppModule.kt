@@ -11,6 +11,8 @@ import org.example.project.data.billing.billingPlatformModule
 import org.example.project.data.centraldata.CentralDataApi
 import org.example.project.data.createKeyValueStore
 import org.example.project.data.fonts.FontLibrary
+import org.example.project.data.fonts.FontLoader
+import org.example.project.data.cache.AssetCache
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.data.network.createHttpClient
 import org.example.project.getPlatform
@@ -62,7 +64,10 @@ val coreModule: Module = module {
     single { AppSettings(createKeyValueStore()) }
     // Ktor client + loader for the remote collage layout thumbnails (collage preview URLs).
     single { createHttpClient() }
-    single { NetworkImageLoader(get()) }
+    // The disk cache of the fonts and stickers downloaded on demand.
+    single { AssetCache(get()) }
+    single { NetworkImageLoader(get(), get()) }
+    single { FontLoader(get(), get()) }
     // The AI background remover's upload/download client (endpoint from local.properties).
     single { BackgroundRemoverApi(get()) }
     // The central-data server (key from local.properties) behind the collage, template and frame
@@ -81,8 +86,8 @@ val coreModule: Module = module {
     single { ProjectsRepository() }
 
     single { PipAssetLoader() }
-    // The Text tool's Google Fonts catalog, with the user's favourite and recent fonts.
-    single { FontLibrary(createKeyValueStore()) }
+    // The Text tool's fonts from the central-data server, with the user's favourite and recent fonts.
+    single { FontLibrary(get(), createKeyValueStore()) }
     // Subscriptions. Created at startup so the entitlement check runs on every launch and, on
     // Android, so its activity tracker is registered before the first activity resumes.
     single(createdAtStart = true) { AppBillingWrapper(get(), get()) }

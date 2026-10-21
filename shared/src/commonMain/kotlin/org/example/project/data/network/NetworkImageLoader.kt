@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.example.project.data.cache.AssetCache
 import org.example.project.data.centraldata.CentralDataApi
 
 /**
@@ -28,7 +29,7 @@ import org.example.project.data.centraldata.CentralDataApi
  * download. It runs in the loader's own scope, so a thumbnail scrolled away mid-download still lands
  * in the cache. A failed download is not cached, so the next request tries again.
  */
-class NetworkImageLoader(private val client: HttpClient) {
+class NetworkImageLoader(private val client: HttpClient, private val assetCache: AssetCache) {
 
     private val cache = mutableMapOf<String, ImageBitmap>()
     private val inFlight = mutableMapOf<String, Deferred<ImageBitmap?>>()
@@ -69,9 +70,23 @@ class NetworkImageLoader(private val client: HttpClient) {
     suspend fun renderSvg(url: String, sidePx: Int): ImageBitmap? =
         runCatching { rasterizeSvg(svgSource(url), sidePx) }.getOrNull()
 
-    /** An SVG's bytes, downloaded once: they are small, and each new size is drawn from them. */
+    /**
+     * An SVG's bytes, downloaded once: they are small, and each new size is drawn from them. They come
+     * from [AssetCache], so a kept sticker is read from the disk, and its download shares the one a tap
+     * started.
+     */
     private suspend fun svgSource(url: String): ByteArray =
-        mutex.withLock { svgSources[url] } ?: fetch(url).also { bytes -> mutex.withLock { svgSources[url] = bytes } }
+        mutex.withLock { svgSources[url] }
+            ?: assetCache.bytes(url, keep = false).also { bytes -> mutex.withLock { svgSources[url] = bytes } }
+
+    /**
+     * Keeps [url]'s SVG on the disk: at once when it is already in memory (a sticker whose thumbnail is
+     * its own picture), else by downloading it in the background.
+     */
+    suspend fun keepSvg(url: String) {
+        val inMemory = mutex.withLock { svgSources[url] }
+        if (inMemory != null) assetCache.keep(url, inMemory) else assetCache.prefetch(url)
+    }
 
     // The central-data server's images need its API key; other hosts get no header.
     private suspend fun fetch(url: String): ByteArray =

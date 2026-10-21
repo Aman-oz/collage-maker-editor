@@ -43,7 +43,7 @@ abstract class GenerateBgRemoverConfig : DefaultTask() {
 
 /**
  * Generates `CentralDataConfig` (the central-data server behind the collage, template and frame
- * catalogs, the sticker library and Home's template/frame rows: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
+ * catalogs, the sticker and font libraries and Home's template/frame rows: its endpoint, instance, category ids and `X-API-Key`) from `local.properties`, the same
  * way as [GenerateBgRemoverConfig]. A missing key generates "": collages then fall back to the
  * bundled `collages.json`, and Templates / Frames report the error.
  */
@@ -56,6 +56,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
     @get:Input abstract val homeCategoryId: Property<String>
     @get:Input abstract val layoutsCategoryId: Property<String>
     @get:Input abstract val stickersSuperCategoryId: Property<String>
+    @get:Input abstract val fontsSuperCategoryId: Property<String>
     @get:Input abstract val apiKey: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
@@ -78,6 +79,7 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
             |    const val HOME_CATEGORY_ID: String = ${literal(homeCategoryId.get())}
             |    const val LAYOUTS_CATEGORY_ID: String = ${literal(layoutsCategoryId.get())}
             |    const val STICKERS_SUPER_CATEGORY_ID: String = ${literal(stickersSuperCategoryId.get())}
+            |    const val FONTS_SUPER_CATEGORY_ID: String = ${literal(fontsSuperCategoryId.get())}
             |    const val API_KEY: String = ${literal(apiKey.get())}
             |}
             |""".trimMargin(),
@@ -116,6 +118,7 @@ val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("gener
     homeCategoryId = withDefault("CENTRAL_DATA_HOME_CATEGORY_ID", "6acf5d131495d93ad6f8d49b")
     layoutsCategoryId = withDefault("CENTRAL_DATA_LAYOUTS_CATEGORY_ID", "6ad5c7b6447c5832f735d4a2")
     stickersSuperCategoryId = withDefault("CENTRAL_DATA_STICKERS_SUPER_CATEGORY_ID", "6ad626b4892f28f45336c303")
+    fontsSuperCategoryId = withDefault("CENTRAL_DATA_FONTS_SUPER_CATEGORY_ID", "6ad76edf892f28f45336c39d")
     apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }
@@ -211,6 +214,7 @@ kotlin {
             // Networking — fetch collage layouts (and their frame/thumbnail images) from the server.
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.io.core)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.kotlinxJson)

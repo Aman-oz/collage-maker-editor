@@ -72,6 +72,7 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import org.example.project.data.fonts.FontEntry
+import org.example.project.ui.stickers.PremiumBadge
 import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ColorPickerFill
@@ -341,6 +342,7 @@ private fun GlassOptionItem(option: GlassBarOption, onClick: () -> Unit, modifie
 @Composable
 internal fun TextKeyboardBar(
     fonts: List<FontEntry>,
+    previewFont: suspend (FontEntry) -> FontFamily?,
     selectedFamily: String?,
     onFontSelected: (FontEntry) -> Unit,
     alignment: TextAlignOption,
@@ -382,7 +384,12 @@ internal fun TextKeyboardBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(fonts, key = { it.family }) { font ->
-                    FontPill(font = font, selected = font.family == selectedFamily, onClick = { onFontSelected(font) })
+                    FontPill(
+                        font = font,
+                        previewFont = previewFont,
+                        selected = font.family == selectedFamily,
+                        onClick = { onFontSelected(font) },
+                    )
                 }
             }
         }
@@ -423,9 +430,9 @@ internal fun TextKeyboardBar(
 }
 
 @Composable
-private fun FontPill(font: FontEntry, selected: Boolean, onClick: () -> Unit) {
+private fun FontPill(font: FontEntry, previewFont: suspend (FontEntry) -> FontFamily?, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val family = rememberLoadedFontFamily(font)
+    val family = rememberPreviewFontFamily(font, previewFont)
     val shape = RoundedCornerShape(50)
     Box(
         modifier = Modifier
@@ -438,18 +445,21 @@ private fun FontPill(font: FontEntry, selected: Boolean, onClick: () -> Unit) {
                 shape = shape,
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp),
+            .padding(start = 14.dp, end = if (font.isPremium) 4.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = font.family,
-            fontFamily = family ?: FontFamily.Default,
-            fontSize = 15.sp,
-            color = if (selected) scheme.primary else scheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 140.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = font.family,
+                fontFamily = family ?: FontFamily.Default,
+                fontSize = 15.sp,
+                color = if (selected) scheme.primary else scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 140.dp),
+            )
+            if (font.isPremium) PremiumBadge(size = 24.dp)
+        }
     }
 }
 

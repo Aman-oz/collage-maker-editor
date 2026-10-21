@@ -908,4 +908,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "صبغة",
     "Clarity" to
         "الوضوح",
+    "Couldn't load fonts" to
+        "تعذر تحميل الخطوط",
+    "No fonts here yet" to
+        "لا توجد خطوط هنا بعد",
 )

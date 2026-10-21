@@ -908,4 +908,8 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "رنگت",
     "Clarity" to
         "وضاحت",
+    "Couldn't load fonts" to
+        "فونٹس لوڈ نہیں ہو سکے",
+    "No fonts here yet" to
+        "یہاں ابھی کوئی فونٹ نہیں ہے",
 )

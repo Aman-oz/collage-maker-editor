@@ -908,4 +908,8 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Tinte",
     "Clarity" to
         "Claridad",
+    "Couldn't load fonts" to
+        "No se pudieron cargar las fuentes",
+    "No fonts here yet" to
+        "Aún no hay fuentes aquí",
 )

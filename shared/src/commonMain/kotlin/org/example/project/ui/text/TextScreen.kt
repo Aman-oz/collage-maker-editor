@@ -113,11 +113,13 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import org.example.project.data.fonts.FontCatalog
 import org.example.project.data.fonts.FontEntry
 import org.example.project.data.fonts.FontLibrary
+import org.example.project.data.cache.AssetCache
 import org.example.project.data.fonts.FontLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.common.ColorPickerFill
@@ -127,6 +129,8 @@ import org.example.project.ui.common.dropSpec
 import org.example.project.ui.common.settleSpec
 import org.example.project.ui.common.rememberColorPickerLauncher
 import org.example.project.ui.common.ToolScaffold
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.preview.ThemePreviews
@@ -158,8 +162,22 @@ internal fun TextTool(
     underlay: @Composable () -> Unit = {},
 ) {
     val library = koinInject<FontLibrary>()
-    // Parsed as the tool opens, so the catalog is ready by the time the Font panel is.
-    val catalog by produceState<FontCatalog?>(null) { value = library.catalog() }
+    val fontLoader = koinInject<FontLoader>()
+    val assetCache = koinInject<AssetCache>()
+    // Fetched as the tool opens, so the catalog is ready by the time the Font panel is.
+    var catalogAttempt by remember { mutableIntStateOf(0) }
+    var catalogFailed by remember { mutableStateOf(false) }
+    val catalog by produceState<FontCatalog?>(null, catalogAttempt) {
+        catalogFailed = false
+        value = try {
+            library.catalog()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            catalogFailed = true
+            null
+        }
+    }
     val favorites by library.favorites.collectAsState()
     val recent by library.recent.collectAsState()
     TextContent(
@@ -167,7 +185,21 @@ internal fun TextTool(
         initialTexts = initialTexts,
         selectedTextId = selectedTextId,
         isPremium = isPremium,
-        fonts = TextFonts(catalog, favorites, recent, library::toggleFavorite, library::markUsed),
+        fonts = TextFonts(
+            catalog = catalog,
+            catalogFailed = catalogFailed,
+            onRetryCatalog = { catalogAttempt++ },
+            loadFonts = library::fonts,
+            find = library::find,
+            favorites = favorites,
+            recent = recent,
+            onToggleFavorite = library::toggleFavorite,
+            onUsed = library::markUsed,
+            // A premium font a non-subscriber is only trying out isn't kept on the disk.
+            loadFont = { font -> fontLoader.load(font, keep = !font.isPremium || isPremium) },
+            previewFont = fontLoader::preview,
+            downloadProgress = { font -> assetCache.progressOf(font.fileUrl) },
+        ),
         onBack = onClose,
         onOpenPremium = onOpenPremium,
         onDone = onApply,
@@ -267,7 +299,7 @@ private fun TextContent(
         if (id != null) items = items.map { if (it.id == id) change(it) else it }
     }
 
-    // Every family in use, downloaded once (FontLoader caches it); the default font until then. The
+    // Every family in use, downloaded once (and kept, if free); the default font until then. The
     // texts already on the photo bring theirs loaded.
     val loadedFonts = remember {
         mutableStateMapOf<String, FontFamily>().apply {
@@ -278,8 +310,8 @@ private fun TextContent(
     LaunchedEffect(families, fonts.catalog) {
         for (family in families) {
             if (family in loadedFonts) continue
-            val entry = fonts.catalog?.find(family) ?: continue
-            launch { FontLoader.load(entry.fileUrl)?.let { loadedFonts[family] = it } }
+            val entry = fonts.find(family) ?: continue
+            launch { fonts.loadFont(entry)?.let { loadedFonts[family] = it } }
         }
     }
     fun fontOf(item: TextItem): TextFontStyleOption =
@@ -403,14 +435,21 @@ private fun TextContent(
             TextMoreAction.Delete -> if (id != null) removeText(id)
         }
     }
+    // A premium font is a gate, not an offer: a non-subscriber can try it, under the Pro bar, but
+    // finishing with it on a text opens the paywall every time.
+    val premiumFontInUse = !isPremium && items.any { item ->
+        item.fontFamily?.let(fonts.find)?.isPremium == true
+    }
     val finish = {
         // Ends any typing in progress, so the keyboard isn't left up under the paywall or the editor.
         focusManager.clearFocus()
         val written = items.filter { it.content.isNotBlank() }
         val premiumEdit = written.any { isPremiumTextEdit(fontOf(it), Color(it.colorArgb), it.sizeSp, reEdited) }
+        val premiumFont = !isPremium && written.any { it.fontFamily?.let(fonts.find)?.isPremium == true }
         when {
             // Nothing written, and nothing there before to take away.
             (written.isEmpty() && initialTexts?.items.isNullOrEmpty()) || sourceImage == null -> onBack()
+            premiumFont -> onOpenPremium()
             premiumEdit && !isPremium && !paywallShown -> {
                 paywallShown = true
                 onOpenPremium()
@@ -617,6 +656,10 @@ private fun TextContent(
                     )
                 }
             }
+            // Under the photo while a non-subscriber has a premium font on a text; finishing leads to
+            // the paywall the same way.
+            ProFeatureBar(visible = premiumFontInUse, onClick = onOpenPremium)
+            PreventScreenCapture(enabled = premiumFontInUse)
 
             ToolPanel {
                 CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
@@ -791,6 +834,7 @@ private fun TextContent(
         ) {
             TextKeyboardBar(
                 fonts = fonts.quickPicks,
+                previewFont = fonts.previewFont,
                 selectedFamily = editing?.fontFamily,
                 onFontSelected = { font ->
                     pickFont(font)

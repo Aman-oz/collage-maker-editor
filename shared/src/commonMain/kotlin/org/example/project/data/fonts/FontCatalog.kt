@@ -1,118 +1,61 @@
 package org.example.project.data.fonts
 
+import org.example.project.data.centraldata.CentralFontAssetDto
+
 /**
- * One Google Fonts family, as listed in the bundled `files/fonts_catalog.tsv` (ported from the
- * FontsFactory sample, which generates it with `fonts_catalog.py`). The catalog is in Google Fonts'
- * popularity order.
+ * One font family from the central-data server: its name, the TTF to download, and whether it is
+ * premium (a crown in the lists; the Text tool won't apply it for a non-subscriber).
  */
 data class FontEntry(
     val family: String,
-    /** serif, sans-serif, display, handwriting or monospace. */
-    val category: String,
-    val styles: Int,
-    /** More than 0 for a variable font. */
-    val axes: Int,
     val fileUrl: String,
-    /** A tag path ("/Expressive/Playful") to how well the family fits it, 0..100. */
-    val tags: Map<String, Int>,
+    val isPremium: Boolean = false,
 )
 
-/** Parses the catalog's TSV: `family, category, styles, axes, fileUrl, tags` (`;`-separated `path=score`). */
-fun parseFontCatalog(tsv: String): List<FontEntry> = tsv.lineSequence()
-    .filter { it.isNotBlank() }
+/** A sub-category of a [FontSection] (Active, Artistic, …): one chip of the Font panel's bar. */
+data class FontSubcategory(val id: String, val categoryId: String, val name: String)
+
+/** A main font category (Feeling, Appearance, …), as the server names it, with its sub-categories. */
+data class FontSection(val title: String, val subcategories: List<FontSubcategory>)
+
+/** The main categories, and the Featured list. A sub-category's fonts are fetched only when it is opened. */
+class FontCatalog(val sections: List<FontSection>, val featured: List<FontEntry>)
+
+/**
+ * Enabled fonts with a file, in server order. A family listed twice keeps its first entry, since the
+ * grid is keyed by family.
+ */
+internal fun List<CentralFontAssetDto>.toFonts(): List<FontEntry> =
+    filter { it.isEnabled && it.name.isNotBlank() }
+        .sortedBy { it.sequence }
+        .mapNotNull { asset ->
+            val url = asset.moreFields.url?.file?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            FontEntry(family = asset.name, fileUrl = url, isPremium = asset.isPremium)
+        }
+        .distinctBy { it.family }
+
+/**
+ * The favourite and recent fonts as kept on the device, so they can be shown and drawn (and their
+ * crown known) without first browsing to the sub-category that lists them. Family names and URLs
+ * hold no tab or newline, so one `family<TAB>url<TAB>premium` per line is a safe format.
+ */
+fun encodeKnownFonts(fonts: Collection<FontEntry>): String =
+    fonts.joinToString("\n") { "${it.family}\t${it.fileUrl}\t${if (it.isPremium) 1 else 0}" }
+
+/** The fonts of [encodeKnownFonts]'s text, by family; a line without the premium flag reads as free. */
+fun decodeKnownFonts(text: String): Map<String, FontEntry> = text.lineSequence()
     .mapNotNull { line ->
-        val c = line.split('\t')
-        if (c.size < 5) return@mapNotNull null
-        FontEntry(
-            family = c[0],
-            category = c[1],
-            styles = c[2].toIntOrNull() ?: 1,
-            axes = c[3].toIntOrNull() ?: 0,
-            fileUrl = c[4],
-            tags = c.getOrNull(5).orEmpty().split(';')
-                .filter { '=' in it }
-                .associate { it.substringBeforeLast('=') to (it.substringAfterLast('=').toIntOrNull() ?: 0) },
-        )
+        val fields = line.split('\t')
+        val family = fields[0]
+        val url = fields.getOrNull(1).orEmpty()
+        if (family.isEmpty() || url.isEmpty()) null else FontEntry(family, url, isPremium = fields.getOrNull(2) == "1")
     }
-    .toList()
-
-/** A sub-category of a [FontSection]. [score] is how well a font matches it, 0 = not at all. */
-sealed interface FontFilter {
-    /** English for "All" and "Variable" (translate them where shown); otherwise the catalog's own tag name, shown as is. */
-    val label: String
-    fun score(font: FontEntry): Int
-
-    data class Tag(val path: String, override val label: String) : FontFilter {
-        override fun score(font: FontEntry) = font.tags[path] ?: 0
-    }
-
-    /** The "All" sub-category of Calligraphy, Serif and Sans Serif: every font of that category. */
-    data class Category(val category: String) : FontFilter {
-        override val label get() = "All"
-        override fun score(font: FontEntry) = if (font.category == category) 100 else 0
-    }
-
-    /** Technology's one sub-category: variable fonts, which have at least one design axis. */
-    data object Variable : FontFilter {
-        override val label get() = "Variable"
-        override fun score(font: FontEntry) = if (font.axes > 0) 100 else 0
-    }
-}
-
-/** A main font category (Feeling, Appearance, …); [title] is English, translated where shown. */
-data class FontSection(val title: String, val filters: List<FontFilter>)
-
-private class SectionSpec(val title: String, val prefixes: List<String>, val allCategory: String? = null)
-
-// Google Fonts' sidebar sections, and the families.csv tag groups behind them.
-private val SectionSpecs = listOf(
-    SectionSpec("Feeling", listOf("/Expressive/")),
-    SectionSpec("Appearance", listOf("/Theme/")),
-    SectionSpec("Calligraphy", listOf("/Script/"), allCategory = "handwriting"),
-    SectionSpec("Serif", listOf("/Serif/", "/Slab/"), allCategory = "serif"),
-    SectionSpec("Sans Serif", listOf("/Sans/"), allCategory = "sans-serif"),
-    SectionSpec("Seasonal", listOf("/Seasonal/")),
-)
-
-/** A font must score at least this on a tag to be listed under it. */
-const val MinFontScore = 50
-
-/**
- * The main categories and their sub-categories, from the tags the catalog actually uses (and, last,
- * Technology, whose one sub-category is variable fonts). A tag no
- * font fits at least [MinFontScore] is dropped: it would open an empty grid.
- */
-fun buildFontSections(fonts: List<FontEntry>): List<FontSection> {
-    val allTags = fonts.flatMap { it.tags.keys }.distinct().sorted()
-    val tagSections = SectionSpecs.map { spec ->
-        val tagFilters = allTags
-            .filter { tag -> spec.prefixes.any { tag.startsWith(it) } }
-            .map { tag ->
-                val name = tag.substringAfterLast('/')
-                FontFilter.Tag(tag, if (tag.startsWith("/Slab/")) "Slab $name" else name)
-            }
-            .filter { filter -> fonts.any { filter.score(it) >= MinFontScore } }
-        FontSection(spec.title, listOfNotNull(spec.allCategory?.let { FontFilter.Category(it) }) + tagFilters)
-    }
-    // Not a tag group: Google Fonts' Technology section filters on the font file itself.
-    return tagSections + FontSection("Technology", listOf(FontFilter.Variable))
-}
-
-/** The fonts of [filter], best match first. */
-fun applyFontFilter(fonts: List<FontEntry>, filter: FontFilter): List<FontEntry> =
-    fonts.filter { filter.score(it) >= MinFontScore }.sortedByDescending { filter.score(it) }
-
-/**
- * The Featured list: the most popular display and handwriting families, which show off a text edit
- * better than the plain sans and serif faces that top the catalog's overall popularity.
- */
-fun featuredFonts(fonts: List<FontEntry>, count: Int = FeaturedFontCount): List<FontEntry> =
-    fonts.filter { it.category == "display" || it.category == "handwriting" }.take(count)
-
-const val FeaturedFontCount = 40
+    .associateBy { it.family }
 
 /** [family] moved (or added) to the front of [recent], which keeps at most [max] families. */
 fun pushRecentFont(recent: List<String>, family: String, max: Int = MaxRecentFonts): List<String> =
     (listOf(family) + recent.filter { it != family }).take(max)
 
 const val MaxRecentFonts = 20
+
+const val FeaturedFontCount = 40

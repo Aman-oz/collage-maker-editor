@@ -87,6 +87,26 @@ internal data class CentralSlotDto(
     val elevation: Float = 0f,
 )
 
+/**
+ * One font from the `assets` endpoint: [name] is the family, `more_fields.url.file` its TTF. Its own
+ * type rather than a field of [CentralAssetFieldsDto], whose `url` key another category may use for
+ * something else.
+ */
+@Serializable
+internal data class CentralFontAssetDto(
+    val name: String = "",
+    @SerialName("is_enabled") val isEnabled: Boolean = true,
+    @SerialName("is_premium") val isPremium: Boolean = false,
+    val sequence: Int = 0,
+    @SerialName("more_fields") val moreFields: CentralFontFieldsDto = CentralFontFieldsDto(),
+)
+
+@Serializable
+internal data class CentralFontFieldsDto(val url: CentralFontFileDto? = null)
+
+@Serializable
+internal data class CentralFontFileDto(val file: String = "")
+
 /** [path] as an absolute URL: the server returns its own images as paths relative to [baseUrl]. */
 internal fun resolveUrl(baseUrl: String, path: String): String = when {
     path.isEmpty() || path.startsWith("http://") || path.startsWith("https://") -> path
@@ -94,7 +114,7 @@ internal fun resolveUrl(baseUrl: String, path: String): String = when {
 }
 
 /**
- * Client for the central-data server that serves the collage, template, frame and sticker catalogs:
+ * Client for the central-data server that serves the collage, template, frame, sticker and font catalogs:
  * `GET {base}/api/v1/instance/{instanceId}/categories?superCategoryId=…`,
  * `…/subcategories?categoryId=…` and `…/assets?categoryId=…` and/or `?subCategoryId=…`, authenticated with `X-API-Key`. The server's static images need the same
  * header, which [authorize] adds for the image loader.
@@ -118,6 +138,10 @@ class CentralDataApi(private val client: HttpClient) {
 
     /** The server only narrows the assets to one sub-category when it is given its category too. */
     internal suspend fun assets(categoryId: String, subCategoryId: String): List<CentralAssetDto> =
+        request("assets", "categoryId" to categoryId, "subCategoryId" to subCategoryId).body()
+
+    /** One font sub-category's fonts; like [assets], the server needs the category too. */
+    internal suspend fun fontAssets(categoryId: String, subCategoryId: String): List<CentralFontAssetDto> =
         request("assets", "categoryId" to categoryId, "subCategoryId" to subCategoryId).body()
 
     /** [path] resolved against the server, for the relative image URLs in its responses. */

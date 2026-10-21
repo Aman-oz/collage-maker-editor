@@ -59,37 +59,73 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.TextButton
+import kotlinx.coroutines.CancellationException
 import org.example.project.data.fonts.FontCatalog
 import org.example.project.data.fonts.FontEntry
-import org.example.project.data.fonts.FontFilter
-import org.example.project.data.fonts.FontLoader
-import org.example.project.data.fonts.applyFontFilter
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import org.example.project.data.cache.DownloadProgress
+import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.shimmer
+import org.example.project.data.fonts.FontSubcategory
 import org.example.project.i18n.tr
 import org.example.project.ui.common.ToolTopBar
+import org.example.project.ui.stickers.PremiumBadge
 
 /**
  * What the Text tool knows about fonts, handed in from [TextTool] so the tool's content stays free
- * of DI: the catalog (null until parsed), and the user's favourite and recent families, newest first.
+ * of DI: the server's catalog (null until it has loaded, [catalogFailed] if it couldn't), how to
+ * fetch a sub-category's fonts and find a font by family, and the user's favourite and recent
+ * families, newest first.
  */
 @Immutable
 internal class TextFonts(
     val catalog: FontCatalog?,
+    val catalogFailed: Boolean,
+    val onRetryCatalog: () -> Unit,
+    val loadFonts: suspend (FontSubcategory) -> List<FontEntry>,
+    val find: (family: String) -> FontEntry?,
     val favorites: List<String>,
     val recent: List<String>,
     val onToggleFavorite: (family: String) -> Unit,
     val onUsed: (family: String) -> Unit,
+    /** The whole font, for the text; picking one is what downloads (and, if free, keeps) it. */
+    val loadFont: suspend (FontEntry) -> FontFamily?,
+    /** Just enough of the font to draw its own name, for the lists. */
+    val previewFont: suspend (FontEntry) -> FontFamily?,
+    /** The font's download into the cache, while it runs. */
+    val downloadProgress: (FontEntry) -> Flow<DownloadProgress?>,
 ) {
     /** The fonts the keyboard bar offers: the recent ones, then the featured. */
     val quickPicks: List<FontEntry>
-        get() {
-            val catalog = catalog ?: return emptyList()
-            return (recent.mapNotNull(catalog::find) + catalog.featured).distinctBy { it.family }.take(QuickPickCount)
-        }
+        get() = (recent.mapNotNull(find) + catalog?.featured.orEmpty()).distinctBy { it.family }.take(QuickPickCount)
 
     companion object {
         private const val QuickPickCount = 16
-        val Empty = TextFonts(null, emptyList(), emptyList(), {}, {})
+        val Empty = TextFonts(
+            catalog = null,
+            catalogFailed = false,
+            onRetryCatalog = {},
+            loadFonts = { emptyList() },
+            find = { null },
+            favorites = emptyList(),
+            recent = emptyList(),
+            onToggleFavorite = {},
+            onUsed = {},
+            loadFont = { null },
+            previewFont = { null },
+            downloadProgress = { flowOf(null) },
+        )
     }
+}
+
+/** A list of fonts on its way from the server. */
+private sealed interface FontLoad {
+    data object Loading : FontLoad
+    data object Failed : FontLoad
+    data class Ready(val fonts: List<FontEntry>) : FontLoad
 }
 
 /** What the font grid lists. */
@@ -97,7 +133,7 @@ internal sealed interface FontListSource {
     data object Favorites : FontListSource
     data object Recent : FontListSource
     data object Featured : FontListSource
-    data class Filtered(val filter: FontFilter) : FontListSource
+    data class Subcategory(val subcategory: FontSubcategory) : FontListSource
 }
 
 /**
@@ -115,7 +151,7 @@ internal class FontBrowserState {
     fun selectSection(index: Int, catalog: FontCatalog?) {
         if (index == sectionIndex) return
         sectionIndex = index
-        catalog?.sections?.getOrNull(index)?.filters?.firstOrNull()?.let { source = FontListSource.Filtered(it) }
+        catalog?.sections?.getOrNull(index)?.subcategories?.firstOrNull()?.let { source = FontListSource.Subcategory(it) }
     }
 }
 
@@ -147,16 +183,30 @@ internal fun TextFontPanel(
     val sectionIndex = browser.sectionIndex
     val section = catalog?.sections?.getOrNull(sectionIndex)
 
-    val listed: List<FontEntry> = remember(catalog, source, fonts.favorites, fonts.recent) {
-        when {
-            catalog == null -> emptyList()
-            else -> when (val s = source) {
-                FontListSource.Favorites -> fonts.favorites.mapNotNull(catalog::find)
-                FontListSource.Recent -> fonts.recent.mapNotNull(catalog::find)
-                FontListSource.Featured -> catalog.featured
-                is FontListSource.Filtered -> applyFontFilter(catalog.fonts, s.filter)
-            }
+    // Bumped by Retry, to fetch the sub-category again.
+    var attempt by remember { mutableIntStateOf(0) }
+    val subcategoryFonts by produceState<FontLoad>(FontLoad.Loading, source, attempt) {
+        val subcategory = (source as? FontListSource.Subcategory)?.subcategory ?: return@produceState
+        value = FontLoad.Loading
+        value = try {
+            FontLoad.Ready(fonts.loadFonts(subcategory))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            FontLoad.Failed
         }
+    }
+    // Favourites and recents are known without the catalog (their files are remembered), so they
+    // list even offline; Featured waits for it.
+    val listed: FontLoad = when (val s = source) {
+        FontListSource.Favorites -> FontLoad.Ready(fonts.favorites.mapNotNull(fonts.find))
+        FontListSource.Recent -> FontLoad.Ready(fonts.recent.mapNotNull(fonts.find))
+        FontListSource.Featured -> when {
+            catalog != null -> FontLoad.Ready(catalog.featured)
+            fonts.catalogFailed -> FontLoad.Failed
+            else -> FontLoad.Loading
+        }
+        is FontListSource.Subcategory -> subcategoryFonts
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -176,9 +226,22 @@ internal fun TextFontPanel(
             )
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 when {
-                    catalog == null -> CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
-                    listed.isEmpty() -> Text(
-                        text = if (source == FontListSource.Favorites) tr("No favorite fonts yet") else tr("No recent fonts yet"),
+                    listed == FontLoad.Loading -> FontGridPlaceholder()
+                    listed == FontLoad.Failed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = tr("Couldn't load fonts"), color = scheme.onSurface.copy(alpha = 0.7f), fontSize = 14.sp)
+                        TextButton(
+                            onClick = {
+                                if (source is FontListSource.Subcategory) attempt++ else fonts.onRetryCatalog()
+                            },
+                        ) { Text(tr("Retry")) }
+                    }
+                    listed !is FontLoad.Ready -> Unit
+                    listed.fonts.isEmpty() -> Text(
+                        text = when (source) {
+                            FontListSource.Favorites -> tr("No favorite fonts yet")
+                            FontListSource.Recent -> tr("No recent fonts yet")
+                            else -> tr("No fonts here yet")
+                        },
                         color = scheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 14.sp,
                     )
@@ -190,11 +253,13 @@ internal fun TextFontPanel(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            items(listed, key = { it.family }) { font ->
+                            items(listed.fonts, key = { it.family }) { font ->
                                 FontGridCell(
                                     font = font,
                                     selected = font.family == selectedFamily,
                                     favorite = font.family in fonts.favorites,
+                                    previewFont = fonts.previewFont,
+                                    downloadProgress = fonts.downloadProgress,
                                     onClick = { onFontSelected(font) },
                                     onToggleFavorite = { fonts.onToggleFavorite(font.family) },
                                 )
@@ -206,7 +271,7 @@ internal fun TextFontPanel(
             HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.1f))
             FontCategoryBar(
                 sectionIndex = sectionIndex,
-                filters = section?.filters.orEmpty(),
+                subcategories = section?.subcategories.orEmpty(),
                 source = source,
                 onSourceSelected = { browser.source = it },
             )
@@ -214,6 +279,40 @@ internal fun TextFontPanel(
 
     }
 }
+
+/** A shimmering bar where a font's name will be. */
+@Composable
+private fun NamePlaceholder(widthFraction: Float) {
+    Box(modifier = Modifier.fillMaxWidth(widthFraction).height(16.dp).shimmer(RoundedCornerShape(5.dp)))
+}
+
+/** Roughly as wide as [name] will be drawn, so the grid doesn't jump when the names come in. */
+private fun placeholderWidth(name: String): Float = (0.25f + name.length * 0.04f).coerceIn(0.35f, 0.9f)
+
+/** The font grid before its list has come in: shimmering names and hearts in the same places. */
+@Composable
+private fun FontGridPlaceholder() {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        userScrollEnabled = false,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        items(PlaceholderWidths.size) { index ->
+            Row(
+                modifier = Modifier.fillMaxWidth().height(44.dp).padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.weight(1f)) { NamePlaceholder(PlaceholderWidths[index]) }
+                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(18.dp).shimmer(CircleShape))
+                }
+            }
+        }
+    }
+}
+
+private val PlaceholderWidths = listOf(0.8f, 0.6f, 0.7f, 0.85f, 0.55f, 0.75f, 0.65f, 0.8f, 0.7f, 0.6f, 0.85f, 0.7f, 0.6f, 0.75f, 0.8f, 0.65f)
 
 /** The selected main category in the title's place, with a ▾ that turns over while its menu is open. */
 @Composable
@@ -257,13 +356,16 @@ private fun FontGridCell(
     font: FontEntry,
     selected: Boolean,
     favorite: Boolean,
+    previewFont: suspend (FontEntry) -> FontFamily?,
+    downloadProgress: (FontEntry) -> Flow<DownloadProgress?>,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val family by produceState<FontFamily?>(null, font.fileUrl) { value = FontLoader.load(font.fileUrl) }
-    // The name waits, faint, in the default font until its own has downloaded.
-    val loaded by animateFloatAsState(if (family != null) 1f else 0.35f, tween(220))
+    // Null while the name's own letters are on their way; the default font if they can't be had.
+    val family by produceState<FontFamily?>(null, font) { value = previewFont(font) ?: FontFamily.Default }
+    val download by remember(font) { downloadProgress(font) }.collectAsState(null)
+    val shown by animateFloatAsState(if (family != null) 1f else 0f, tween(220))
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -273,15 +375,24 @@ private fun FontGridCell(
             .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = font.family,
-            fontFamily = family ?: FontFamily.Default,
-            fontSize = 18.sp,
-            color = if (selected) scheme.primary else scheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).graphicsLayer { alpha = loaded },
-        )
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            val loaded = family
+            if (loaded == null) {
+                NamePlaceholder(widthFraction = placeholderWidth(font.family))
+            } else {
+                Text(
+                    text = font.family,
+                    fontFamily = loaded,
+                    fontSize = 18.sp,
+                    color = if (selected) scheme.primary else scheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.graphicsLayer { alpha = shown },
+                )
+            }
+        }
+        DownloadRing(progress = download, size = 20.dp, modifier = Modifier.padding(start = 4.dp))
+        if (font.isPremium) PremiumBadge(size = 20.dp)
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -302,14 +413,14 @@ private fun FontGridCell(
 @Composable
 private fun FontCategoryBar(
     sectionIndex: Int,
-    filters: List<FontFilter>,
+    subcategories: List<FontSubcategory>,
     source: FontListSource,
     onSourceSelected: (FontListSource) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     // Restarted for each main category, so its sub-categories rise in one after another.
     val cascade = remember(sectionIndex) { Animatable(0f) }
-    LaunchedEffect(cascade) { cascade.animateTo(1f, cascadeSpec(filters.size)) }
+    LaunchedEffect(cascade) { cascade.animateTo(1f, cascadeSpec(subcategories.size)) }
     val listState = rememberLazyListState()
     LaunchedEffect(sectionIndex) { listState.scrollToItem(0) }
     Row(
@@ -340,13 +451,13 @@ private fun FontCategoryBar(
             item(key = "featured") {
                 SubCategoryChip(tr("Featured"), source == FontListSource.Featured, { onSourceSelected(FontListSource.Featured) })
             }
-            itemsIndexed(filters, key = { _, filter -> "$sectionIndex/$filter" }) { index, filter ->
+            itemsIndexed(subcategories, key = { _, subcategory -> subcategory.id }) { index, subcategory ->
                 SubCategoryChip(
-                    // "All" and "Variable" are the app's own labels; the rest are the catalog's tag names.
-                    text = if (filter is FontFilter.Tag) filter.label else tr(filter.label),
-                    selected = (source as? FontListSource.Filtered)?.filter == filter,
-                    onClick = { onSourceSelected(FontListSource.Filtered(filter)) },
-                    modifier = Modifier.cascadeIn(cascade, index, filters.size),
+                    // The server's own name, shown as it is.
+                    text = subcategory.name,
+                    selected = (source as? FontListSource.Subcategory)?.subcategory == subcategory,
+                    onClick = { onSourceSelected(FontListSource.Subcategory(subcategory)) },
+                    modifier = Modifier.cascadeIn(cascade, index, subcategories.size),
                 )
             }
         }
@@ -398,9 +509,9 @@ private fun SubCategoryChip(text: String, selected: Boolean, onClick: () -> Unit
     }
 }
 
-/** A font's name drawn in the font itself, for the keyboard bar's pills; the default font until it loads. */
+/** [font]'s name drawn in the font itself, for the keyboard bar's pills; null until it loads. */
 @Composable
-internal fun rememberLoadedFontFamily(font: FontEntry?): FontFamily? {
-    val family by produceState<FontFamily?>(null, font?.fileUrl) { value = font?.let { FontLoader.load(it.fileUrl) } }
+internal fun rememberPreviewFontFamily(font: FontEntry?, previewFont: suspend (FontEntry) -> FontFamily?): FontFamily? {
+    val family by produceState<FontFamily?>(null, font) { value = font?.let { previewFont(it) } }
     return family
 }

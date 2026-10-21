@@ -908,4 +908,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Оттенок",
     "Clarity" to
         "Четкость",
+    "Couldn't load fonts" to
+        "Не удалось загрузить шрифты",
+    "No fonts here yet" to
+        "Здесь пока нет шрифтов",
 )

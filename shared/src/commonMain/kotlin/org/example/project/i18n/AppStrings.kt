@@ -458,4 +458,6 @@ internal val AppStrings: List<String> = listOf(
     "Brush size",
     "Tint",
     "Clarity",
+    "Couldn't load fonts",
+    "No fonts here yet",
 )

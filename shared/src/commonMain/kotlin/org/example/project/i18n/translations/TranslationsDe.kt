@@ -908,4 +908,8 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Tönung",
     "Clarity" to
         "Klarheit",
+    "Couldn't load fonts" to
+        "Schriftarten konnten nicht geladen werden",
+    "No fonts here yet" to
+        "Hier gibt es noch keine Schriftarten",
 )
