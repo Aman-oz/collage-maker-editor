@@ -69,6 +69,7 @@ internal fun DrawScope.drawImageScaled(
     dstSize: IntSize,
     blendMode: BlendMode = BlendMode.SrcOver,
     colorFilter: ColorFilter? = null,
+    alpha: Float = 1f,
 ) {
     drawIntoCanvas { canvas ->
         canvas.drawImageRect(
@@ -81,6 +82,7 @@ internal fun DrawScope.drawImageScaled(
                 filterQuality = FilterQuality.High
                 this.blendMode = blendMode
                 this.colorFilter = colorFilter
+                this.alpha = alpha
             },
         )
     }
@@ -91,7 +93,7 @@ internal fun DrawScope.drawImageScaled(
  * gets for free from the `Image` composable, but not from a raw `Canvas.drawImageRect` call) —
  * same [image]-must-be-a-bitmap-this-app-created caveat as [drawImageScaled].
  */
-internal fun DrawScope.drawImageCropped(image: ImageBitmap, dstOffset: IntOffset, dstSize: IntSize) {
+internal fun DrawScope.drawImageCropped(image: ImageBitmap, dstOffset: IntOffset, dstSize: IntSize, alpha: Float = 1f) {
     val sourceWidth = image.width.toFloat()
     val sourceHeight = image.height.toFloat()
     val destAspect = dstSize.width.toFloat() / dstSize.height.toFloat()
@@ -115,7 +117,10 @@ internal fun DrawScope.drawImageCropped(image: ImageBitmap, dstOffset: IntOffset
             srcSize = IntSize(cropWidth.roundToInt().coerceAtLeast(1), cropHeight.roundToInt().coerceAtLeast(1)),
             dstOffset = dstOffset,
             dstSize = dstSize,
-            paint = Paint().apply { filterQuality = FilterQuality.High },
+            paint = Paint().apply {
+                filterQuality = FilterQuality.High
+                this.alpha = alpha
+            },
         )
     }
 }
@@ -147,4 +152,26 @@ internal fun scaledBitmap(source: ImageBitmap, width: Int, height: Int): ImageBi
         paint = Paint().apply { filterQuality = FilterQuality.High },
     )
     return scaled
+}
+
+/**
+ * Up to [grid] x [grid] pixels of [source] (ARGB), picked evenly across it, for judging its overall
+ * colour cheaply. Read one by one rather than through a scaled-down copy, which a platform-decoded
+ * bitmap may not draw reliably (see [copyBitmap]).
+ */
+internal fun sampledPixels(source: ImageBitmap, grid: Int = 24): IntArray {
+    if (source.width <= 0 || source.height <= 0) return IntArray(0)
+    val columns = minOf(grid, source.width)
+    val rows = minOf(grid, source.height)
+    val out = IntArray(columns * rows)
+    val one = IntArray(1)
+    for (row in 0 until rows) {
+        val y = ((row + 0.5f) * source.height / rows).toInt().coerceIn(0, source.height - 1)
+        for (column in 0 until columns) {
+            val x = ((column + 0.5f) * source.width / columns).toInt().coerceIn(0, source.width - 1)
+            source.readPixels(one, startX = x, startY = y, width = 1, height = 1)
+            out[row * columns + column] = one[0]
+        }
+    }
+    return out
 }

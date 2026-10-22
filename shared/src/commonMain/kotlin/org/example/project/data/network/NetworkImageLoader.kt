@@ -9,6 +9,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.example.project.data.cache.AssetCache
@@ -50,11 +51,36 @@ class NetworkImageLoader(private val client: HttpClient, private val assetCache:
             inFlight.getOrPut(key) {
                 scope.async {
                     val bitmap = runCatching {
-                        if (svg) rasterizeSvg(svgSource(url), svgSidePx) else decodeImageBitmap(fetch(url))
+                        // A picture kept on the disk (a frame or background used before) is read from there.
+                        if (svg) rasterizeSvg(svgSource(url), svgSidePx) else decodeImageBitmap(assetCache.keptBytes(url) ?: fetch(url))
                     }.getOrNull()
                     mutex.withLock {
                         inFlight.remove(key)
                         if (bitmap != null) cache[key] = bitmap
+                    }
+                    bitmap
+                }
+            }
+        }
+        return download.await()
+    }
+
+    /**
+     * [url]'s picture through [AssetCache]: from the disk when kept, else downloaded with its progress
+     * reported (the ring on its cell), and kept on the disk when [keep]. Decoded once, like [load].
+     * Asking to keep starts its own kept download beside the decode, sharing the cache's one download,
+     * so a picture already decoded (or being decoded for a caller who didn't ask) is still kept.
+     */
+    suspend fun loadAsset(url: String, keep: Boolean): ImageBitmap? {
+        if (keep) scope.launch { if (!assetCache.isKept(url)) runCatching { assetCache.bytes(url, keep = true) } }
+        val download = mutex.withLock {
+            cache[url]?.let { return it }
+            inFlight.getOrPut(url) {
+                scope.async {
+                    val bitmap = runCatching { decodeImageBitmap(assetCache.bytes(url, keep = false)) }.getOrNull()
+                    mutex.withLock {
+                        inFlight.remove(url)
+                        if (bitmap != null) cache[url] = bitmap
                     }
                     bitmap
                 }

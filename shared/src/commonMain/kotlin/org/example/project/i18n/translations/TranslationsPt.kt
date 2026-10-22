@@ -888,6 +888,8 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Figurinhas",
     "Couldn't load stickers" to
         "Não foi possível carregar as figurinhas",
+    "Couldn't load backgrounds" to
+        "Não foi possível carregar os fundos",
     "No stickers here yet" to
         "Ainda não há figurinhas aqui",
     "Reshape" to

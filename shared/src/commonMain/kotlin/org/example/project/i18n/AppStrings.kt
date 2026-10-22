@@ -448,6 +448,7 @@ internal val AppStrings: List<String> = listOf(
     "Tap a photo to select it",
     "Stickers",
     "Couldn't load stickers",
+    "Couldn't load backgrounds",
     "No stickers here yet",
     "Reshape",
     "Effects",

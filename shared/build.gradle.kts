@@ -57,6 +57,8 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
     @get:Input abstract val layoutsCategoryId: Property<String>
     @get:Input abstract val stickersSuperCategoryId: Property<String>
     @get:Input abstract val fontsSuperCategoryId: Property<String>
+    @get:Input abstract val bordersSuperCategoryId: Property<String>
+    @get:Input abstract val backgroundsSuperCategoryId: Property<String>
     @get:Input abstract val apiKey: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
@@ -80,6 +82,8 @@ abstract class GenerateCentralDataConfig : DefaultTask() {
             |    const val LAYOUTS_CATEGORY_ID: String = ${literal(layoutsCategoryId.get())}
             |    const val STICKERS_SUPER_CATEGORY_ID: String = ${literal(stickersSuperCategoryId.get())}
             |    const val FONTS_SUPER_CATEGORY_ID: String = ${literal(fontsSuperCategoryId.get())}
+            |    const val BORDERS_SUPER_CATEGORY_ID: String = ${literal(bordersSuperCategoryId.get())}
+            |    const val BACKGROUNDS_SUPER_CATEGORY_ID: String = ${literal(backgroundsSuperCategoryId.get())}
             |    const val API_KEY: String = ${literal(apiKey.get())}
             |}
             |""".trimMargin(),
@@ -119,6 +123,8 @@ val generateCentralDataConfig = tasks.register<GenerateCentralDataConfig>("gener
     layoutsCategoryId = withDefault("CENTRAL_DATA_LAYOUTS_CATEGORY_ID", "6ad5c7b6447c5832f735d4a2")
     stickersSuperCategoryId = withDefault("CENTRAL_DATA_STICKERS_SUPER_CATEGORY_ID", "6ad626b4892f28f45336c303")
     fontsSuperCategoryId = withDefault("CENTRAL_DATA_FONTS_SUPER_CATEGORY_ID", "6ad76edf892f28f45336c39d")
+    bordersSuperCategoryId = withDefault("CENTRAL_DATA_BORDERS_SUPER_CATEGORY_ID", "6ad8a642256d4841e4f94e33")
+    backgroundsSuperCategoryId = withDefault("CENTRAL_DATA_BACKGROUNDS_SUPER_CATEGORY_ID", "6ad8a84b256d4841e4f94e65")
     apiKey = localProperty("CENTRAL_DATA_API_KEY", "COLLAGES_API_KEY")
     outputDir = layout.buildDirectory.dir("generated/centralDataConfig/kotlin")
 }

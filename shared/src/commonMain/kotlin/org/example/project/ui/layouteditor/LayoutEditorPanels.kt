@@ -34,6 +34,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import org.example.project.ui.common.DownloadRing
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import org.example.project.data.cache.AssetCache
+import org.koin.compose.koinInject
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,6 +53,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.TextButton
+import org.example.project.ui.text.LocalTextPanelSideBySide
+import org.example.project.ui.text.PanelSegmentedTabs
 import org.example.project.ui.text.PanelSlider
 import org.example.project.ui.text.PanelSliderRow
 import org.example.project.ui.text.TextPanelColumn
@@ -71,7 +88,6 @@ import org.example.project.ui.common.springBounce
 import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.frame.FrameColorNone
 import org.example.project.ui.frame.FrameColors
-import org.example.project.ui.freestyle.FreestyleBackgroundColors
 import org.example.project.ui.freestyle.StickersPanel
 import org.example.project.ui.freestyle.freestyleChrome
 import org.jetbrains.compose.resources.painterResource
@@ -126,6 +142,8 @@ internal fun LayoutOptionPanel(
     edit: LayoutEdit,
     templates: List<TemplateItem>,
     premiumLayouts: Set<String>,
+    frameLoad: LayoutArtLoad,
+    backgroundLoad: LayoutArtLoad,
     chrome: LayoutChrome,
     selectedPhotoSlot: Int?,
     actions: LayoutEditorActions,
@@ -156,7 +174,7 @@ internal fun LayoutOptionPanel(
         }
         LayoutOption.Margin -> MarginPanel(edit, chrome, actions, onClose, onDone)
         LayoutOption.Border -> BorderPanel(edit, chrome, actions, onClose, onDone)
-        LayoutOption.Frame -> FramePanel(edit, chrome, actions, onClose, onDone)
+        LayoutOption.Frame -> FramePanel(edit, frameLoad, chrome, actions, onClose, onDone)
         LayoutOption.Transform -> if (selectedPhotoSlot == null || photo == null) {
             NoPhotoPanel(option.label, chrome, onClose, onDone)
         } else {
@@ -212,10 +230,7 @@ internal fun LayoutOptionPanel(
                 onDone = onDone,
             )
         }
-        LayoutOption.Background -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
-            BackgroundPanel(selected = edit.background, chrome = chrome, onSelected = actions::setBackground)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
+        LayoutOption.Background -> BackgroundPanel(edit, backgroundLoad, chrome, actions, onClose, onDone)
         LayoutOption.Emoji -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
             Box(modifier = Modifier.fillMaxWidth().height(EmojiPanelHeight)) {
                 StickersPanel(chrome = freestyleChrome(), onStickerTapped = onStickerTapped, showHeader = false)
@@ -380,146 +395,518 @@ private fun MarginPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutE
 private enum class BorderProperty(private val englishLabel: String) {
     Thickness("Thickness"),
     Opacity("Opacity"),
-    Color("Color"),
     ;
 
     val label: String get() = tr(englishLabel)
 }
 
-/** The outline round every slot: its thickness, its opacity, or its colour. */
+/**
+ * The outline round every slot: its thickness or opacity on the slider (picked by the chips at the
+ * foot) over a grid of colours, led by the colour picker and a checkerboard that takes it off.
+ */
 @Composable
 private fun BorderPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions, onClose: () -> Unit, onDone: () -> Unit) {
     var property by rememberSaveable { mutableStateOf(BorderProperty.Thickness) }
-    PropertyPanel(tr("Border"), BorderProperty.entries, property, { it.label }, chrome, { property = it }, onClose, onDone) {
-        when (property) {
-            BorderProperty.Thickness -> key(property) {
-                PanelSliderRow(percentSlider(property.label, edit.borderWidth, LayoutBorderWidthRange, actions::setBorderWidth))
-            }
-            BorderProperty.Opacity -> key(property) {
-                PanelSliderRow(percentSlider(property.label, edit.borderOpacity, LayoutBorderOpacityRange, actions::setBorderOpacity))
-            }
-            BorderProperty.Color -> ColorRow(colors = LineColors, selected = edit.borderColor, onSelected = actions::setBorderColor)
-        }
+    TextPanelColumn(title = tr("Border"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Fill) {
+        ColorTabBody(
+            slider = when (property) {
+                BorderProperty.Thickness -> percentSlider(property.label, edit.borderWidth, LayoutBorderWidthRange, actions::setBorderWidth)
+                BorderProperty.Opacity -> percentSlider(property.label, edit.borderOpacity, LayoutBorderOpacityRange, actions::setBorderOpacity)
+            },
+            sliderKey = property,
+            selected = edit.borderColor,
+            none = edit.borderWidth <= 0f,
+            onSelected = actions::setBorderColor,
+            properties = BorderProperty.entries,
+            selectedProperty = property,
+            propertyLabel = { it.label },
+            onPropertySelected = { property = it },
+            chrome = chrome,
+            modifier = panelBodyModifier(),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
-/** The frame colours without None: a border is turned off by its thickness. */
-private val LineColors: List<Color> = FrameColors.map { it.color }.filter { it != FrameColorNone }
+private enum class FrameTab(private val englishLabel: String) {
+    Color("Color"),
+    Frame("Frame"),
+    ;
+
+    val label: String get() = tr(englishLabel)
+}
 
 private enum class FrameProperty(private val englishLabel: String) {
     Width("Width"),
     CornerRadius("Corner Radius"),
-    Color("Color"),
     ;
 
     val label: String get() = tr(englishLabel)
 }
 
-/** The photo editor's frame, round the whole canvas: its width, its corners, or its colour (or None). */
+/**
+ * The Frame option, in two tabs over the whole canvas. Color: the photo editor's plain frame, its
+ * width or corner radius on the slider (picked by the chips at the foot) over a grid of colours,
+ * whose checkerboard takes it off. Frame: the server's decorative frames ([LayoutArt]), read
+ * when the tab first opens, in a grid over the sub-category tiles (after a search button, not wired
+ * yet) and the category pills. Tapping the frame in use again takes it off.
+ *
+ * Under the canvas the area under the tabs is one fixed height for both, so nothing moves when they
+ * switch; beside it the area takes the column's spare height.
+ */
 @Composable
-private fun FramePanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions, onClose: () -> Unit, onDone: () -> Unit) {
-    var property by rememberSaveable { mutableStateOf(FrameProperty.Width) }
-    PropertyPanel(tr("Frame"), FrameProperty.entries, property, { it.label }, chrome, { property = it }, onClose, onDone) {
-        when (property) {
-            FrameProperty.Width -> key(property) {
-                PanelSliderRow(percentSlider(property.label, edit.frameWidth, LayoutFrameWidthRange, actions::setFrameWidth))
-            }
-            FrameProperty.CornerRadius -> key(property) {
-                PanelSliderRow(percentSlider(property.label, edit.frameCorner, LayoutFrameCornerRange, actions::setFrameCorner))
-            }
-            FrameProperty.Color -> ColorRow(colors = FrameColors.map { it.color }, selected = edit.frameColor, onSelected = actions::setFrameColor)
-        }
-    }
-}
-
-private val BackgroundSwatchSize = 50.dp
-private val BackgroundSwatchSpacing = 10.dp
-
-/** The background colours: two rows scrolling sideways, led by the custom colour swatch spanning both. */
-@Composable
-private fun BackgroundPanel(selected: Color, chrome: LayoutChrome, onSelected: (Color) -> Unit) {
-    val pickCustomColor = rememberColorPickerLauncher(initial = selected, onPicked = onSelected)
-    LazyHorizontalGrid(
-        rows = GridCells.Fixed(2),
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-        verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-        modifier = Modifier.fillMaxWidth().height(BackgroundSwatchSize * 2 + BackgroundSwatchSpacing),
-    ) {
-        // It spans both rows, so the colour pairs after it stay aligned. It is the one ringed while
-        // the background is a colour of the user's own.
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            ColorTile(
-                selected = selected !in FreestyleBackgroundColors,
-                chrome = chrome,
-                height = BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
-                onClick = pickCustomColor,
-            ) { ColorPickerFill(it) }
-        }
-        items(FreestyleBackgroundColors) { color ->
-            ColorTile(selected = color == selected, chrome = chrome, onClick = { onSelected(color) }) {
-                Box(modifier = it.background(color))
-            }
-        }
-    }
-}
-
-/** [fill] paints the tile inside its selection ring; it is handed the modifier that sizes it. */
-@Composable
-private fun ColorTile(
-    selected: Boolean,
+private fun FramePanel(
+    edit: LayoutEdit,
+    frameLoad: LayoutArtLoad,
     chrome: LayoutChrome,
-    onClick: () -> Unit,
-    height: Dp = BackgroundSwatchSize,
-    fill: @Composable (Modifier) -> Unit,
+    actions: LayoutEditorActions,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
 ) {
-    val outer = RoundedCornerShape(12.dp)
-    val inner = RoundedCornerShape(9.dp)
-    val bounce = rememberSpringBounce()
-    Box(
-        modifier = Modifier
-            .springBounce(bounce)
-            .size(width = BackgroundSwatchSize, height = height)
-            .clip(outer)
-            .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
-            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
-            .padding(4.dp)
-            .clip(inner)
-            .border(1.dp, chrome.content.copy(alpha = 0.08f), inner),
-    ) {
-        fill(Modifier.matchParentSize())
+    var tab by rememberSaveable { mutableStateOf(FrameTab.Color) }
+    var property by rememberSaveable { mutableStateOf(FrameProperty.Width) }
+    LaunchedEffect(tab) { if (tab == FrameTab.Frame) actions.loadFrameArt() }
+
+    TextPanelColumn(title = tr("Frame"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Fill) {
+        PanelSegmentedTabs(
+            labels = FrameTab.entries.map { it.label },
+            selectedIndex = tab.ordinal,
+            onSelected = { tab = FrameTab.entries[it] },
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        when (tab) {
+            FrameTab.Color -> ColorTabBody(
+                slider = when (property) {
+                    FrameProperty.Width -> percentSlider(property.label, edit.frameWidth, LayoutFrameWidthRange, actions::setFrameWidth)
+                    FrameProperty.CornerRadius -> percentSlider(property.label, edit.frameCorner, LayoutFrameCornerRange, actions::setFrameCorner)
+                },
+                sliderKey = property,
+                selected = edit.frameColor,
+                none = edit.frameColor == FrameColorNone,
+                onSelected = actions::setFrameColor,
+                properties = FrameProperty.entries,
+                selectedProperty = property,
+                propertyLabel = { it.label },
+                onPropertySelected = { property = it },
+                chrome = chrome,
+                modifier = panelBodyModifier(),
+            )
+            FrameTab.Frame -> ArtLibraryBody(
+                load = frameLoad,
+                selected = edit.frameArt,
+                cellAspect = FrameArtCellAspect,
+                contentScale = ContentScale.Fit,
+                failedMessage = tr("Couldn't load frames"),
+                chrome = chrome,
+                onSelected = { art -> actions.setFrameArt(art.takeUnless { it.id == edit.frameArt?.id }) },
+                onRetry = actions::loadFrameArt,
+                modifier = panelBodyModifier(),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 /**
- * A row of colour swatches led by the custom colour one, which is ringed while [selected] is none of
- * [colors]. [FrameColorNone] in [colors] shows as a slashed swatch.
+ * The area under a panel's bar (and tabs): one fixed height under the canvas, so every tab's
+ * controls fill the same room; beside it, the column's spare height.
  */
 @Composable
-private fun ColorRow(colors: List<Color>, selected: Color, onSelected: (Color) -> Unit) {
-    val pickCustomColor = rememberColorPickerLauncher(
-        // None is transparent, which is no colour to open a picker on.
-        initial = if (selected == FrameColorNone) Color.White else selected,
-        onPicked = onSelected,
-    )
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item {
-            SelectableSwatch(selected = selected !in colors, size = ColorSwatchSize, onClick = pickCustomColor) {
-                ColorPickerFill(Modifier.fillMaxSize())
-            }
-        }
-        items(colors) { color ->
-            SelectableSwatch(selected = color == selected, size = ColorSwatchSize, onClick = { onSelected(color) }) {
-                ColorSwatchFill(color)
+private fun ColumnScope.panelBodyModifier(): Modifier =
+    if (LocalTextPanelSideBySide.current) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(PanelBodyHeight)
+
+/** Under the canvas: a slider over two rows of colours and the chips under them. */
+private val PanelBodyHeight = 214.dp
+private val PanelFootHeight = 36.dp
+
+/**
+ * A Color tab: [slider] (keyed by [sliderKey], so each property's slider starts from its own value)
+ * over a grid of colours, and at the foot the chips that pick which property the slider sets (none
+ * with a single property).
+ */
+@Composable
+private fun <T> ColorTabBody(
+    slider: PanelSlider,
+    sliderKey: Any,
+    selected: Color,
+    none: Boolean,
+    onSelected: (Color) -> Unit,
+    properties: List<T>,
+    selectedProperty: T,
+    propertyLabel: (T) -> String,
+    onPropertySelected: (T) -> Unit,
+    chrome: LayoutChrome,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        key(sliderKey) { PanelSliderRow(slider) }
+        Spacer(modifier = Modifier.height(6.dp))
+        LineColorGrid(selected = selected, none = none, onSelected = onSelected, modifier = Modifier.fillMaxWidth().weight(1f))
+        // A single property needs no chips; the colours take their room.
+        if (properties.size > 1) Spacer(modifier = Modifier.height(10.dp))
+        if (properties.size > 1) ChipRow {
+            for (p in properties) {
+                Chip(label = propertyLabel(p), selected = p == selectedProperty, chrome = chrome, onClick = { onPropertySelected(p) })
             }
         }
     }
 }
 
-private val ColorSwatchSize = 44.dp
+/** A row of chips at a panel's foot, scrolling sideways when they don't fit. */
+@Composable
+private fun ChipRow(content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(PanelFootHeight)
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) { content() }
+}
+
+/** The frame colours without None, which the checkerboard swatch stands for. */
+private val LineColors: List<Color> = FrameColors.map { it.color }.filter { it != FrameColorNone }
+
+/**
+ * Colours in rows that scroll down: the colour picker (ringed while the colour is one of the user's
+ * own), the checkerboard ([FrameColorNone], ringed while [none]), then [LineColors]. [selected]
+ * `Color.Unspecified` rings none of them.
+ */
+@Composable
+private fun LineColorGrid(selected: Color, none: Boolean, onSelected: (Color) -> Unit, modifier: Modifier = Modifier) {
+    val pickCustomColor = rememberColorPickerLauncher(
+        // None is transparent, and Unspecified no colour at all: neither is one to open a picker on.
+        initial = if (selected == FrameColorNone || selected == Color.Unspecified) Color.White else selected,
+        onPicked = onSelected,
+    )
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(ColorSwatchSize + 4.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier,
+    ) {
+        item {
+            Box(contentAlignment = Alignment.Center) {
+                SelectableSwatch(
+                    selected = !none && selected != Color.Unspecified && selected !in LineColors,
+                    size = ColorSwatchSize,
+                    onClick = pickCustomColor,
+                ) {
+                    ColorPickerFill(Modifier.fillMaxSize())
+                }
+            }
+        }
+        item {
+            Box(contentAlignment = Alignment.Center) {
+                SelectableSwatch(selected = none, size = ColorSwatchSize, onClick = { onSelected(FrameColorNone) }) {
+                    Checkerboard(Modifier.fillMaxSize())
+                }
+            }
+        }
+        items(LineColors) { color ->
+            Box(contentAlignment = Alignment.Center) {
+                SelectableSwatch(selected = !none && color == selected, size = ColorSwatchSize, onClick = { onSelected(color) }) {
+                    ColorSwatchFill(color)
+                }
+            }
+        }
+    }
+}
+
+private val ColorSwatchSize = 46.dp
+
+/** The transparency checkerboard, standing for no colour. */
+@Composable
+private fun Checkerboard(modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val dark = Color(0xFFD5D5DA)
+    Canvas(modifier = modifier.border(1.dp, scheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(SwatchInnerCorner))) {
+        drawRect(Color.White)
+        val cells = 4
+        val cell = size.width / cells
+        for (row in 0 until cells) {
+            for (col in 0 until cells) {
+                if ((row + col) % 2 == 1) drawRect(dark, topLeft = Offset(col * cell, row * cell), size = Size(cell, cell))
+            }
+        }
+    }
+}
+
+/**
+ * A server library's tab (Frame, Background): a spinner while [load] is in flight, Retry under
+ * [failedMessage] if it failed, else the picked sub-category's pictures in a grid of [cellAspect]
+ * cells (each drawn with [contentScale]), over a row of the search button and the sub-category
+ * tiles, and the category pills at the foot.
+ */
+@Composable
+private fun ArtLibraryBody(
+    load: LayoutArtLoad,
+    selected: LayoutArt?,
+    cellAspect: Float,
+    contentScale: ContentScale,
+    failedMessage: String,
+    chrome: LayoutChrome,
+    onSelected: (LayoutArt) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var subcategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    when (load) {
+        LayoutArtLoad.Loading -> Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = chrome.accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+        }
+        LayoutArtLoad.Failed -> Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(text = failedMessage, color = chrome.muted, style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onRetry) { Text(tr("Retry"), color = chrome.accent) }
+        }
+        is LayoutArtLoad.Ready -> {
+            val categories = load.categories
+            val category = categories.firstOrNull { it.id == categoryId } ?: categories.firstOrNull()
+            val subcategory = category?.subcategories?.let { subs -> subs.firstOrNull { it.id == subcategoryId } ?: subs.firstOrNull() }
+            val sideBySide = LocalTextPanelSideBySide.current
+            Column(modifier = modifier) {
+                LazyVerticalGrid(
+                    columns = if (sideBySide) GridCells.Adaptive(96.dp) else GridCells.Fixed(4),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ArtSpacing),
+                    verticalArrangement = Arrangement.spacedBy(ArtSpacing),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                ) {
+                    items(subcategory?.items.orEmpty(), key = { it.id }) { art ->
+                        ArtCell(
+                            art = art,
+                            selected = art.id == selected?.id,
+                            contentScale = contentScale,
+                            chrome = chrome,
+                            onClick = { onSelected(art) },
+                            modifier = Modifier.aspectRatio(cellAspect),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().height(ArtTileHeight),
+                ) {
+                    item { LibrarySearchButton(chrome) }
+                    items(category?.subcategories.orEmpty(), key = { it.id }) { sub ->
+                        ArtSubcategoryTile(
+                            subcategory = sub,
+                            selected = sub.id == subcategory?.id,
+                            chrome = chrome,
+                            onClick = { subcategoryId = sub.id },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ChipRow {
+                    for (c in categories) {
+                        Chip(
+                            label = c.name,
+                            selected = c.id == category?.id,
+                            chrome = chrome,
+                            onClick = {
+                                categoryId = c.id
+                                subcategoryId = null
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A frame cell is 4:5, the shape of most frames (a taller one is fitted inside); a background's is square. */
+private const val FrameArtCellAspect = 0.8f
+private const val BackgroundArtCellAspect = 1f
+private val ArtSpacing = 8.dp
+private val ArtTileHeight = 58.dp
+
+/** One picture's thumbnail, ringed while [selected], crowned if premium. */
+@Composable
+private fun ArtCell(
+    art: LayoutArt,
+    selected: Boolean,
+    contentScale: ContentScale,
+    chrome: LayoutChrome,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(10.dp)
+    val bounce = rememberSpringBounce()
+    // The picture's download into the disk cache, started by a tap on a free one.
+    val assetCache = koinInject<AssetCache>()
+    val download by remember(art.imageUrl) { assetCache.progressOf(art.imageUrl) }.collectAsState(null)
+    Box(
+        modifier = modifier
+            .springBounce(bounce)
+            .clip(shape)
+            .background(if (selected) chrome.accent.copy(alpha = 0.12f) else chrome.content.copy(alpha = 0.05f))
+            .border(2.dp, if (selected) chrome.accent else Color.Transparent, shape)
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
+            .padding(4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        NetworkImage(
+            url = art.thumbnailUrl,
+            contentDescription = art.name,
+            contentScale = contentScale,
+            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(7.dp)),
+        )
+        if (art.isPremium) {
+            Image(
+                painter = painterResource(Res.drawable.ic_premium_icon),
+                contentDescription = tr("Premium"),
+                modifier = Modifier.align(Alignment.TopEnd).size(16.dp),
+            )
+        }
+        DownloadRing(progress = download, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+    }
+}
+
+/** The search button before the sub-category tiles; it does nothing yet. */
+@Composable
+private fun LibrarySearchButton(chrome: LayoutChrome) {
+    val bounce = rememberSpringBounce()
+    Box(
+        modifier = Modifier
+            .springBounce(bounce)
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(chrome.content.copy(alpha = 0.06f))
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = {}),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(imageVector = Icons.Filled.Search, contentDescription = tr("Search"), tint = chrome.content, modifier = Modifier.size(22.dp))
+    }
+}
+
+/** A sub-category tile: its first picture over its name, tinted while [selected]. */
+@Composable
+private fun ArtSubcategoryTile(subcategory: LayoutArtSubcategory, selected: Boolean, chrome: LayoutChrome, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    val bounce = rememberSpringBounce()
+    Column(
+        modifier = Modifier
+            .springBounce(bounce)
+            .width(92.dp)
+            .fillMaxHeight()
+            .clip(shape)
+            .background(if (selected) chrome.accent.copy(alpha = 0.12f) else chrome.content.copy(alpha = 0.05f))
+            .border(1.5.dp, if (selected) chrome.accent else Color.Transparent, shape)
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        NetworkImage(
+            url = subcategory.items.first().thumbnailUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(26.dp),
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = subcategory.name,
+            color = if (selected) chrome.accent else chrome.content,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private enum class BackgroundTab(private val englishLabel: String) {
+    Color("Color"),
+    Background("Background"),
+    ;
+
+    val label: String get() = tr(englishLabel)
+}
+
+/** The Color tab's one slider. */
+private enum class BackgroundProperty(private val englishLabel: String) {
+    Opacity("Opacity"),
+    ;
+
+    val label: String get() = tr(englishLabel)
+}
+
+/**
+ * The Background option, in two tabs behind the slots. Color: the opacity slider over a grid of
+ * colours, whose checkerboard leaves the canvas transparent; picking one takes a background
+ * picture off. Background: the server's backgrounds ([LayoutArt], cropped to fill the canvas), read
+ * when the tab first opens, laid out as the Frame tab's. Tapping the one in use again goes back to
+ * the colour. The opacity is the background's, colour or picture.
+ */
+@Composable
+private fun BackgroundPanel(
+    edit: LayoutEdit,
+    backgroundLoad: LayoutArtLoad,
+    chrome: LayoutChrome,
+    actions: LayoutEditorActions,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+) {
+    var tab by rememberSaveable { mutableStateOf(BackgroundTab.Color) }
+    LaunchedEffect(tab) { if (tab == BackgroundTab.Background) actions.loadBackgroundArt() }
+
+    TextPanelColumn(title = tr("Background"), onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Fill) {
+        PanelSegmentedTabs(
+            labels = BackgroundTab.entries.map { it.label },
+            selectedIndex = tab.ordinal,
+            onSelected = { tab = BackgroundTab.entries[it] },
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        when (tab) {
+            BackgroundTab.Color -> ColorTabBody(
+                slider = percentSlider(
+                    BackgroundProperty.Opacity.label,
+                    edit.backgroundOpacity,
+                    LayoutBackgroundOpacityRange,
+                    actions::setBackgroundOpacity,
+                ),
+                sliderKey = BackgroundProperty.Opacity,
+                // A picture in use is no colour of the grid's.
+                selected = if (edit.backgroundArt == null) edit.background else Color.Unspecified,
+                none = edit.backgroundArt == null && edit.background.alpha == 0f,
+                onSelected = actions::setBackground,
+                properties = BackgroundProperty.entries,
+                selectedProperty = BackgroundProperty.Opacity,
+                propertyLabel = { it.label },
+                onPropertySelected = {},
+                chrome = chrome,
+                modifier = panelBodyModifier(),
+            )
+            BackgroundTab.Background -> ArtLibraryBody(
+                load = backgroundLoad,
+                selected = edit.backgroundArt,
+                cellAspect = BackgroundArtCellAspect,
+                contentScale = ContentScale.Crop,
+                failedMessage = tr("Couldn't load backgrounds"),
+                chrome = chrome,
+                onSelected = { art -> actions.setBackgroundArt(art.takeUnless { it.id == edit.backgroundArt?.id }) },
+                onRetry = actions::loadBackgroundArt,
+                modifier = panelBodyModifier(),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
 
 @Composable
 private fun ColorSwatchFill(color: Color) {

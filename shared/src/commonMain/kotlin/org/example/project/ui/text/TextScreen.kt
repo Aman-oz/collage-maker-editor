@@ -86,6 +86,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import org.example.project.ui.common.sampledPixels
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -264,9 +267,17 @@ private fun TextContent(
     // not: coming back, the texts are simply there. The tool opens on the texts already on the photo;
     // opened from the toolbar rather than a tap on one of them, it starts typing a new one after them.
     val firstNewId = (initialTexts?.items?.maxOfOrNull { it.id } ?: -1L) + 1L
+    // New texts start white, or black on a light picture (a blank layout, say), where white wouldn't show.
+    val stageBackdrop = scheme.onSurface.copy(alpha = 0.08f).compositeOver(scheme.surface)
+    val darkText = remember(sourceImage) { sourceImage != null && prefersDarkText(sampledPixels(sourceImage), stageBackdrop.luminance()) }
+    val newTextColorArgb = if (darkText) Color.Black.toArgb() else DefaultTextColorArgb
+    // The typing outline and "Your Text" hint in the same colour, so they show too.
+    val typingChrome = if (darkText) Color.Black else Color.White
     var items by rememberSaveable(stateSaver = TextItemsSaver) {
         val existing = initialTexts?.items.orEmpty()
-        mutableStateOf(if (sourceImage != null && selectedTextId == null) existing + TextItem(id = firstNewId) else existing)
+        mutableStateOf(
+            if (sourceImage != null && selectedTextId == null) existing + TextItem(id = firstNewId, colorArgb = newTextColorArgb) else existing,
+        )
     }
     var nextId by rememberSaveable { mutableLongStateOf(firstNewId + 1L) }
     var selectedId by rememberSaveable { mutableStateOf(selectedTextId) }
@@ -337,7 +348,7 @@ private fun TextContent(
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     val addText = {
-        val item = TextItem(id = nextId++)
+        val item = TextItem(id = nextId++, colorArgb = newTextColorArgb)
         items = items + item
         selectedId = item.id
         editingId = item.id
@@ -541,6 +552,7 @@ private fun TextContent(
                                         item = item,
                                         style = item.textStyle(font, density),
                                         editing = editingId == item.id,
+                                        chrome = typingChrome,
                                         onContentChange = { text -> update(item.id) { it.copy(content = text) } },
                                         onEditingEnd = {
                                             editingId = null
@@ -824,6 +836,8 @@ private fun TextContent(
         // Fades rather than vanishing, so it is seen riding down with the keyboard (its IME padding
         // follows the keyboard's slide) when the Font panel takes over.
         val editing = items.firstOrNull { it.id == editingId }
+        // The text as it was when typing began, for the keyboard bar's ✕.
+        val beforeTyping = remember(editingId) { editing }
         AnimatedVisibility(
             visible = editing != null,
             enter = fadeIn(tween(160)),
@@ -844,6 +858,17 @@ private fun TextContent(
                 onAlignmentSelected = { alignment -> update(editingId) { it.copy(alignment = alignment) } },
                 onPickColor = pickColor,
                 onShowAllFonts = { openPanel(TextPanel.Fonts) },
+                // ✓ keeps what was typed (focus loss ends the typing, dropping a blank text); ✕
+                // puts the text back as it was, or takes a new one away.
+                onDone = { focusManager.clearFocus() },
+                onCancel = {
+                    val id = editingId
+                    val before = beforeTyping
+                    if (id != null) {
+                        if (before == null || before.content.isBlank()) removeText(id) else update(id) { before }
+                    }
+                    focusManager.clearFocus()
+                },
             )
         }
 
@@ -902,6 +927,8 @@ private fun TextLayer(
     item: TextItem,
     style: TextStyle,
     editing: Boolean,
+    // The typing outline's and hint's colour, set against the picture.
+    chrome: Color,
     onContentChange: (String) -> Unit,
     onEditingEnd: () -> Unit,
     photoWidthPx: Int,
@@ -957,7 +984,7 @@ private fun TextLayer(
     Box(
         modifier = modifier
             .onSizeChanged { outer = it }
-            .then(if (editing) Modifier.dashedPill(color = Color.White.copy(alpha = 0.9f)) else Modifier)
+            .then(if (editing) Modifier.dashedPill(color = chrome.copy(alpha = 0.9f)) else Modifier)
             .padding(horizontal = TextLayerPaddingX + platePaddingX, vertical = TextLayerPaddingY + bendPaddingY + platePaddingY)
             .then(areaModifier),
         contentAlignment = Alignment.Center,
@@ -998,7 +1025,7 @@ private fun TextLayer(
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.Center) {
                         if (item.content.isEmpty()) {
-                            Text(text = tr("Your Text"), style = style.copy(color = Color.White.copy(alpha = 0.7f)), maxLines = 1)
+                            Text(text = tr("Your Text"), style = style.copy(color = chrome.copy(alpha = 0.7f)), maxLines = 1)
                         }
                         innerTextField()
                     }

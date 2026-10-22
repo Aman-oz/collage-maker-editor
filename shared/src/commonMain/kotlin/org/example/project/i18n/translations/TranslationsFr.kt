@@ -888,6 +888,8 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Stickers",
     "Couldn't load stickers" to
         "Impossible de charger les stickers",
+    "Couldn't load backgrounds" to
+        "Impossible de charger les arrière-plans",
     "No stickers here yet" to
         "Pas encore de stickers ici",
     "Reshape" to

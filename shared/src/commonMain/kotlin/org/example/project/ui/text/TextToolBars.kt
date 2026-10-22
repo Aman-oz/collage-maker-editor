@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.filled.FormatAlignRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FormatAlignCenter
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -349,6 +350,8 @@ internal fun TextKeyboardBar(
     onAlignmentSelected: (TextAlignOption) -> Unit,
     onPickColor: () -> Unit,
     onShowAllFonts: () -> Unit,
+    onDone: () -> Unit,
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -425,7 +428,31 @@ internal fun TextKeyboardBar(
                     )
                 }
             }
+            Spacer(Modifier.weight(1f))
+            KeyboardBarButton(icon = Icons.Filled.Close, label = tr("Cancel"), filled = false, onClick = onCancel)
+            KeyboardBarButton(icon = Icons.Filled.Check, label = tr("Done"), filled = true, onClick = onDone)
         }
+    }
+}
+
+/** The keyboard bar's ✕ / ✓: a round button, ✓ in the accent colour. */
+@Composable
+private fun KeyboardBarButton(icon: ImageVector, label: String, filled: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(if (filled) scheme.primary else scheme.onSurface.copy(alpha = 0.1f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (filled) scheme.onPrimary else scheme.onSurface,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 

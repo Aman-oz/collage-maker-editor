@@ -888,6 +888,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "스티커",
     "Couldn't load stickers" to
         "스티커를 불러올 수 없습니다",
+    "Couldn't load backgrounds" to
+        "배경을 불러올 수 없습니다",
     "No stickers here yet" to
         "아직 스티커가 없습니다",
     "Reshape" to

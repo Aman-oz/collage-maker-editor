@@ -28,6 +28,7 @@ import org.example.project.ui.home.HomeFeedRepository
 import org.example.project.ui.home.HomeFeedViewModel
 import org.example.project.ui.layouts.LayoutsRepository
 import org.example.project.ui.layouts.LayoutsViewModel
+import org.example.project.ui.layouteditor.LayoutArtLibrary
 import org.example.project.ui.layouteditor.LayoutEditorViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
@@ -82,6 +83,7 @@ val coreModule: Module = module {
     single { LayoutsRepository(get(), get()) }
     // The editor's sticker library (categories, sub-categories, stickers), kept for the process.
     single { StickersRepository(get()) }
+    single { LayoutArtLibrary(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -105,7 +107,7 @@ val viewModelModule: Module = module {
     // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
     viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get(), get()) }
     // The layout to open on comes from the navigation key.
-    viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get(), get()) }
+    viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get(), get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get(), get()) }
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
     viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }

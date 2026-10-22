@@ -3,6 +3,9 @@ package org.example.project.ui.layouteditor
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Stable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -109,6 +112,12 @@ import org.example.project.ui.ratio.RatioTool
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
+import org.example.project.data.network.NetworkImageLoader
+import org.example.project.ui.common.copyBitmap
+import org.koin.compose.koinInject
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.example.project.ui.stickers.PlacedSticker
 import org.example.project.ui.stickers.StickerLayersOverlay
 import org.example.project.ui.stickers.StickersToolOverlay
@@ -153,7 +162,7 @@ import photocollagemaker.shared.generated.resources.icon_margin
  * panel. Every panel fits it, so opening one never resizes the canvas — which would move every
  * sticker and text, since they sit at fractions of it.
  */
-private val LayoutPanelHeight = 248.dp
+private val LayoutPanelHeight = 340.dp
 
 /**
  * The glass bar's options. Text, Stickers, Filter and Ratio open the photo editor's tools over the screen;
@@ -195,6 +204,11 @@ internal interface LayoutEditorActions {
     fun setBorderWidth(value: Float) {}
     fun setBorderOpacity(value: Float) {}
     fun setBorderColor(color: Color) {}
+    fun setFrameArt(art: LayoutArt?) {}
+    fun loadFrameArt() {}
+    fun setBackgroundArt(art: LayoutArt?) {}
+    fun setBackgroundOpacity(value: Float) {}
+    fun loadBackgroundArt() {}
     fun setFrameColor(color: Color) {}
     fun setFrameWidth(value: Float) {}
     fun setFrameCorner(value: Float) {}
@@ -238,6 +252,8 @@ internal fun LayoutEditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val premiumLayouts by viewModel.premiumLayouts.collectAsStateWithLifecycle()
+    val frameLoad by viewModel.frameArtCategories.collectAsStateWithLifecycle()
+    val backgroundLoad by viewModel.backgroundArtCategories.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
     val stickers by viewModel.stickers.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -264,6 +280,8 @@ internal fun LayoutEditorScreen(
             uiState = uiState,
             templates = templates,
             premiumLayouts = premiumLayouts,
+            frameLoad = frameLoad,
+            backgroundLoad = backgroundLoad,
             texts = texts,
             stickers = stickers,
             isSubscribed = isPremium,
@@ -339,6 +357,8 @@ private fun LayoutEditorContent(
     uiState: LayoutEditorUiState,
     templates: List<TemplateItem>,
     premiumLayouts: Set<String>,
+    frameLoad: LayoutArtLoad,
+    backgroundLoad: LayoutArtLoad,
     texts: TextLayers?,
     stickers: List<PlacedSticker>,
     isSubscribed: Boolean,
@@ -529,7 +549,8 @@ private fun LayoutEditorContent(
 
                     // A premium layout can be tried by anyone; for a non-subscriber this bar under the
                     // canvas says so and leads to the paywall, as Done does.
-                    val onPremiumLayout = edit?.template?.title in premiumLayouts
+                    val onPremiumLayout = edit?.template?.title in premiumLayouts || edit?.frameArt?.isPremium == true ||
+                        edit?.backgroundArt?.isPremium == true
                     ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
                     PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
                 }
@@ -571,6 +592,8 @@ private fun LayoutEditorContent(
                                     edit = edit,
                                     templates = templates,
                                     premiumLayouts = premiumLayouts,
+                                    frameLoad = frameLoad,
+                                    backgroundLoad = backgroundLoad,
                                     chrome = chrome,
                                     selectedPhotoSlot = selectedPhotoSlot,
                                     actions = actions,
@@ -631,6 +654,12 @@ private fun LayoutStage(
             edit.slots(widthPx, heightPx)
         }
 
+        // The server pictures, drawn by drawLayout as they come in, as the bake draws them; each new
+        // one fades in over the one before (the frame settling into place), read only in the draw
+        // so the stage isn't recomposed on every frame of it.
+        val background = rememberArtTransition(rememberLayoutArtImage(edit.backgroundArt))
+        val frame = rememberArtTransition(rememberLayoutArtImage(edit.frameArt, trim = true))
+
         Box(modifier = Modifier.size(with(density) { widthPx.toDp() }, with(density) { heightPx.toDp() })) {
             Canvas(
                 modifier = Modifier
@@ -654,9 +683,20 @@ private fun LayoutStage(
                         )
                     },
             ) {
-                drawLayout(edit, slots, emptySlot = chrome.emptySlot)
+                val art = LayoutArtImages(
+                    background = background.current,
+                    frame = frame.current,
+                    transition = LayoutArtTransition(
+                        previousBackground = background.previous,
+                        backgroundProgress = background.progress.value,
+                        previousFrame = frame.previous,
+                        frameProgress = frame.progress.value,
+                    ),
+                )
+                drawLayout(edit, slots, emptySlot = chrome.emptySlot, art = art)
                 drawLayoutGuides(slots, edit.photos.keys, selectedSlot, chrome.accent)
             }
+
 
             // The ＋ in the middle of each empty slot. It takes no touches: the tap is the canvas's.
             for (g in slots) {
@@ -705,6 +745,51 @@ private fun LayoutStage(
 }
 
 private val AddBadgeSize = 36.dp
+
+/**
+ * [art]'s picture for the preview, copied once so it redraws reliably (see `copyBitmap`); null
+ * until it is in, or with no [art].
+ */
+@Composable
+private fun rememberLayoutArtImage(art: LayoutArt?, trim: Boolean = false): ImageBitmap? {
+    val loader: NetworkImageLoader = koinInject()
+    val url = art?.imageUrl
+    val image by produceState<ImageBitmap?>(null, url) {
+        value = url?.let { loader.loadAsset(it, keep = false) }?.let {
+            withContext(Dispatchers.Default) { copyBitmap(it).let { copy -> if (trim) trimFrameArt(copy) else copy } }
+        }
+    }
+    return image
+}
+
+/** A picture on the canvas and the one it replaced, while [progress] runs 0 → 1 (see [rememberArtTransition]). */
+@Stable
+private class ArtTransition(initial: ImageBitmap?) {
+    var current by mutableStateOf(initial)
+    var previous by mutableStateOf<ImageBitmap?>(null)
+    val progress = Animatable(1f)
+}
+
+/**
+ * Fades [image] in over whatever was shown before it, when it changes (a pick, its removal, undo):
+ * the new picture arrives, not the old one vanishing. A picture still downloading keeps the old one
+ * up until it is in (see [rememberLayoutArtImage]), so the fade starts with it.
+ */
+@Composable
+private fun rememberArtTransition(image: ImageBitmap?): ArtTransition {
+    val transition = remember { ArtTransition(image) }
+    LaunchedEffect(image) {
+        if (image === transition.current) return@LaunchedEffect
+        transition.previous = transition.current
+        transition.current = image
+        transition.progress.snapTo(0f)
+        transition.progress.animateTo(1f, tween(ArtFadeMillis, easing = FastOutSlowInEasing))
+        transition.previous = null
+    }
+    return transition
+}
+
+private const val ArtFadeMillis = 420
 
 /** Replace and remove for the selected photo, in a pill over the top of the canvas. */
 @Composable
@@ -873,6 +958,8 @@ private fun LayoutEditorPreview() {
             uiState = LayoutEditorUiState.Loading,
             templates = emptyList(),
             premiumLayouts = emptySet(),
+            frameLoad = LayoutArtLoad.Loading,
+            backgroundLoad = LayoutArtLoad.Loading,
             texts = null,
             stickers = emptyList(),
             isSubscribed = false,

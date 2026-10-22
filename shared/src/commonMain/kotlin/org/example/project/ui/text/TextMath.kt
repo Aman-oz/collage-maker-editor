@@ -234,3 +234,21 @@ internal fun rotatedHalfSize(width: Float, height: Float, degrees: Float): Size 
     val sn = abs(sin(radians))
     return Size(width / 2f * c + height / 2f * sn, width / 2f * sn + height / 2f * c)
 }
+
+/**
+ * Whether text on the [pixels] (ARGB) reads better dark than white: their average luminance, each
+ * pixel over [backdropLuminance] by its alpha (a transparent canvas shows what is behind it), is
+ * light. White is the default, which a blank white layout or a pale photo would swallow.
+ */
+internal fun prefersDarkText(pixels: IntArray, backdropLuminance: Float, threshold: Float = 0.62f): Boolean {
+    if (pixels.isEmpty()) return backdropLuminance > threshold
+    var sum = 0f
+    for (argb in pixels) {
+        val a = (argb ushr 24 and 0xFF) / 255f
+        val r = (argb shr 16 and 0xFF) / 255f
+        val g = (argb shr 8 and 0xFF) / 255f
+        val b = (argb and 0xFF) / 255f
+        sum += (0.2126f * r + 0.7152f * g + 0.0722f * b) * a + backdropLuminance * (1f - a)
+    }
+    return sum / pixels.size > threshold
+}

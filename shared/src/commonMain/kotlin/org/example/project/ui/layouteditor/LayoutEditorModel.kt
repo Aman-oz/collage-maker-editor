@@ -45,6 +45,12 @@ internal data class LayoutPhoto(
  * @param filterLabel the photo filter over every photo (a `PhotoFilter`'s label), null for none; kept
  *   live, so a photo placed later is filtered too and undo takes it off again.
  * @param filterIntensity that filter's strength, 0..1.
+ * @param background the canvas's colour behind the slots; transparent for none.
+ * @param backgroundOpacity the background's opacity, colour or picture alike, 0..100.
+ * @param backgroundArt a server background drawn over the whole canvas in place of [background],
+ *   cropped to its shape; null for the colour.
+ * @param frameArt the server frame drawn over the whole layout, null for none. Its picture is
+ *   loaded by URL where it is drawn (the preview's `NetworkImage`, the ViewModel before a bake).
  */
 internal data class LayoutEdit(
     val template: TemplateItem,
@@ -64,6 +70,9 @@ internal data class LayoutEdit(
     val layers: List<FreestyleLayer> = emptyList(),
     val filterLabel: String? = null,
     val filterIntensity: Float = 1f,
+    val frameArt: LayoutArt? = null,
+    val backgroundArt: LayoutArt? = null,
+    val backgroundOpacity: Float = 100f,
 )
 
 /**
@@ -85,6 +94,8 @@ internal val LayoutBorderWidthRange = 0f..20f
 internal val LayoutBorderOpacityRange = 0f..100f
 internal val LayoutFrameWidthRange = 0f..40f
 internal val LayoutFrameCornerRange = 0f..60f
+
+internal val LayoutBackgroundOpacityRange = 0f..100f
 
 internal val LayoutRotationRange = -180f..180f
 

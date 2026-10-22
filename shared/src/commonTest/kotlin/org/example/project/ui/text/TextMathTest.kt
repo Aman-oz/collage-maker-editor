@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TextMathTest {
@@ -147,5 +148,16 @@ class TextMathTest {
         assertTrue(abs(overflow.width - 6f) < 1e-4f)
         assertEquals(0f, overflow.height)
         assertEquals(0f, item.copy(backgroundArgb = null).plateOverflow(20f, 14f, 6f).width)
+    }
+
+    @Test
+    fun prefersDarkText_onWhiteButNotOnDarkOrTransparentOverDark() {
+        val white = 0xFFFFFFFF.toInt()
+        val black = 0xFF000000.toInt()
+        assertTrue(prefersDarkText(IntArray(16) { white }, backdropLuminance = 0.1f))
+        assertFalse(prefersDarkText(IntArray(16) { black }, backdropLuminance = 0.9f))
+        // A transparent canvas shows the stage behind it.
+        assertFalse(prefersDarkText(IntArray(16), backdropLuminance = 0.1f))
+        assertTrue(prefersDarkText(IntArray(16), backdropLuminance = 0.9f))
     }
 }

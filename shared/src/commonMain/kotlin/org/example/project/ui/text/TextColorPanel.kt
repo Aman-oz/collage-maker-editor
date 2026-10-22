@@ -221,6 +221,25 @@ private fun TextColorTabs(
     onSelected: (TextColorTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    PanelSegmentedTabs(
+        labels = TextColorTab.entries.map { it.label },
+        selectedIndex = selected.ordinal,
+        onSelected = { onSelected(TextColorTab.entries[it]) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * A panel's tab switch, as the Text tool's Color panel has it (the layout editor's Border panel
+ * too): solid on the light panel, liquid glass over a soft wash in the dark one (see [TextColorTabs]).
+ */
+@Composable
+internal fun PanelSegmentedTabs(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
     val isLight = scheme.background.luminance() > 0.5f
     val liquidState = rememberLiquidState()
@@ -241,9 +260,9 @@ private fun TextColorTabs(
             )
         }
         LiquidSegmentedTabs(
-            labels = TextColorTab.entries.map { it.label },
-            selectedIndex = selected.ordinal,
-            onSelected = { onSelected(TextColorTab.entries[it]) },
+            labels = labels,
+            selectedIndex = selectedIndex,
+            onSelected = onSelected,
             liquidState = liquidState,
             capsuleTint = if (isLight) LightTabsCapsule else Color.Black.copy(alpha = 0.18f),
             modifier = Modifier.matchParentSize(),

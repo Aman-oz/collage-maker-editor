@@ -192,9 +192,21 @@ from the back stack.
   fixed-height area so the canvas never moves. A panel edits live; its ✕ (and back) restores the
   history as the panel found it (`beginPanel` / `cancelPanel`). Options: Canvas (the ratio strip;
   Free = the first photo's shape), Layout (every catalog layout; photos stay keyed by slot index),
-  Margin, Border, Frame (a 0–100 slider per property chip, or a colour row), Transform (the selected
+  Margin (a 0–100 slider per property chip), Border (the slot outline: a Thickness / Opacity
+  slider over a colour grid whose checkerboard takes it off), Frame (two `PanelSegmentedTabs`:
+  Color, the plain frame's Width / Corner Radius over the same grid; and Frame, the server's
+  decorative frames, each a canvas-sized transparent PNG kept as `LayoutEdit.frameArt`, trimmed of its
+  transparent margin (`trimFrameArt`) and drawn stretched over the whole layout under the emoji,
+  whatever the canvas's shape), Background (Color: an Opacity slider over the same grid, the checkerboard
+  leaving the canvas transparent; Background: the server's patterns, `LayoutEdit.backgroundArt`,
+  cropped to fill the canvas at that opacity in the colour's place). Frame and Background read
+  their libraries through `LayoutArtLibrary` (`categories?superCategoryId=` with
+  `BORDERS_SUPER_CATEGORY_ID` or `BACKGROUNDS_SUPER_CATEGORY_ID` → `subcategories` → `assets`,
+  shown by `ArtLibraryBody` as category pills, sub-category tiles and a grid); tapping the picture
+  in use again takes it off, a premium one gates Done, and `drawLayout` draws both from
+  `LayoutArtImages` (loaded and `copyBitmap`ed by the preview and by the ViewModel before a bake). Transform (the selected
   photo leant like a sticker's Transform, gentler, and zoomed by `layoutTiltCover` so it still
-  covers its slot), Mirror, Rotate, Background, Emoji (the freestyle sticker layers), and Text,
+  covers its slot), Mirror, Rotate, Emoji (the freestyle sticker layers), and Text,
   Stickers, Filter and Ratio, which open the photo editor's tools over the screen: Stickers'
   `PlacedSticker`s stay live in the history (`LayoutFrame.stickers`, drawn under the texts, a tap
   reopens the tool) and Done bakes them with `bakeStickers` (which suspends, so `apply` does); Filter on the whole layout
@@ -222,7 +234,9 @@ from the back stack.
 - **The photo editor's Text tool** (`ui/text/`) has no ✕ / title / ✓ row: it uses the title-less
   `ToolPanel { }` overload for a floating Liquid Glass bar of `TextOption`s (`TextToolBars.kt`),
   whose ✕ finishes the tool and applies the text (system back leaves without it). It opens typing,
-  with `TextKeyboardBar` (fonts, colour, alignment) riding on the keyboard; the keyboard waits for
+  with `TextKeyboardBar` (fonts, colour, alignment, and ✕ / ✓: ✕ puts the text back as typing
+  found it, ✓ keeps it) riding on the keyboard; a new text is white, or black when the picture is light
+  (`prefersDarkText`, e.g. a blank layout); the keyboard waits for
   the host's opening to finish, or it would squeeze the editor's photo mid-transition. Its ⌄ (or
   the Font option) swaps the keyboard for `TextFontPanel`, in the editor's two beats (`dropSpec`,
   then `settleSpec` delayed by `ToolDropMillis`); the panel keeps one height for both, so the photo
@@ -341,7 +355,9 @@ is a small in-house URL→`ImageBitmap` memo cache, not an image library. It dec
 `ui/common/NetworkImage.kt`.
 
 `data/cache/AssetCache` is the disk cache for what the editor downloads on demand: the Text tool's
-fonts and the Stickers tool's SVGs (`NetworkImageLoader.svgSource` reads through it). A file is
+fonts, the Stickers tool's SVGs (`NetworkImageLoader.svgSource` reads through it) and the layout
+editor's frame and background pictures (`NetworkImageLoader.loadAsset`; picking a free one keeps it,
+and the canvas fades it in through `LayoutArtTransition`). A file is
 *kept* (under `<cache>/assets/`, read from there with no network from then on) only when a caller
 asks: picking a font or tapping a sticker keeps it unless it is premium and the user doesn't
 subscribe, so a premium item that is only being tried out never lands on the disk. Downloads run in

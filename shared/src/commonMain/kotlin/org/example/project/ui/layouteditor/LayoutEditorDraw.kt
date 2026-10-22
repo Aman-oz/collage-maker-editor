@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -21,6 +22,8 @@ import org.example.project.ui.collage.computeSlotGeometries
 import org.example.project.ui.collage.geom.PointF
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.drawImageScaled
+import org.example.project.ui.common.drawImageCropped
+import androidx.compose.ui.graphics.ImageBitmap
 import org.example.project.ui.frame.drawFrame
 import kotlin.math.roundToInt
 
@@ -66,15 +69,51 @@ internal fun LayoutEdit.slots(canvasW: Float, canvasH: Float): List<SlotGeometry
 }
 
 /**
+ * The server pictures [LayoutEdit.backgroundArt] and [LayoutEdit.frameArt] point at, loaded by
+ * whoever draws (the preview as they come in, the ViewModel before a bake). Each must be a bitmap
+ * this app made (`copyBitmap`), since it is redrawn through scaling draws. A picture not in yet is
+ * simply left out.
+ */
+internal data class LayoutArtImages(
+    val background: ImageBitmap? = null,
+    val frame: ImageBitmap? = null,
+    val transition: LayoutArtTransition = LayoutArtTransition(),
+)
+
+/**
+ * How far the preview is through putting a new background or frame picture on: the one before is
+ * drawn under it (null for the colour / no frame) and the new one over it at [backgroundProgress] /
+ * [frameProgress], the frame also settling from a little zoomed in. The bake is never mid-way.
+ */
+internal data class LayoutArtTransition(
+    val previousBackground: ImageBitmap? = null,
+    val backgroundProgress: Float = 1f,
+    val previousFrame: ImageBitmap? = null,
+    val frameProgress: Float = 1f,
+)
+
+/** How much larger a frame starts as it is put on, settling to the canvas's size. */
+internal const val FrameSettleZoom = 0.06f
+
+/**
  * Draws [edit] (without its stickers and texts, which sit above it) on this scope, whose size is the
- * canvas: background, the slots' shadows, the photos clipped to their slots, the slots' outlines and
- * the frame. Shared by the preview and the bake, so they match.
+ * canvas: the background (colour, or [art]'s background picture cropped to the canvas, at its
+ * opacity), the slots' shadows, the photos clipped to their slots, the slots' outlines, the frame
+ * and [art]'s frame picture stretched over it all. Shared by the preview and the bake, so they match.
  *
  * [emptySlot] fills a slot with no photo; the bake passes transparent, leaving the background.
  */
-internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, emptySlot: Color) {
+internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, emptySlot: Color, art: LayoutArtImages = LayoutArtImages()) {
     val unit = layoutUnitPx(size.width, size.height)
-    drawRect(edit.background)
+    val backgroundAlpha = edit.backgroundOpacity / LayoutBackgroundOpacityRange.endInclusive
+    val canvasSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
+    // The picture if there is one (the bake only has one when the edit does), else the colour.
+    fun drawBackground(picture: ImageBitmap?, alpha: Float) {
+        if (picture != null) drawImageCropped(picture, IntOffset.Zero, canvasSize, alpha = alpha) else drawRect(edit.background, alpha = alpha)
+    }
+    val backgroundProgress = art.transition.backgroundProgress
+    if (backgroundProgress < 1f) drawBackground(art.transition.previousBackground, backgroundAlpha)
+    drawBackground(art.background, backgroundAlpha * backgroundProgress)
 
     if (edit.shadow > 0f) {
         for (g in slots) drawSlotShadow(g, edit.shadow / LayoutShadowRange.endInclusive, unit)
@@ -113,6 +152,12 @@ internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, e
         widthPx = edit.frameWidth * unit,
         cornerRadiusPx = edit.frameCorner * unit,
     )
+
+    val frameProgress = art.transition.frameProgress
+    if (frameProgress < 1f) art.transition.previousFrame?.let { drawImageScaled(it, IntOffset.Zero, canvasSize, alpha = 1f - frameProgress) }
+    art.frame?.let { frame ->
+        scale(1f + FrameSettleZoom * (1f - frameProgress)) { drawImageScaled(frame, IntOffset.Zero, canvasSize, alpha = frameProgress) }
+    }
 }
 
 /**

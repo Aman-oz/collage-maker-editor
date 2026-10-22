@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.collage.CollageCatalog
@@ -65,6 +66,13 @@ internal enum class LayoutPhotoTool { Filter, Ratio }
  * when it opened, for Filter the layout without its filter (and [slotIndex] is -1). Identity
  * matters, as for [TextToolSession].
  */
+/** The server's frames as the Frame tab sees them: loading, failed (with Retry), or in. */
+internal sealed interface LayoutArtLoad {
+    data object Loading : LayoutArtLoad
+    data object Failed : LayoutArtLoad
+    data class Ready(val categories: List<LayoutArtCategory>) : LayoutArtLoad
+}
+
 internal class LayoutPhotoToolSession(
     val tool: LayoutPhotoTool,
     val slotIndex: Int,
@@ -106,6 +114,7 @@ internal class LayoutEditorViewModel(
     private val session: ImageEditSession,
     private val catalog: CollageCatalog,
     private val layouts: LayoutsRepository,
+    private val artLibrary: LayoutArtLibrary,
     private val settings: AppSettings,
     private val imageLoader: NetworkImageLoader,
 ) : ViewModel(), LayoutEditorActions {
@@ -126,6 +135,16 @@ internal class LayoutEditorViewModel(
      * Empty until loaded, and offline, so nothing is locked that the server didn't lock.
      */
     val premiumLayouts: StateFlow<Set<String>> = _premiumLayouts.asStateFlow()
+
+    private val _frameArtCategories = MutableStateFlow<LayoutArtLoad>(LayoutArtLoad.Loading)
+
+    /** The server's frames for the Frame panel's Frame tab; loaded when it first opens ([loadFrameArt]). */
+    val frameArtCategories: StateFlow<LayoutArtLoad> = _frameArtCategories.asStateFlow()
+
+    private val _backgroundArtCategories = MutableStateFlow<LayoutArtLoad>(LayoutArtLoad.Loading)
+
+    /** The server's backgrounds for the Background panel's Background tab; loaded when it first opens. */
+    val backgroundArtCategories: StateFlow<LayoutArtLoad> = _backgroundArtCategories.asStateFlow()
 
     private val _texts = MutableStateFlow<TextLayers?>(null)
 
@@ -171,11 +190,17 @@ internal class LayoutEditorViewModel(
     private val current: LayoutFrame? get() = history?.current
 
     /**
-     * Whether Done has to go to the paywall instead: the layout is a premium one and the user is not
-     * subscribed. Read at the moment of Done, so it is already `false` after subscribing.
+     * Whether Done has to go to the paywall instead: the layout or its frame is a premium one and
+     * the user is not subscribed. Read at the moment of Done, so it is already `false` after subscribing.
      */
     val needsPremium: Boolean
-        get() = current?.edit?.template?.title in _premiumLayouts.value && !settings.isPremium.value
+        get() {
+            val edit = current?.edit ?: return false
+            if (settings.isPremium.value) return false
+            return edit.template.title in _premiumLayouts.value ||
+                edit.frameArt?.isPremium == true ||
+                edit.backgroundArt?.isPremium == true
+        }
 
     /**
      * Whether Done should open the paywall once first: for a non-subscriber whose stickers are
@@ -252,8 +277,43 @@ internal class LayoutEditorViewModel(
     override fun setBorderOpacity(value: Float) = update("borderOpacity") { it.copy(borderOpacity = value) }
 
     override fun setBorderColor(color: Color) = update {
-        // Picking a colour with no outline yet would change nothing visible; give it one.
-        it.copy(borderColor = color, borderWidth = if (it.borderWidth > 0f) it.borderWidth else DefaultBorderWidth)
+        when {
+            // The checkerboard (no colour) takes the outline off, keeping the colour for next time.
+            color.alpha == 0f -> it.copy(borderWidth = 0f)
+            // Picking a colour with no outline yet would change nothing visible; give it one.
+            else -> it.copy(borderColor = color, borderWidth = if (it.borderWidth > 0f) it.borderWidth else DefaultBorderWidth)
+        }
+    }
+
+    /** Puts [art] over the layout, or takes it off with null. The canvas keeps its shape; the frame stretches to it. */
+    override fun setFrameArt(art: LayoutArt?) {
+        keepArt(art)
+        update { it.copy(frameArt = art) }
+    }
+
+    /**
+     * Downloads [art]'s picture to the disk cache when it is free (or the user subscribes), so it opens
+     * from there next time; a premium picture only being tried out isn't kept, as with fonts. Its cell
+     * shows the download's ring.
+     */
+    private fun keepArt(art: LayoutArt?) {
+        if (art == null || (art.isPremium && !settings.isPremium.value)) return
+        viewModelScope.launch { imageLoader.loadAsset(art.imageUrl, keep = true) }
+    }
+
+    /** Reads the server's frames, once; a failure can be retried. */
+    override fun loadFrameArt() = loadLibrary(_frameArtCategories, CentralDataConfig.BORDERS_SUPER_CATEGORY_ID)
+
+    /** Reads the server's backgrounds, once; a failure can be retried. */
+    override fun loadBackgroundArt() = loadLibrary(_backgroundArtCategories, CentralDataConfig.BACKGROUNDS_SUPER_CATEGORY_ID)
+
+    private fun loadLibrary(state: MutableStateFlow<LayoutArtLoad>, superCategoryId: String) {
+        if (state.value is LayoutArtLoad.Ready) return
+        state.value = LayoutArtLoad.Loading
+        viewModelScope.launch {
+            state.value = runCatching { artLibrary.getCategories(superCategoryId) }
+                .fold({ LayoutArtLoad.Ready(it) }, { LayoutArtLoad.Failed })
+        }
     }
 
     override fun setFrameColor(color: Color) = update { it.copy(frameColor = color) }
@@ -262,7 +322,16 @@ internal class LayoutEditorViewModel(
 
     override fun setFrameCorner(value: Float) = update("frameCorner") { it.copy(frameCorner = value) }
 
-    override fun setBackground(color: Color) = update { it.copy(background = color) }
+    /** A colour takes the background picture's place, if there was one. */
+    override fun setBackground(color: Color) = update { it.copy(background = color, backgroundArt = null) }
+
+    /** Puts [art] behind the slots in the colour's place, or goes back to the colour with null. */
+    override fun setBackgroundArt(art: LayoutArt?) {
+        keepArt(art)
+        update { it.copy(backgroundArt = art) }
+    }
+
+    override fun setBackgroundOpacity(value: Float) = update("backgroundOpacity") { it.copy(backgroundOpacity = value) }
 
     override fun transformSlot(slotIndex: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) =
         updatePhoto(slotIndex, "slot:$slotIndex") { photo ->
@@ -344,7 +413,7 @@ internal class LayoutEditorViewModel(
         if (baking) return false
         baking = true
         try {
-            val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
+            val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
             val withStickers = bakeStickers(picture, frame.stickers, imageLoader::renderSvg)
             session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
             return true
@@ -359,9 +428,43 @@ internal class LayoutEditorViewModel(
      */
     fun openTextTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedTextId: Long?) {
         val frame = current ?: return
-        if (textSession.value != null || previewWidthPx <= 0f) return
-        val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
-        textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
+        if (textSession.value != null || openingTool || previewWidthPx <= 0f) return
+        openTool {
+            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
+            textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
+        }
+    }
+
+    /** Whether a tool is waiting on its frame picture to open; a second tap meanwhile does nothing. */
+    private var openingTool = false
+
+    private fun openTool(block: suspend () -> Unit) {
+        openingTool = true
+        viewModelScope.launch {
+            try {
+                block()
+            } finally {
+                openingTool = false
+            }
+        }
+    }
+
+    /** Server pictures copied once for drawing (see [LayoutArtImages]), by URL. */
+    private val artCopies = mutableMapOf<String, ImageBitmap>()
+
+    /**
+     * [edit]'s background and frame pictures for a bake, each downloaded once (the preview has
+     * usually loaded them already) and copied so they redraw reliably.
+     */
+    private suspend fun artImages(edit: LayoutEdit): LayoutArtImages {
+        suspend fun image(art: LayoutArt?, trim: Boolean): ImageBitmap? {
+            val url = art?.imageUrl ?: return null
+            artCopies[url]?.let { return it }
+            val loaded = imageLoader.loadAsset(url, keep = false) ?: return null
+            return withContext(Dispatchers.Default) { copyBitmap(loaded).let { if (trim) trimFrameArt(it) else it } }
+                .also { artCopies[url] = it }
+        }
+        return LayoutArtImages(background = image(edit.backgroundArt, trim = false), frame = image(edit.frameArt, trim = true))
     }
 
     fun closeTextTool() {
@@ -381,9 +484,11 @@ internal class LayoutEditorViewModel(
      */
     fun openStickersTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedStickerId: Long?) {
         val frame = current ?: return
-        if (stickersSession.value != null || previewWidthPx <= 0f) return
-        val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
-        stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+        if (stickersSession.value != null || openingTool || previewWidthPx <= 0f) return
+        openTool {
+            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
+            stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+        }
     }
 
     fun closeStickersTool() {
@@ -410,15 +515,18 @@ internal class LayoutEditorViewModel(
      */
     fun openFilterTool(textMeasurer: TextMeasurer) {
         val edit = current?.edit ?: return
-        if (photoTool.value != null || edit.photos.isEmpty()) return
-        val snapshot = bakeLayout(
-            edit.copy(filterLabel = null, layers = emptyList()),
-            textMeasurer,
-            previewWidthPx = 0f,
-            previewDensity = 1f,
-            longSide = FilterPreviewLongSide,
-        )
-        photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Filter, -1, snapshot, edit.filterLabel, edit.filterIntensity)
+        if (photoTool.value != null || openingTool || edit.photos.isEmpty()) return
+        openTool {
+            val snapshot = bakeLayout(
+                edit.copy(filterLabel = null, layers = emptyList()),
+                textMeasurer,
+                previewWidthPx = 0f,
+                previewDensity = 1f,
+                longSide = FilterPreviewLongSide,
+                art = artImages(edit),
+            )
+            photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Filter, -1, snapshot, edit.filterLabel, edit.filterIntensity)
+        }
     }
 
     /** Puts [filter] at [intensity] over every photo, as one undo step, and closes the tool. */

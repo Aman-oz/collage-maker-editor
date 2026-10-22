@@ -888,6 +888,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Çıkartmalar",
     "Couldn't load stickers" to
         "Çıkartmalar yüklenemedi",
+    "Couldn't load backgrounds" to
+        "Arka planlar yüklenemedi",
     "No stickers here yet" to
         "Burada henüz çıkartma yok",
     "Reshape" to

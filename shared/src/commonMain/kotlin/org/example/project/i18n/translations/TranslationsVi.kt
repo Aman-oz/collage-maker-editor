@@ -888,6 +888,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Nhãn dán",
     "Couldn't load stickers" to
         "Không thể tải nhãn dán",
+    "Couldn't load backgrounds" to
+        "Không thể tải nền",
     "No stickers here yet" to
         "Chưa có nhãn dán nào ở đây",
     "Reshape" to

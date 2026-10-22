@@ -888,6 +888,8 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "ステッカー",
     "Couldn't load stickers" to
         "ステッカーを読み込めませんでした",
+    "Couldn't load backgrounds" to
+        "背景を読み込めませんでした",
     "No stickers here yet" to
         "ここにはまだステッカーがありません",
     "Reshape" to

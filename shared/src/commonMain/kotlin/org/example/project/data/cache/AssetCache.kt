@@ -39,8 +39,8 @@ internal expect fun platformCacheDir(): String
 data class DownloadProgress(val fraction: Float?)
 
 /**
- * A disk cache for the files the editor downloads on demand: the Text tool's fonts and the Stickers
- * tool's SVGs. A file is *kept* (written under `assets/`, read from there from then on, with no
+ * A disk cache for the files the editor downloads on demand: the Text tool's fonts, the Stickers
+ * tool's SVGs and the layout editor's frame and background pictures. A file is *kept* (written under `assets/`, read from there from then on, with no
  * network) only when a caller asks for it; otherwise it is fetched for this use alone, so a premium
  * item a non-subscriber is only trying out never lands on the disk.
  *
@@ -80,6 +80,9 @@ class AssetCache(private val client: HttpClient, rootDir: String = platformCache
     fun progressOf(key: String): Flow<DownloadProgress?> = progress.map { it[key] }.distinctUntilChanged()
 
     fun isKept(key: String): Boolean = SystemFileSystem.exists(keptPath(key))
+
+    /** [key]'s kept bytes, or null when it isn't kept: a read of the disk only, never the network. */
+    suspend fun keptBytes(key: String): ByteArray? = read(keptPath(key))
 
     /**
      * [key]'s bytes: from the disk if kept, else downloaded by [download] (by default, [key] is the
