@@ -91,6 +91,37 @@ internal fun FilterTool(
     )
 }
 
+/**
+ * The Filter tool for an editor that keeps the filter live rather than baked (the layout editor,
+ * which puts one filter over all its photos): it previews on [sourceImage], opens on
+ * [initialFilterLabel] at [initialIntensity], and hands the pick to [onApply]. A premium filter
+ * sends a non-subscriber to the paywall instead, as in [FilterTool].
+ */
+@Composable
+internal fun FilterPickerTool(
+    sourceImage: ImageBitmap,
+    isPremium: Boolean,
+    initialFilterLabel: String?,
+    initialIntensity: Float,
+    onClose: () -> Unit,
+    onApply: (filter: PhotoFilter, intensity: Float) -> Unit,
+    onOpenPremium: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterContent(
+        sourceImage = sourceImage,
+        isSubscribed = isPremium,
+        onOpenPremium = onOpenPremium,
+        onBack = onClose,
+        onApply = { filter, intensity ->
+            if (filter.isPremium && !isPremium) onOpenPremium() else onApply(filter, intensity)
+        },
+        initialFilterLabel = initialFilterLabel,
+        initialIntensity = initialIntensity,
+        modifier = modifier,
+    )
+}
+
 @Composable
 private fun FilterContent(
     sourceImage: ImageBitmap?,
@@ -99,13 +130,15 @@ private fun FilterContent(
     onBack: () -> Unit,
     onApply: (filter: PhotoFilter, intensity: Float) -> Unit,
     modifier: Modifier = Modifier,
+    initialFilterLabel: String? = null,
+    initialIntensity: Float = 1f,
 ) {
     val scheme = MaterialTheme.colorScheme
     // Saveable, unlike the other tools' edits: the paywall covers the editor, which drops plain
     // `remember` state, and the filter picked before subscribing has to still be there after.
-    var selectedLabel by rememberSaveable { mutableStateOf(PhotoFilters.first().label) }
+    var selectedLabel by rememberSaveable { mutableStateOf(initialFilterLabel ?: PhotoFilters.first().label) }
     val selectedFilter = PhotoFilters.firstOrNull { it.label == selectedLabel } ?: PhotoFilters.first()
-    var intensity by rememberSaveable { mutableFloatStateOf(1f) }
+    var intensity by rememberSaveable { mutableFloatStateOf(initialIntensity) }
     var comparing by remember { mutableStateOf(false) }
 
     ToolScaffold(modifier = modifier) {

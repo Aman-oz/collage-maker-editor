@@ -180,7 +180,7 @@ internal fun StickerEraserPanel(
             PanelIconButton(painterResource(Res.drawable.ic_undo), tr("Undo"), enabled = canUndo, onClick = onUndo)
             PanelIconButton(painterResource(Res.drawable.ic_redo), tr("Redo"), enabled = canRedo, onClick = onRedo)
         }
-        PanelSliderRow(PanelSlider(tr("Brush size"), brushSize, onBrushSizeChange))
+        PanelSliderRow(PanelSlider(tr("Brush size"), brushSize, onValueChange = onBrushSizeChange))
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

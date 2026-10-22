@@ -15,9 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.editor.MaxEditHistory
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickersToolSession
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextToolSession
 import org.example.project.ui.text.bakeTextLayers
@@ -33,10 +37,15 @@ sealed interface FreestyleEditorUiState {
 }
 
 /**
- * One state of the freestyle editor: the canvas, and the Text tool's texts over it ([TextLayers]),
- * kept live (so a tap opens them again) and baked over everything on Done.
+ * One state of the freestyle editor: the canvas, and the Stickers tool's stickers and the Text
+ * tool's texts over it (stickers under texts), kept live (so a tap opens them again) and baked over
+ * everything on Done.
  */
-private data class FreestyleFrame(val canvas: FreestyleState, val texts: TextLayers? = null)
+private data class FreestyleFrame(
+    val canvas: FreestyleState,
+    val texts: TextLayers? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+)
 
 /**
  * Decodes every initially-picked image in parallel, scatters them ([scatterPlacements]) as freely
@@ -46,7 +55,9 @@ private data class FreestyleFrame(val canvas: FreestyleState, val texts: TextLay
  *
  * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
  * canvas. Its texts come back as [TextLayers] that stay live over the canvas ([texts]), above every
- * layer, until Done bakes them in.
+ * layer, until Done bakes them in. Stickers are the photo editor's Stickers tool, opened the same
+ * way ([stickersSession]); its [PlacedSticker]s stay live too ([stickers]), over the layers and
+ * under the texts.
  *
  * Every edit goes through an [EditHistory] of whole states (the canvas and its texts) for undo/redo. Continuous
  * edits (a drag, a slider, retyping a label) pass a coalesce key and are folded into one step until
@@ -59,6 +70,7 @@ class FreestyleEditorViewModel(
     private val imagePaths: List<String>,
     private val session: ImageEditSession,
     private val settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel() {
 
     private var premiumOfferShown = false
@@ -77,6 +89,16 @@ class FreestyleEditorViewModel(
 
     /** The texts over the canvas, not yet baked; null with none. */
     internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
+
+    /** The Stickers tool open over the canvas, or null; here for the same reason as [textSession]. */
+    internal val stickersSession = mutableStateOf<StickersToolSession?>(null)
+
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The Stickers tool's stickers over the canvas, not yet baked. */
+    internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
+
+    private var baking = false
 
     /**
      * Whether Done should open the paywall once before creating the freestyle: `true` a single
@@ -199,6 +221,39 @@ class FreestyleEditorViewModel(
         textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
     }
 
+    /**
+     * Opens the Stickers tool on the canvas as Done would bake it (see [openTextTool]), without the
+     * stickers and texts, which the tool draws itself. [selectedStickerId] is the sticker tapped on
+     * the canvas, if one was.
+     */
+    internal fun openStickersTool(
+        textMeasurer: TextMeasurer,
+        previewWidthPx: Float,
+        previewHeightPx: Float,
+        previewDensity: Float,
+        selectedStickerId: Long?,
+    ) {
+        val frame = history?.current ?: return
+        if (stickersSession.value != null || previewWidthPx <= 0f || previewHeightPx <= 0f) return
+        val snapshot = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
+        stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+    }
+
+    /** Leaves the Stickers tool without its changes. */
+    internal fun closeStickersTool() {
+        stickersSession.value = null
+    }
+
+    /** Commits the Stickers tool's stickers as one undoable step and closes it. */
+    internal fun applyStickers(stickers: List<PlacedSticker>) {
+        stickersSession.value = null
+        val current = history ?: return
+        if (stickers == current.current.stickers) return
+        history = current.push(current.current.copy(stickers = stickers))
+        gestureKey = null
+        publish()
+    }
+
     /** Leaves the Text tool without its changes. */
     internal fun closeTextTool() {
         textSession.value = null
@@ -231,14 +286,24 @@ class FreestyleEditorViewModel(
     }
 
     /**
-     * Bakes the current canvas into one bitmap, its texts on top, and hands it to the shared editing
-     * session. The output keeps the on-screen canvas's [previewWidthPx] x [previewHeightPx] aspect
-     * ratio; [previewDensity] converts the layers' dp frame widths/corners into preview pixels.
+     * Bakes the current canvas into one bitmap, its stickers and then its texts on top, and hands it
+     * to the shared editing session. The output keeps the on-screen canvas's [previewWidthPx] x
+     * [previewHeightPx] aspect ratio; [previewDensity] converts the layers' dp frame widths/corners
+     * into preview pixels. Suspends while the stickers' SVGs are drawn at full size; false before the
+     * canvas is in, or while a bake is already under way.
      */
-    fun applyFreestyle(textMeasurer: TextMeasurer, previewWidthPx: Float, previewHeightPx: Float, previewDensity: Float) {
-        val frame = history?.current ?: return
-        val canvas = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
-        session.set(frame.texts?.let { bakeTextLayers(canvas, textMeasurer, it) } ?: canvas)
+    suspend fun applyFreestyle(textMeasurer: TextMeasurer, previewWidthPx: Float, previewHeightPx: Float, previewDensity: Float): Boolean {
+        val frame = history?.current ?: return false
+        if (baking) return false
+        baking = true
+        try {
+            val canvas = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
+            val withStickers = bakeStickers(canvas, frame.stickers, imageLoader::renderSvg)
+            session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
+            return true
+        } finally {
+            baking = false
+        }
     }
 
     private inline fun updateImageLayers(
@@ -284,6 +349,7 @@ class FreestyleEditorViewModel(
         val current = history ?: return
         _uiState.value = FreestyleEditorUiState.Ready(current.current.canvas, current.canUndo, current.canRedo)
         _texts.value = current.current.texts
+        _stickers.value = current.current.stickers
     }
 
     private companion object {

@@ -27,7 +27,8 @@ internal class TextToolSession(val image: ImageBitmap, val texts: TextLayers?, v
 /**
  * The Text tool over a whole editor screen while [session] is set, fading in and out (it stays on
  * screen through the fade with the session it had). Back closes it; composed after the editor's own
- * back handler, it takes back first.
+ * back handler, it takes back first. [underlay] is drawn over the backdrop, under the texts (the
+ * editor's live stickers, say).
  *
  * The session belongs in the editor's ViewModel, not here: the paywall the tool offers covers the
  * editor, which leaves composition, and the tool has to still be open on return (its texts survive
@@ -40,6 +41,7 @@ internal fun TextToolOverlay(
     onClose: () -> Unit,
     onApply: (TextLayers) -> Unit,
     onOpenPremium: () -> Unit,
+    underlay: @Composable () -> Unit = {},
 ) {
     val current by rememberUpdatedState(session)
     var shown by remember { mutableStateOf(session) }
@@ -56,6 +58,7 @@ internal fun TextToolOverlay(
                     onClose = { if (current === opened) onClose() },
                     onApply = { layers -> if (current === opened) onApply(layers) },
                     onOpenPremium = onOpenPremium,
+                    underlay = underlay,
                 )
             }
         }

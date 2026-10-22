@@ -14,7 +14,6 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,7 +32,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,11 +39,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import androidx.compose.material.icons.outlined.AspectRatio
-import androidx.compose.material.icons.outlined.BorderOuter
-import androidx.compose.material.icons.outlined.SpaceDashboard
-import androidx.compose.material.icons.outlined.Transform
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -107,7 +100,6 @@ import org.example.project.ui.common.rememberStickerFlights
 import org.example.project.ui.common.springBounce
 import org.example.project.ui.common.topBar
 import org.example.project.ui.crop.AspectRatioOption
-import org.example.project.ui.filter.FilterTool
 import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.freestyleChrome
@@ -117,51 +109,75 @@ import org.example.project.ui.ratio.RatioTool
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersToolOverlay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.icon_rotate
+import photocollagemaker.shared.generated.resources.icon_mirror
+import photocollagemaker.shared.generated.resources.icon_transfom
+import org.jetbrains.compose.resources.DrawableResource
+import org.example.project.ui.common.settleSpec
+import org.example.project.ui.common.dropSpec
+import org.example.project.ui.common.ToolDropMillis
+import org.example.project.ui.text.LocalTextPanelSideBySide
+import org.example.project.ui.text.GlassOptionsBar
+import org.example.project.ui.text.GlassBarOption
+import org.example.project.ui.filter.PhotoFilter
+import org.example.project.ui.filter.FilterPickerTool
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.lazy.rememberLazyListState
 import photocollagemaker.shared.generated.resources.ic_background
 import photocollagemaker.shared.generated.resources.ic_filter_editor
-import photocollagemaker.shared.generated.resources.ic_frame_editor
-import photocollagemaker.shared.generated.resources.ic_padding
 import photocollagemaker.shared.generated.resources.ic_ratio_editor
 import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
+import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
 import photocollagemaker.shared.generated.resources.ic_trash
 import photocollagemaker.shared.generated.resources.ic_undo
+import photocollagemaker.shared.generated.resources.icon_border
+import photocollagemaker.shared.generated.resources.icon_canvas
+import photocollagemaker.shared.generated.resources.icon_frame
+import photocollagemaker.shared.generated.resources.icon_layout
+import photocollagemaker.shared.generated.resources.icon_margin
 
 /**
- * Fixed height of the panel above the tabs. Every panel fits it, so switching never resizes the
- * canvas — which would move every sticker and text, since they sit at fractions of it.
+ * Fixed height of the panel area under the canvas, which holds the glass options bar or an option's
+ * panel. Every panel fits it, so opening one never resizes the canvas — which would move every
+ * sticker and text, since they sit at fractions of it.
  */
-private val ToolPanelHeight = 176.dp
+private val LayoutPanelHeight = 248.dp
 
-/** The bottom bar's tools. Text, Filter and Ratio open the photo editor's tools rather than a panel. */
-internal enum class LayoutTool(private val englishLabel: String) {
-    Canvas("Canvas"),
-    Layout("Layout"),
-    Edit("Edit"),
-    Background("Background"),
-    Text("Text"),
-    Filter("Filter"),
-    Sticker("Emoji"),
-    Ratio("Ratio"),
+/**
+ * The glass bar's options. Text, Stickers, Filter and Ratio open the photo editor's tools over the screen;
+ * the rest open a panel in the bar's place. Transform, Mirror, Rotate and Ratio work on the selected
+ * photo.
+ */
+internal enum class LayoutOption(private val englishLabel: String, val icon: DrawableResource) {
+    Canvas("Canvas", Res.drawable.icon_canvas),
+    Layout("Layout", Res.drawable.icon_layout),
+    Margin("Margin", Res.drawable.icon_margin),
+    Border("Border", Res.drawable.icon_border),
+    Transform("Transform", Res.drawable.icon_transfom),
+    Mirror("Mirror", Res.drawable.icon_mirror),
+    Rotate("Rotate", Res.drawable.icon_rotate),
+    Frame("Frame", Res.drawable.icon_frame),
+    Background("Background", Res.drawable.ic_background),
+    Text("Text", Res.drawable.ic_text_editor),
+    Filter("Filter", Res.drawable.ic_filter_editor),
+    Emoji("Emoji", Res.drawable.ic_stickers_editor),
+    Sticker("Stickers", Res.drawable.ic_sticker_editor),
+    Ratio("Ratio", Res.drawable.ic_ratio_editor),
     ;
 
     /** In the app's current language; read it where it is shown, never keep it. */
-    val label: String get() = tr(englishLabel)
-}
-
-/** What the Edit tool's own bar, which slides up in place of the tools, offers. */
-internal enum class LayoutEditOption(private val englishLabel: String) {
-    Margin("Margin"),
-    Border("Border"),
-    Frame("Frame"),
-    Transform("Transform"),
-    ;
-
     val label: String get() = tr(englishLabel)
 }
 
@@ -186,9 +202,13 @@ internal interface LayoutEditorActions {
     fun transformSlot(slotIndex: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) {}
     fun flipPhoto(slotIndex: Int, horizontally: Boolean) {}
     fun setPhotoRotation(slotIndex: Int, degrees: Float) {}
-    fun setPhotoStretchX(slotIndex: Int, stretch: Float) {}
-    fun setPhotoStretchY(slotIndex: Int, stretch: Float) {}
-    fun resetPhotoTransform(slotIndex: Int) {}
+    fun setPhotoTiltX(slotIndex: Int, tilt: Float) {}
+    fun setPhotoTiltY(slotIndex: Int, tilt: Float) {}
+
+    /** An option's panel opened: its ✕ ([cancelPanel]) takes back everything from here. */
+    fun beginPanel() {}
+    fun cancelPanel() {}
+    fun endPanel() {}
     fun removePhoto(slotIndex: Int) {}
     fun addSticker(emoji: String) {}
     fun transformLayer(id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) {}
@@ -219,6 +239,8 @@ internal fun LayoutEditorScreen(
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val premiumLayouts by viewModel.premiumLayouts.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
@@ -243,6 +265,7 @@ internal fun LayoutEditorScreen(
             templates = templates,
             premiumLayouts = premiumLayouts,
             texts = texts,
+            stickers = stickers,
             isSubscribed = isPremium,
             actions = viewModel,
             onBack = discard::requestBack,
@@ -254,8 +277,9 @@ internal fun LayoutEditorScreen(
                 if (viewModel.needsPremium || viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
-                    viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
-                    onDone()
+                    scope.launch {
+                        if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) onDone()
+                    }
                 }
             },
             onRequestPhoto = { slot ->
@@ -265,7 +289,11 @@ internal fun LayoutEditorScreen(
             onOpenText = { previewSizePx, selectedTextId ->
                 viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
             },
-            onOpenPhotoTool = viewModel::openPhotoTool,
+            onOpenStickers = { previewSizePx, selectedStickerId ->
+                viewModel.openStickersTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedStickerId)
+            },
+            onOpenRatio = viewModel::openRatioTool,
+            onOpenFilter = { viewModel.openFilterTool(textMeasurer) },
             onMessage = { toastMessage = it },
             modifier = Modifier.liquefiable(liquidState),
         )
@@ -283,12 +311,22 @@ internal fun LayoutEditorScreen(
             onClose = viewModel::closeTextTool,
             onApply = viewModel::applyTexts,
             onOpenPremium = onPremium,
+            // The live stickers sit under the texts, as Done bakes them.
+            underlay = { StickerLayersOverlay(stickers, Modifier.fillMaxSize()) },
+        )
+        StickersToolOverlay(
+            session = viewModel.stickersSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeStickersTool,
+            onApply = viewModel::applyStickers,
+            onOpenPremium = onPremium,
         )
         LayoutPhotoToolOverlay(
             session = viewModel.photoTool.value,
             isPremium = isPremium,
             onClose = viewModel::closePhotoTool,
-            onApply = viewModel::applyPhotoTool,
+            onApplyRatio = viewModel::applyRatio,
+            onApplyFilter = viewModel::applyFilter,
             onOpenPremium = onPremium,
         )
 
@@ -302,6 +340,7 @@ private fun LayoutEditorContent(
     templates: List<TemplateItem>,
     premiumLayouts: Set<String>,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     isSubscribed: Boolean,
     actions: LayoutEditorActions,
     onBack: () -> Unit,
@@ -309,7 +348,9 @@ private fun LayoutEditorContent(
     onDone: (previewSizePx: IntSize) -> Unit,
     onRequestPhoto: (slotIndex: Int) -> Unit,
     onOpenText: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
-    onOpenPhotoTool: (LayoutPhotoTool, slotIndex: Int) -> Unit,
+    onOpenStickers: (previewSizePx: IntSize, selectedStickerId: Long?) -> Unit,
+    onOpenRatio: (slotIndex: Int) -> Unit,
+    onOpenFilter: () -> Unit,
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -317,8 +358,11 @@ private fun LayoutEditorContent(
     val stickerFlights = rememberStickerFlights(FreestyleStickerBaseSizeSp)
     val ready = uiState as? LayoutEditorUiState.Ready
     val edit = ready?.edit
-    var tool by rememberSaveable { mutableStateOf(LayoutTool.Layout) }
-    var editOption by rememberSaveable { mutableStateOf(LayoutEditOption.Margin) }
+    // The option whose panel is open in the glass bar's place, or null for the bar.
+    var openOption by rememberSaveable { mutableStateOf<LayoutOption?>(null) }
+    // Once a panel has been open, the bar comes back through the two beats, not the screen's opening.
+    var panelChanged by remember { mutableStateOf(false) }
+    val optionsListState = rememberLazyListState()
     var selectedSlot by remember { mutableStateOf<Int?>(null) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
@@ -334,10 +378,49 @@ private fun LayoutEditorContent(
         if (slot != null) action(slot) else onMessage(tr("Tap a photo to select it"))
     }
 
+    fun openPanel(option: LayoutOption) {
+        actions.beginPanel()
+        panelChanged = true
+        openOption = option
+    }
+
+    /** Closes the open panel, keeping its edits, or with [revert] taking them back. */
+    fun closePanel(revert: Boolean) {
+        if (revert) actions.cancelPanel() else actions.endPanel()
+        openOption = null
+    }
+
+    fun onOptionSelected(option: LayoutOption) {
+        when (option) {
+            LayoutOption.Text -> {
+                selectedSlot = null
+                selectedLayerId = null
+                onOpenText(previewSizePx, null)
+            }
+            LayoutOption.Sticker -> {
+                selectedSlot = null
+                selectedLayerId = null
+                onOpenStickers(previewSizePx, null)
+            }
+            LayoutOption.Filter -> onOpenFilter()
+            LayoutOption.Ratio -> withSelectedPhoto(onOpenRatio)
+            LayoutOption.Transform, LayoutOption.Mirror, LayoutOption.Rotate -> withSelectedPhoto { openPanel(option) }
+            else -> openPanel(option)
+        }
+    }
+
+    // With a panel open, back closes it as its ✕ does. Composed after the screen's own handler, so it goes first.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = openOption != null,
+        onBackCompleted = { closePanel(revert = true) },
+    )
+
     // One observer for the whole screen: any finger lift ends the drag or slider step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(actions::endGesture)) {
         EditorPanelLayout(
-            panelHeight = ToolPanelHeight,
+            panelHeight = LayoutPanelHeight,
+            panelFillsSideColumn = true,
             modifier = Modifier
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: the Text tool's slides up over the screen, which
@@ -382,6 +465,7 @@ private fun LayoutEditorContent(
                             is LayoutEditorUiState.Ready -> LayoutStage(
                                 edit = uiState.edit,
                                 texts = texts,
+                                stickers = stickers,
                                 chrome = chrome,
                                 selectedSlot = selectedPhotoSlot,
                                 selectedLayerId = selectedLayerId,
@@ -418,6 +502,11 @@ private fun LayoutEditorContent(
                                     selectedLayerId = null
                                     onOpenText(previewSizePx, id)
                                 },
+                                onStickerTapped = { id ->
+                                    selectedSlot = null
+                                    selectedLayerId = null
+                                    onOpenStickers(previewSizePx, id)
+                                },
                                 onPreviewSizeChanged = { previewSizePx = it },
                             )
                         }
@@ -445,58 +534,57 @@ private fun LayoutEditorContent(
                     PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
                 }
             },
-            panel = {
+            panel = { sideBySide ->
                 if (edit != null) {
-                    LayoutToolPanel(
-                        tool = tool,
-                        editOption = editOption,
-                        edit = edit,
-                        templates = templates,
-                        premiumLayouts = premiumLayouts,
-                        chrome = chrome,
-                        selectedPhotoSlot = selectedPhotoSlot,
-                        actions = actions,
-                        onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { actions.addSticker(emoji) } },
-                    )
-                }
-            },
-            tabs = {
-                // The Edit tool's options slide up from the bottom in place of the tools, and back down.
-                AnimatedContent(
-                    targetState = tool == LayoutTool.Edit,
-                    transitionSpec = {
-                        (slideInVertically(tween(260)) { it } + fadeIn(tween(200))) togetherWith
-                            (slideOutVertically(tween(220)) { it } + fadeOut(tween(160)))
-                    },
-                    label = "layoutTabs",
-                ) { editing ->
-                    if (editing) {
-                        EditOptionTabs(
-                            selected = editOption,
-                            onSelected = { editOption = it },
-                            onBack = { tool = LayoutTool.Layout },
-                        )
-                    } else {
-                        LayoutToolTabs(
-                            selected = tool,
-                            enabled = edit != null,
-                            onSelected = { picked ->
-                                when (picked) {
-                                    LayoutTool.Text -> {
-                                        selectedSlot = null
-                                        selectedLayerId = null
-                                        onOpenText(previewSizePx, null)
-                                    }
-                                    LayoutTool.Filter -> withSelectedPhoto { onOpenPhotoTool(LayoutPhotoTool.Filter, it) }
-                                    LayoutTool.Ratio -> withSelectedPhoto { onOpenPhotoTool(LayoutPhotoTool.Ratio, it) }
-                                    else -> tool = picked
-                                }
+                    CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
+                        // The editor's two beats: the outgoing bar or panel drops away first, then the
+                        // incoming one rises.
+                        AnimatedContent(
+                            targetState = openOption,
+                            transitionSpec = {
+                                (slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it } +
+                                    fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
+                                    (slideOutVertically(dropSpec()) { it } + fadeOut(dropSpec()))
                             },
-                            needsPhoto = selectedPhotoSlot == null,
-                        )
+                            contentAlignment = Alignment.BottomCenter,
+                            modifier = Modifier.fillMaxSize().clipToBounds(),
+                            label = "layoutPanel",
+                        ) { option ->
+                            if (option == null) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = if (sideBySide) Alignment.Center else Alignment.BottomCenter,
+                                ) {
+                                    GlassOptionsBar(
+                                        options = LayoutOption.entries.map { GlassBarOption(it.label, it.icon) },
+                                        onOptionSelected = { onOptionSelected(LayoutOption.entries[it]) },
+                                        // The bar's ✕ leaves the editor, as its top bar's back does.
+                                        onClose = onBack,
+                                        listState = optionsListState,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                        cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
+                                    )
+                                }
+                            } else {
+                                LayoutOptionPanel(
+                                    option = option,
+                                    edit = edit,
+                                    templates = templates,
+                                    premiumLayouts = premiumLayouts,
+                                    chrome = chrome,
+                                    selectedPhotoSlot = selectedPhotoSlot,
+                                    actions = actions,
+                                    onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { actions.addSticker(emoji) } },
+                                    onClose = { closePanel(revert = true) },
+                                    onDone = { closePanel(revert = false) },
+                                )
+                            }
+                        }
                     }
                 }
             },
+            // The glass bar sits in the panel's place.
+            tabs = {},
         )
 
         StickerFlightOverlay(stickerFlights)
@@ -505,12 +593,13 @@ private fun LayoutEditorContent(
 
 /**
  * The canvas, shaped by the Canvas panel and as large as fits: the slots (each empty one ringed in
- * dashes with a ＋), the stickers over them and the texts over everything, as Done bakes them.
+ * dashes with a ＋), the emoji and stickers over them and the texts over everything, as Done bakes them.
  */
 @Composable
 private fun LayoutStage(
     edit: LayoutEdit,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     chrome: LayoutChrome,
     selectedSlot: Int?,
     selectedLayerId: Long?,
@@ -522,6 +611,7 @@ private fun LayoutStage(
     onLayerSelected: (Long) -> Unit,
     onLayerDeleted: (Long) -> Unit,
     onTextTapped: (Long) -> Unit,
+    onStickerTapped: (Long) -> Unit,
     onPreviewSizeChanged: (IntSize) -> Unit,
 ) {
     // The pointerInput blocks outlive recompositions, so read the latest values through state.
@@ -604,6 +694,8 @@ private fun LayoutStage(
                 onLayerScaleRotated = actions::setLayerScaleRotation,
                 onLayerDeleted = onLayerDeleted,
             )
+            // The Stickers tool's stickers, over the emoji; a tap on one opens the tool on it.
+            StickerLayersOverlay(stickers, Modifier.fillMaxSize(), onStickerTapped = onStickerTapped)
             // Above the stickers, as Done bakes them; a tap on one opens the Text tool on it.
             if (texts != null) {
                 TextLayersOverlay(layers = texts, onTextTapped = onTextTapped, modifier = Modifier.fillMaxSize())
@@ -695,127 +787,17 @@ private fun LayoutTopBar(
 }
 
 /**
- * The tools, scrolling sideways. Filter and Ratio work on the selected photo, so they are dimmed
- * while [needsPhoto]; a tap then says to select one rather than doing nothing.
- */
-@Composable
-private fun LayoutToolTabs(
-    selected: LayoutTool,
-    enabled: Boolean,
-    needsPhoto: Boolean,
-    onSelected: (LayoutTool) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        for (tool in LayoutTool.entries) {
-            val isAction = tool == LayoutTool.Text || tool == LayoutTool.Filter || tool == LayoutTool.Ratio
-            BottomTab(
-                icon = tool.icon(),
-                label = tool.label,
-                selected = !isAction && tool == selected,
-                enabled = enabled,
-                dimmed = needsPhoto && (tool == LayoutTool.Filter || tool == LayoutTool.Ratio),
-                onClick = { onSelected(tool) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun LayoutTool.icon(): ImageVector = when (this) {
-    LayoutTool.Canvas -> Icons.Outlined.AspectRatio
-    LayoutTool.Layout -> Icons.Outlined.SpaceDashboard
-    LayoutTool.Edit -> Icons.Outlined.Tune
-    LayoutTool.Background -> vectorResource(Res.drawable.ic_background)
-    LayoutTool.Text -> vectorResource(Res.drawable.ic_text_editor)
-    LayoutTool.Filter -> vectorResource(Res.drawable.ic_filter_editor)
-    LayoutTool.Sticker -> vectorResource(Res.drawable.ic_stickers_editor)
-    LayoutTool.Ratio -> vectorResource(Res.drawable.ic_ratio_editor)
-}
-
-/** The Edit tool's bar: back to the tools, then its four options. */
-@Composable
-private fun EditOptionTabs(selected: LayoutEditOption, onSelected: (LayoutEditOption) -> Unit, onBack: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BottomTab(
-            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            label = tr("Back"),
-            selected = false,
-            onClick = onBack,
-        )
-        Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
-            for (option in LayoutEditOption.entries) {
-                BottomTab(
-                    icon = when (option) {
-                        LayoutEditOption.Margin -> vectorResource(Res.drawable.ic_padding)
-                        LayoutEditOption.Border -> Icons.Outlined.BorderOuter
-                        LayoutEditOption.Frame -> vectorResource(Res.drawable.ic_frame_editor)
-                        LayoutEditOption.Transform -> Icons.Outlined.Transform
-                    },
-                    label = option.label,
-                    selected = option == selected,
-                    onClick = { onSelected(option) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomTab(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    dimmed: Boolean = false,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val tint = when {
-        selected -> scheme.primary
-        enabled && !dimmed -> scheme.onSurface
-        else -> scheme.onSurface.copy(alpha = 0.35f)
-    }
-    val bounce = rememberSpringBounce()
-    Column(
-        modifier = Modifier
-            .springBounce(bounce)
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            color = tint,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1,
-        )
-    }
-}
-
-/**
- * The photo editor's Filter or Ratio tool over the whole screen while [session] is set, fading in
- * and out like [TextToolOverlay]. Back closes it; composed after the screen's own back handler, it
- * takes back first.
+ * The photo editor's Filter (on the whole layout) or Ratio (on one photo) tool over the whole screen
+ * while [session] is set, fading in and out like [TextToolOverlay]. Back closes it; composed after
+ * the screen's own back handler, it takes back first.
  */
 @Composable
 private fun LayoutPhotoToolOverlay(
     session: LayoutPhotoToolSession?,
     isPremium: Boolean,
     onClose: () -> Unit,
-    onApply: (ImageBitmap) -> Unit,
+    onApplyRatio: (ImageBitmap) -> Unit,
+    onApplyFilter: (PhotoFilter, Float) -> Unit,
     onOpenPremium: () -> Unit,
 ) {
     val current by rememberUpdatedState(session)
@@ -826,7 +808,8 @@ private fun LayoutPhotoToolOverlay(
             key(opened) {
                 // The checks keep a tap landing while the tool fades away from closing or applying twice.
                 val close = { if (current === opened) onClose() }
-                val apply = { image: ImageBitmap -> if (current === opened) onApply(image) }
+                val applyRatio = { image: ImageBitmap -> if (current === opened) onApplyRatio(image) }
+                val applyFilter = { filter: PhotoFilter, intensity: Float -> if (current === opened) onApplyFilter(filter, intensity) }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -835,8 +818,16 @@ private fun LayoutPhotoToolOverlay(
                         .pointerInput(Unit) { detectTapGestures {} },
                 ) {
                     when (opened.tool) {
-                        LayoutPhotoTool.Filter -> FilterTool(opened.image, isPremium, close, apply, onOpenPremium)
-                        LayoutPhotoTool.Ratio -> RatioTool(opened.image, close, apply)
+                        LayoutPhotoTool.Filter -> FilterPickerTool(
+                            sourceImage = opened.image,
+                            isPremium = isPremium,
+                            initialFilterLabel = opened.filterLabel,
+                            initialIntensity = opened.filterIntensity,
+                            onClose = close,
+                            onApply = applyFilter,
+                            onOpenPremium = onOpenPremium,
+                        )
+                        LayoutPhotoTool.Ratio -> RatioTool(opened.image, close, applyRatio)
                     }
                 }
             }
@@ -883,6 +874,7 @@ private fun LayoutEditorPreview() {
             templates = emptyList(),
             premiumLayouts = emptySet(),
             texts = null,
+            stickers = emptyList(),
             isSubscribed = false,
             actions = object : LayoutEditorActions {},
             onBack = {},
@@ -890,7 +882,9 @@ private fun LayoutEditorPreview() {
             onDone = {},
             onRequestPhoto = {},
             onOpenText = { _, _ -> },
-            onOpenPhotoTool = { _, _ -> },
+            onOpenStickers = { _, _ -> },
+            onOpenRatio = {},
+            onOpenFilter = {},
             onMessage = {},
         )
     }

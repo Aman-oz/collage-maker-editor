@@ -503,8 +503,17 @@ internal fun TextPanelColumn(
     }
 }
 
-/** One of a [TextSliderPanel]'s sliders: its label and 0–100 value. */
-internal class PanelSlider(val label: String, val value: Float, val onValueChange: (Float) -> Unit)
+/**
+ * One of a [TextSliderPanel]'s sliders: its label and value, 0–100 unless given another [range];
+ * the fill runs from [referenceValue].
+ */
+internal class PanelSlider(
+    val label: String,
+    val value: Float,
+    val range: ClosedFloatingPointRange<Float> = 0f..100f,
+    val referenceValue: Float = range.start,
+    val onValueChange: (Float) -> Unit,
+)
 
 /**
  * A panel of 0–100 sliders: ✕ / [title] / ✓ and each slider under its label, at the bottom of the
@@ -525,7 +534,7 @@ internal fun TextSliderPanel(
     }
 }
 
-/** A [PanelSlider]: its label over a 0–100 slider with the range's ends printed above it. */
+/** A [PanelSlider]: its label over its slider, with the range's ends printed above it. */
 @Composable
 internal fun PanelSliderRow(slider: PanelSlider, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
@@ -540,8 +549,8 @@ internal fun PanelSliderRow(slider: PanelSlider, modifier: Modifier = Modifier) 
         CenterFillSlider(
             value = slider.value,
             onValueChange = slider.onValueChange,
-            range = 0f..100f,
-            referenceValue = 0f,
+            range = slider.range,
+            referenceValue = slider.referenceValue,
             trackColor = scheme.onSurface.copy(alpha = 0.12f),
             fillColor = scheme.primary,
             thumbColor = scheme.primary,

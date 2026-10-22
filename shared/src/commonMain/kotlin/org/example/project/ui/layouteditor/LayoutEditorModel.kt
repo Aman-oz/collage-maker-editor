@@ -11,9 +11,10 @@ import org.example.project.ui.templates.SlotTransform
 
 /**
  * One slot's photo and everything done to it: the pan/zoom of [transform] (as in the collage
- * editor), and the Transform panel's mirror [flipX] / [flipY], [rotationDegrees] and [stretchX] /
- * [stretchY] (the photo's width and height, as multiples of its own). However it is turned or
- * stretched, it is drawn large enough to cover its slot (see [layoutPhotoSize]).
+ * editor), the Mirror option's [flipX] / [flipY], the Rotate option's [rotationDegrees] and the
+ * Transform option's lean, [tiltX] / [tiltY] (0–100 sliders, [LayoutTiltFlat] flat, as the Stickers
+ * tool's Transform). However it is turned or leant, it is drawn large enough to cover its slot (see
+ * [layoutPhotoSize]).
  *
  * [image] must be a bitmap this app made (`copyBitmap`), since it is redrawn through scaling draws.
  */
@@ -23,8 +24,8 @@ internal data class LayoutPhoto(
     val flipX: Boolean = false,
     val flipY: Boolean = false,
     val rotationDegrees: Float = 0f,
-    val stretchX: Float = 1f,
-    val stretchY: Float = 1f,
+    val tiltX: Float = LayoutTiltFlat,
+    val tiltY: Float = LayoutTiltFlat,
 )
 
 /**
@@ -41,6 +42,9 @@ internal data class LayoutPhoto(
  * @param shadow the slots' drop shadow, 0..100.
  * @param borderOpacity the slot outline's opacity, 0..100.
  * @param frameColor the frame around the whole canvas, [FrameColorNone] for none.
+ * @param filterLabel the photo filter over every photo (a `PhotoFilter`'s label), null for none; kept
+ *   live, so a photo placed later is filtered too and undo takes it off again.
+ * @param filterIntensity that filter's strength, 0..1.
  */
 internal data class LayoutEdit(
     val template: TemplateItem,
@@ -58,13 +62,17 @@ internal data class LayoutEdit(
     val frameCorner: Float = 0f,
     val background: Color = Color.White,
     val layers: List<FreestyleLayer> = emptyList(),
+    val filterLabel: String? = null,
+    val filterIntensity: Float = 1f,
 )
 
-/** The Canvas panel's shapes: Original (the first photo's), then the photo editor's ratios but Free. */
-internal val LayoutCanvasOptions: List<AspectRatioOption> =
-    listOf(AspectRatioOption("Original", null)) + AspectRatioOptions.filter { it.ratio != null }
+/**
+ * The Canvas panel's shapes: the photo editor's ratio strip. Its Free is the one shape not fixed: the
+ * canvas takes the first photo's shape (see [layoutCanvasAspect]).
+ */
+internal val LayoutCanvasOptions: List<AspectRatioOption> = AspectRatioOptions
 
-/** Square, which every layout is drawn for. Not Original: the canvas would jump with the first photo. */
+/** Square, which every layout is drawn for. Not Free: the canvas would jump with the first photo. */
 internal val DefaultLayoutCanvas: AspectRatioOption = LayoutCanvasOptions.first { it.ratio == 1f }
 
 internal const val LayoutUnitsPerSide = 360f
@@ -78,6 +86,13 @@ internal val LayoutBorderOpacityRange = 0f..100f
 internal val LayoutFrameWidthRange = 0f..40f
 internal val LayoutFrameCornerRange = 0f..60f
 
-/** The Transform panel's width / height, in percent of the photo's own. */
-internal val LayoutStretchRange = 50f..200f
 internal val LayoutRotationRange = -180f..180f
+
+/** The Transform sliders' middle, where the photo faces straight on. */
+internal const val LayoutTiltFlat = 50f
+
+/**
+ * How far Transform leans a photo at the sliders' ends: a perspective of 1 ± this across its slot.
+ * Gentler than a sticker's, since a leant photo must be zoomed in to still cover its slot.
+ */
+internal const val MaxLayoutTilt = 0.2f

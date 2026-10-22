@@ -1,5 +1,6 @@
 package org.example.project.ui.collage
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
@@ -17,9 +18,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.copyBitmap
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickersToolSession
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.templates.SlotTransform
 
 sealed interface CollageEditorUiState {
@@ -44,6 +49,11 @@ data class CollagePickerState(
  * everyone else Done opens the paywall ([needsPremium]); a free layout with a premium border
  * width or ratio gets the paywall once, as an offer ([consumePremiumOffer]). The Border tab's width (`space`) and corner
  * radius (`corner`) feed straight into the polygon renderer.
+ *
+ * Stickers are the photo editor's Stickers tool, opened over the screen ([stickersSession]) on a
+ * snapshot of the collage. Its [PlacedSticker]s stay live over the collage ([stickers]), so a tap
+ * opens them again, until Done bakes them in. With no undo history here, each apply simply replaces
+ * the list (the tool has its own undo while it is open).
  */
 class CollageEditorViewModel(
     private val imagePaths: List<String>,
@@ -52,6 +62,7 @@ class CollageEditorViewModel(
     private val session: ImageEditSession,
     private val catalog: CollageCatalog,
     private val settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel() {
 
     /**
@@ -100,6 +111,20 @@ class CollageEditorViewModel(
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    /**
+     * The Stickers tool open over the editor, or null. Here rather than in the screen because the
+     * paywall (offered from the tool's Done) covers the editor, which leaves composition: the tool
+     * has to still be open on return.
+     */
+    internal val stickersSession = mutableStateOf<StickersToolSession?>(null)
+
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The Stickers tool's stickers over the collage, not yet baked. */
+    internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
+
+    private var baking = false
 
     // The photos, decoded once and copied so they draw reliably through Canvas (see copyBitmap).
     private var photos: List<ImageBitmap> = emptyList()
@@ -212,10 +237,47 @@ class CollageEditorViewModel(
 
     fun updateRatio(ratio: CollageRatio) = updateReady { it.copy(ratio = ratio) }
 
-    /** Bakes the current collage into one bitmap and hands it to the shared editing session. */
-    fun applyCollage(previewWidthPx: Float, spacePx: Float, cornerPx: Float) {
+    /**
+     * Bakes the current collage and its stickers into one bitmap and hands it to the shared editing
+     * session. Suspends while the stickers' SVGs are drawn at full size; false before the collage is
+     * in, or while a bake is already under way.
+     */
+    suspend fun applyCollage(previewWidthPx: Float, spacePx: Float, cornerPx: Float): Boolean {
+        val state = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return false
+        if (baking) return false
+        baking = true
+        try {
+            val collage = bakeCollage(state, previewWidthPx, spacePx, cornerPx)
+            session.set(bakeStickers(collage, _stickers.value, imageLoader::renderSvg))
+            return true
+        } finally {
+            baking = false
+        }
+    }
+
+    /**
+     * Opens the Stickers tool on the collage as Done would bake it, without the stickers, which the
+     * tool draws itself. The measures are the preview's, as for [applyCollage]. [selectedStickerId]
+     * is the sticker tapped on the collage, if one was.
+     */
+    internal fun openStickersTool(previewWidthPx: Float, spacePx: Float, cornerPx: Float, selectedStickerId: Long?) {
         val state = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return
-        session.set(bakeCollage(state, previewWidthPx, spacePx, cornerPx))
+        if (stickersSession.value != null || previewWidthPx <= 0f) return
+        val snapshot = bakeCollage(state, previewWidthPx, spacePx, cornerPx)
+        stickersSession.value = StickersToolSession(snapshot, _stickers.value, selectedStickerId, texts = null)
+    }
+
+    /** Leaves the Stickers tool without its changes. */
+    internal fun closeStickersTool() {
+        stickersSession.value = null
+    }
+
+    /** Keeps the Stickers tool's stickers over the collage and closes it. */
+    internal fun applyStickers(stickers: List<PlacedSticker>) {
+        stickersSession.value = null
+        if (stickers == _stickers.value) return
+        _stickers.value = stickers
+        _hasChanges.value = true
     }
 
     /** Every user edit goes through here (the initial layout is set directly), so it marks the change. */

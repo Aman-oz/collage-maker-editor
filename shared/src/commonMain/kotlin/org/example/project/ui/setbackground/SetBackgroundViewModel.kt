@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
 import org.example.project.ui.freestyle.FreestyleContent
@@ -22,6 +23,9 @@ import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
 import org.example.project.ui.freestyle.transformed
 import org.example.project.ui.freestyle.withScaleRotation
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickersToolSession
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextToolSession
 import org.example.project.ui.text.bakeTextLayers
@@ -33,10 +37,15 @@ data class SetBackgroundUiState(
 )
 
 /**
- * One state of Set Background: the backdrop and stickers ([edit]), and the Text tool's texts over
- * the photo ([TextLayers]), kept live (so a tap opens them again) and baked over everything on Done.
+ * One state of Set Background: the backdrop and emoji ([edit]), and the Stickers tool's stickers and
+ * the Text tool's texts over the photo (stickers under texts), kept live (so a tap opens them again)
+ * and baked over everything on Done.
  */
-private data class SetBackgroundFrame(val edit: SetBackgroundEdit, val texts: TextLayers? = null)
+private data class SetBackgroundFrame(
+    val edit: SetBackgroundEdit,
+    val texts: TextLayers? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+)
 
 /**
  * Reads the transparent cut-out from [ImageEditSession], edits its backdrop and sticker layers, and
@@ -44,7 +53,9 @@ private data class SetBackgroundFrame(val edit: SetBackgroundEdit, val texts: Te
  *
  * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
  * photo with its backdrop and stickers. Its texts come back as [TextLayers] that stay live over the
- * photo ([texts]), above the stickers, until Done bakes them in.
+ * photo ([texts]), above the emoji and stickers, until Done bakes them in. Stickers are the photo
+ * editor's Stickers tool, opened the same way ([stickersSession]); its [PlacedSticker]s stay live
+ * too ([stickers]), under the texts.
  *
  * The edit history lives here rather than in the composable because Done pushes the photo editor
  * over this screen, and Back must return to the same backdrop and layers. Like the freestyle
@@ -54,6 +65,7 @@ private data class SetBackgroundFrame(val edit: SetBackgroundEdit, val texts: Te
 class SetBackgroundViewModel(
     private val session: ImageEditSession,
     private val settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel() {
 
     private var premiumOfferShown = false
@@ -92,6 +104,16 @@ class SetBackgroundViewModel(
 
     /** The texts over the photo, not yet baked; null with none. */
     internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
+
+    /** The Stickers tool open over the photo, or null; here for the same reason as [textSession]. */
+    internal val stickersSession = mutableStateOf<StickersToolSession?>(null)
+
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The Stickers tool's stickers over the photo, not yet baked. */
+    internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
+
+    private var baking = false
 
     /** The coalesce key of the continuous edit in progress, or null between gestures. */
     private var gestureKey: String? = null
@@ -143,13 +165,49 @@ class SetBackgroundViewModel(
     fun redo() = restore(history.redo())
 
     /**
-     * Bakes the edit at the cut-out's resolution, its texts on top; see [bakeBackground] for the
-     * preview arguments.
+     * Bakes the edit at the cut-out's resolution, its stickers and then its texts on top; see
+     * [bakeBackground] for the preview arguments. Suspends while the stickers' SVGs are drawn at
+     * full size; false with no cut-out, or while a bake is already under way.
      */
-    fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float) {
+    suspend fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): Boolean {
+        val image = cutOut ?: return false
+        if (baking) return false
+        baking = true
+        try {
+            val frame = history.current
+            val photo = bakeBackground(image, frame.edit, textMeasurer, previewWidthPx, previewDensity)
+            val withStickers = bakeStickers(photo, frame.stickers, imageLoader::renderSvg)
+            session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
+            return true
+        } finally {
+            baking = false
+        }
+    }
+
+    /**
+     * Opens the Stickers tool on the photo as Done would bake it, without the stickers and texts,
+     * which the tool draws itself. [selectedStickerId] is the sticker tapped on the photo, if one was.
+     */
+    internal fun openStickersTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedStickerId: Long?) {
         val image = cutOut ?: return
-        val photo = bakeBackground(image, history.current.edit, textMeasurer, previewWidthPx, previewDensity)
-        session.set(history.current.texts?.let { bakeTextLayers(photo, textMeasurer, it) } ?: photo)
+        if (stickersSession.value != null || previewWidthPx <= 0f) return
+        val frame = history.current
+        val snapshot = bakeBackground(image, frame.edit, textMeasurer, previewWidthPx, previewDensity)
+        stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+    }
+
+    /** Leaves the Stickers tool without its changes. */
+    internal fun closeStickersTool() {
+        stickersSession.value = null
+    }
+
+    /** Commits the Stickers tool's stickers as one undoable step and closes it. */
+    internal fun applyStickers(stickers: List<PlacedSticker>) {
+        stickersSession.value = null
+        if (stickers == history.current.stickers) return
+        history = history.push(history.current.copy(stickers = stickers))
+        gestureKey = null
+        publish()
     }
 
     /**
@@ -215,6 +273,7 @@ class SetBackgroundViewModel(
     private fun publish() {
         _uiState.value = SetBackgroundUiState(history.current.edit, history.canUndo, history.canRedo)
         _texts.value = history.current.texts
+        _stickers.value = history.current.stickers
     }
 
     private companion object {

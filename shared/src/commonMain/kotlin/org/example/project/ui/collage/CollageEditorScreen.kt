@@ -94,6 +94,13 @@ import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import kotlin.math.abs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersToolOverlay
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ColorPickerFill
@@ -141,6 +148,9 @@ private enum class CollageTool(private val englishLabel: String) {
     Border("Border"),
     Background("Background"),
     Ratio("Ratio"),
+
+    /** Not a tab of its own: it opens the photo editor's Stickers tool over the screen. */
+    Stickers("Stickers"),
     ;
 
     /** In the app's current language; read it where it is shown, never keep it. */
@@ -196,6 +206,8 @@ fun CollageEditorScreen(
     val pickerState by viewModel.pickerState.collectAsStateWithLifecycle()
     val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
     // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
     val liquidState = rememberLiquidState()
@@ -215,6 +227,7 @@ fun CollageEditorScreen(
             uiState = uiState,
             pickerState = pickerState,
             isSubscribed = isSubscribed,
+            stickers = stickers,
             onClose = discard::requestBack,
             onPremium = onPremium,
             onDone = { canvasWidthPx, spacePx, cornerPx ->
@@ -226,8 +239,9 @@ fun CollageEditorScreen(
                 if (viewModel.needsPremium || viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
-                    viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)
-                    onOpenEditor()
+                    scope.launch {
+                        if (viewModel.applyCollage(canvasWidthPx, spacePx, cornerPx)) onOpenEditor()
+                    }
                 }
             },
             onTemplateSelected = viewModel::applyTemplate,
@@ -241,7 +255,17 @@ fun CollageEditorScreen(
             onCornerChange = viewModel::updateCorner,
             onBackgroundColorChange = viewModel::updateBackgroundColor,
             onRatioChange = viewModel::updateRatio,
+            onOpenStickers = viewModel::openStickersTool,
             modifier = Modifier.liquefiable(liquidState),
+        )
+
+        // The photo editor's Stickers tool, over the whole screen.
+        StickersToolOverlay(
+            session = viewModel.stickersSession.value,
+            isPremium = isSubscribed,
+            onClose = viewModel::closeStickersTool,
+            onApply = viewModel::applyStickers,
+            onOpenPremium = onPremium,
         )
 
         CollageToast(
@@ -259,6 +283,7 @@ private fun CollageEditorContent(
     uiState: CollageEditorUiState,
     pickerState: CollagePickerState,
     isSubscribed: Boolean,
+    stickers: List<PlacedSticker>,
     onClose: () -> Unit,
     onPremium: () -> Unit,
     onDone: (canvasWidthPx: Float, spacePx: Float, cornerPx: Float) -> Unit,
@@ -270,6 +295,7 @@ private fun CollageEditorContent(
     onCornerChange: (Float) -> Unit,
     onBackgroundColorChange: (Color) -> Unit,
     onRatioChange: (CollageRatio) -> Unit,
+    onOpenStickers: (canvasWidthPx: Float, spacePx: Float, cornerPx: Float, selectedStickerId: Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val chrome = collageChrome()
@@ -277,6 +303,13 @@ private fun CollageEditorContent(
     var selectedSlot by remember { mutableStateOf<Int?>(null) }
     var canvasWidthPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
+
+    /** Opens the Stickers tool on the collage at the preview's measures, as Done bakes it. */
+    fun openStickers(selectedStickerId: Long?) {
+        val state = (uiState as? CollageEditorUiState.Ready)?.collage ?: return
+        selectedSlot = null
+        onOpenStickers(canvasWidthPx, with(density) { state.space.dp.toPx() }, with(density) { state.corner.dp.toPx() }, selectedStickerId)
+    }
 
     EditorPanelLayout(
         panelHeight = ToolPanelHeight,
@@ -316,6 +349,8 @@ private fun CollageEditorContent(
 
                         is CollageEditorUiState.Ready -> CollagePreview(
                             state = uiState.collage,
+                            stickers = stickers,
+                            onStickerTapped = { id -> openStickers(id) },
                             chrome = chrome,
                             selectedSlot = selectedSlot,
                             onCanvasWidthPxChanged = { canvasWidthPx = it },
@@ -364,7 +399,14 @@ private fun CollageEditorContent(
             CollageToolTabs(
                 chrome = chrome,
                 selected = selectedTool,
-                onToolSelected = { selectedTool = it; selectedSlot = null },
+                onToolSelected = { tool ->
+                    if (tool == CollageTool.Stickers) {
+                        openStickers(null)
+                    } else {
+                        selectedTool = tool
+                        selectedSlot = null
+                    }
+                },
             )
         },
         panel = { sideBySide ->
@@ -401,6 +443,8 @@ private fun CollageEditorContent(
                             onRatioChange = onRatioChange,
                             modifier = fixedHeight,
                         )
+                        // Opens its tool over the screen instead (see onToolSelected).
+                        CollageTool.Stickers -> Unit
                     }
                 } else if (uiState is CollageEditorUiState.Loading && selectedTool == CollageTool.Layouts) {
                     // The layout list arrives from the server along with the photos; show the strip's
@@ -415,6 +459,8 @@ private fun CollageEditorContent(
 @Composable
 private fun CollagePreview(
     state: CollageState,
+    stickers: List<PlacedSticker>,
+    onStickerTapped: (Long) -> Unit,
     chrome: CollageChrome,
     selectedSlot: Int?,
     onCanvasWidthPxChanged: (Float) -> Unit,
@@ -493,6 +539,9 @@ private fun CollagePreview(
                     )
                 }
             }
+
+            // The Stickers tool's stickers, over the collage as Done bakes them; a tap on one opens the tool on it.
+            StickerLayersOverlay(stickers, Modifier.fillMaxSize(), onStickerTapped = onStickerTapped)
         }
     }
 }
@@ -593,7 +642,11 @@ private fun CollageTopBar(
 @Composable
 private fun CollageToolTabs(chrome: CollageChrome, selected: CollageTool, onToolSelected: (CollageTool) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Scrolls for a narrow phone or a long translation, where the tabs no longer fit.
+            .horizontalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         CollageTool.entries.forEach { tool ->
@@ -983,6 +1036,7 @@ private fun CollageEditorScreenPreview() {
             uiState = CollageEditorUiState.Loading,
             pickerState = CollagePickerState(isLoading = true),
             isSubscribed = false,
+            stickers = emptyList(),
             onClose = {},
             onPremium = {},
             onDone = { _, _, _ -> },
@@ -994,6 +1048,7 @@ private fun CollageEditorScreenPreview() {
             onCornerChange = {},
             onBackgroundColorChange = {},
             onRatioChange = {},
+            onOpenStickers = { _, _, _, _ -> },
         )
     }
 }

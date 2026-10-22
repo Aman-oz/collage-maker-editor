@@ -93,11 +93,17 @@ import org.jetbrains.compose.resources.vectorResource
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersToolOverlay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_background
 import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
+import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
 import photocollagemaker.shared.generated.resources.ic_undo
 
@@ -141,6 +147,8 @@ fun SetBackgroundScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val photos by viewModel.photos.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
@@ -154,6 +162,7 @@ fun SetBackgroundScreen(
             sourceImage = viewModel.cutOut,
             uiState = uiState,
             texts = texts,
+            stickers = stickers,
             photos = photos,
             onBack = onBack,
             onDone = { previewSizePx ->
@@ -163,8 +172,9 @@ fun SetBackgroundScreen(
                 if (viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
-                    viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)
-                    onApplied()
+                    scope.launch {
+                        if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) onApplied()
+                    }
                 }
             },
             onAddPhoto = { photoPicker.launch() },
@@ -172,6 +182,9 @@ fun SetBackgroundScreen(
             onAddSticker = viewModel::addSticker,
             onOpenTextTool = { previewSizePx, selectedTextId ->
                 viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
+            },
+            onOpenStickersTool = { previewSizePx, selectedStickerId ->
+                viewModel.openStickersTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedStickerId)
             },
             onTransformLayer = viewModel::transformLayer,
             onScaleRotateLayer = viewModel::setLayerScaleRotation,
@@ -181,12 +194,21 @@ fun SetBackgroundScreen(
             onRedo = viewModel::redo,
             onGestureEnd = viewModel::endGesture,
         )
-        // The photo editor's Text tool, over the whole screen.
+        // The photo editor's Text and Stickers tools, over the whole screen.
         TextToolOverlay(
             session = viewModel.textSession.value,
             isPremium = isPremium,
             onClose = viewModel::closeTextTool,
             onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+            // The live stickers sit under the texts, as Done bakes them.
+            underlay = { StickerLayersOverlay(stickers, Modifier.fillMaxSize()) },
+        )
+        StickersToolOverlay(
+            session = viewModel.stickersSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeStickersTool,
+            onApply = viewModel::applyStickers,
             onOpenPremium = onPremium,
         )
     }
@@ -197,6 +219,7 @@ private fun SetBackgroundContent(
     sourceImage: ImageBitmap?,
     uiState: SetBackgroundUiState,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     photos: List<ImageBitmap>,
     onBack: () -> Unit,
     onDone: (previewSizePx: IntSize) -> Unit,
@@ -204,6 +227,7 @@ private fun SetBackgroundContent(
     onSelectBackdrop: (Backdrop) -> Unit,
     onAddSticker: (String) -> Unit,
     onOpenTextTool: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
+    onOpenStickersTool: (previewSizePx: IntSize, selectedStickerId: Long?) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
     onSelectLayer: (id: Long) -> Unit,
@@ -223,6 +247,10 @@ private fun SetBackgroundContent(
     val openTextTool = { selectedTextId: Long? ->
         selectedLayerId = null
         onOpenTextTool(previewSizePx, selectedTextId)
+    }
+    val openStickersTool = { selectedStickerId: Long? ->
+        selectedLayerId = null
+        onOpenStickersTool(previewSizePx, selectedStickerId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
@@ -275,6 +303,12 @@ private fun SetBackgroundContent(
                                     selectedLayerId = null
                                 },
                             )
+                            // The Stickers tool's stickers, over the emoji; a tap on one opens the tool on it.
+                            StickerLayersOverlay(
+                                stickers = stickers,
+                                modifier = Modifier.fillMaxSize(),
+                                onStickerTapped = { id -> openStickersTool(id) },
+                            )
                             // Above the stickers, as Done bakes them; a tap on one opens the Text tool on it.
                             if (texts != null) {
                                 TextLayersOverlay(
@@ -325,6 +359,13 @@ private fun SetBackgroundContent(
                         selected = false,
                         enabled = sourceImage != null,
                         onClick = { openTextTool(null) },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_sticker_editor),
+                        label = tr("Stickers"),
+                        selected = false,
+                        enabled = sourceImage != null,
+                        onClick = { openStickersTool(null) },
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
@@ -588,6 +629,7 @@ private fun SetBackgroundPreview() {
             sourceImage = ImageBitmap(360, 480),
             uiState = SetBackgroundUiState(),
             texts = null,
+            stickers = emptyList(),
             photos = emptyList(),
             onBack = {},
             onDone = {},
@@ -595,6 +637,7 @@ private fun SetBackgroundPreview() {
             onSelectBackdrop = {},
             onAddSticker = {},
             onOpenTextTool = { _, _ -> },
+            onOpenStickersTool = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },
             onSelectLayer = {},

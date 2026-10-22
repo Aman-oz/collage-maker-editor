@@ -186,13 +186,23 @@ from the back stack.
   gallery step.
 - **Layout editor** (`ui/layouteditor/`): the picked layout with every slot empty (dashed outline and a ＋);
   a tap picks that slot's photo (FileKit), which then pans/pinches inside it (the collage editor's
-  `detectSlotTransformGestures`). Tools: Canvas (Original = first photo's shape, plus the crop ratios), Layout
-  (every catalog layout; photos stay keyed by slot index), Edit (a bar that slides up: Margin / Border /
-  Frame / Transform), Background, Emoji (the freestyle sticker layers), and Text, Filter and Ratio, which open the
-  photo editor's tools over the screen (Filter and Ratio on the selected slot's photo, replacing it). Its
-  measures are layout units (1/360 of the canvas's shorter side, `layoutUnitPx`), so preview and bake agree
-  without passing sizes; only the stickers need the preview width. History, the text session and the
-  photo-tool session live in `LayoutEditorViewModel`, which also implements `LayoutEditorActions`.
+  `detectSlotTransformGestures`). Its controls are the Text and Stickers tools' floating glass bar
+  (`GlassOptionsBar` of `LayoutOption`s, whose ✕ leaves the editor); an option opens its panel in
+  the bar's place, framed like theirs (`TextPanelColumn`: ✕ / title / ✓, `PanelSliderRow`s), in a
+  fixed-height area so the canvas never moves. A panel edits live; its ✕ (and back) restores the
+  history as the panel found it (`beginPanel` / `cancelPanel`). Options: Canvas (the ratio strip;
+  Free = the first photo's shape), Layout (every catalog layout; photos stay keyed by slot index),
+  Margin, Border, Frame (a 0–100 slider per property chip, or a colour row), Transform (the selected
+  photo leant like a sticker's Transform, gentler, and zoomed by `layoutTiltCover` so it still
+  covers its slot), Mirror, Rotate, Background, Emoji (the freestyle sticker layers), and Text,
+  Stickers, Filter and Ratio, which open the photo editor's tools over the screen: Stickers'
+  `PlacedSticker`s stay live in the history (`LayoutFrame.stickers`, drawn under the texts, a tap
+  reopens the tool) and Done bakes them with `bakeStickers` (which suspends, so `apply` does); Filter on the whole layout
+  (`FilterPickerTool`; the pick is kept live as `LayoutEdit.filterLabel` over every photo), Ratio
+  on the selected slot's photo, replacing it. Its measures are layout units (1/360 of the canvas's
+  shorter side, `layoutUnitPx`), so preview and bake agree without passing sizes; only the stickers
+  need the preview width. History, the text session and the photo-tool session live in
+  `LayoutEditorViewModel`, which also implements `LayoutEditorActions`.
 - **Freestyle** (`ui/freestyle/`): the picked photos open spread over a grid by the pure
   `scatterPlacements` (`FreestyleLayerOps.kt`), not stacked. Its Text button opens the photo
   editor's Text tool over the whole screen (`TextToolOverlay` with a `TextToolSession` held in
@@ -286,8 +296,16 @@ one `<name>_<slot>.png` alpha mask per slot. `PipCatalog.kt` holds each slot's t
 frame's pixel space; a slot's size is its mask's own size, so geometry is only known once the masks
 are decoded (`PipAssetLoader`). `drawPip` renders the blurred first photo, then each photo masked by
 `DstIn` in its own layer, then the frame, and is shared by the preview and the bake. The editor's
-sticker layers are the freestyle ones, as in Set Background; its text is the photo editor's Text
-tool, kept live over the picture as in the freestyle editor.
+emoji layers are the freestyle ones, as in Set Background; its text is the photo editor's Text
+tool, kept live over the picture as in the freestyle editor, and so are its stickers, the photo
+editor's Stickers tool (`PipFrame.stickers`, under the texts), baked on Done with `bakeStickers`.
+The PIP, layout, freestyle, Set Background and collage editors all open that tool the same way, through
+the shared `StickersToolOverlay` / `StickersToolSession` (`ui/stickers/StickersToolOverlay.kt`), as
+`TextToolOverlay` does text: the stickers ride in each editor's frame (`FreestyleFrame.stickers`,
+`SetBackgroundFrame.stickers`, …), are drawn by `StickerLayersOverlay` between the emoji layers and
+the texts, and are baked on Done, which therefore suspends. The collage editor has no history,
+so its `CollageEditorViewModel.stickers` is a plain list each apply replaces; its Stickers tab
+opens the tool rather than a panel.
 
 ### Background remover — `ui/bgremover/`
 

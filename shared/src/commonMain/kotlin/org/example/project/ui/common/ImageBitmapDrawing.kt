@@ -68,6 +68,7 @@ internal fun DrawScope.drawImageScaled(
     dstOffset: IntOffset,
     dstSize: IntSize,
     blendMode: BlendMode = BlendMode.SrcOver,
+    colorFilter: ColorFilter? = null,
 ) {
     drawIntoCanvas { canvas ->
         canvas.drawImageRect(
@@ -79,6 +80,7 @@ internal fun DrawScope.drawImageScaled(
             paint = Paint().apply {
                 filterQuality = FilterQuality.High
                 this.blendMode = blendMode
+                this.colorFilter = colorFilter
             },
         )
     }

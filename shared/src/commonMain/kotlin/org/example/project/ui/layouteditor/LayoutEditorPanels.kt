@@ -45,6 +45,14 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.key
+import org.example.project.ui.text.PanelSlider
+import org.example.project.ui.text.PanelSliderRow
+import org.example.project.ui.text.TextPanelColumn
+import org.example.project.ui.text.TextPanelPlacement
+import org.example.project.ui.text.TextSliderPanel
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.i18n.tr
 import org.example.project.ui.collage.geom.TemplateItem
-import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ColorPickerFill
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.SelectableSwatch
@@ -61,7 +68,6 @@ import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.rememberColorPickerLauncher
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
-import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.frame.FrameColorNone
 import org.example.project.ui.frame.FrameColors
@@ -108,11 +114,15 @@ internal fun layoutChrome(): LayoutChrome {
     )
 }
 
-/** The panel over the tabs for [tool]; Text, Filter and Ratio have none and show the last one's. */
+/**
+ * The panel an option of the glass bar opens in its place: ✕ / its name / ✓ over its controls, as
+ * the Text and Stickers tools' panels. Its edits show live; [onClose] takes them back, [onDone]
+ * keeps them. Transform, Mirror and Rotate work on [selectedPhotoSlot]'s photo. Text, Filter and
+ * Ratio open over the screen instead, so they never come here.
+ */
 @Composable
-internal fun LayoutToolPanel(
-    tool: LayoutTool,
-    editOption: LayoutEditOption,
+internal fun LayoutOptionPanel(
+    option: LayoutOption,
     edit: LayoutEdit,
     templates: List<TemplateItem>,
     premiumLayouts: Set<String>,
@@ -120,36 +130,124 @@ internal fun LayoutToolPanel(
     selectedPhotoSlot: Int?,
     actions: LayoutEditorActions,
     onStickerTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        when (tool) {
-            LayoutTool.Canvas -> AspectRatioStrip(
+    val photo = selectedPhotoSlot?.let { edit.photos[it] }
+    when (option) {
+        LayoutOption.Canvas -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+            AspectRatioStrip(
                 options = LayoutCanvasOptions,
                 selected = edit.canvas,
                 onSelected = actions::setCanvas,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             )
-            LayoutTool.Layout -> LayoutPickerPanel(
-                templates = templates,
-                premiumLayouts = premiumLayouts,
-                selectedId = edit.template.id,
-                chrome = chrome,
-                onSelected = actions::selectTemplate,
-            )
-            LayoutTool.Edit -> when (editOption) {
-                LayoutEditOption.Margin -> MarginPanel(edit, chrome, actions)
-                LayoutEditOption.Border -> BorderPanel(edit, chrome, actions)
-                LayoutEditOption.Frame -> FramePanel(edit, chrome, actions)
-                LayoutEditOption.Transform -> TransformPanel(edit, chrome, selectedPhotoSlot, actions)
-            }
-            LayoutTool.Background -> BackgroundPanel(selected = edit.background, chrome = chrome, onSelected = actions::setBackground)
-            LayoutTool.Sticker -> StickersPanel(chrome = freestyleChrome(), onStickerTapped = onStickerTapped)
-            // These open over the screen instead of a panel, so they never become the panel's tool.
-            LayoutTool.Text, LayoutTool.Filter, LayoutTool.Ratio -> Unit
         }
+        LayoutOption.Layout -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+            Box(modifier = Modifier.fillMaxWidth().height(LayoutPickerHeight), contentAlignment = Alignment.Center) {
+                LayoutPickerPanel(
+                    templates = templates,
+                    premiumLayouts = premiumLayouts,
+                    selectedId = edit.template.id,
+                    chrome = chrome,
+                    onSelected = actions::selectTemplate,
+                )
+            }
+        }
+        LayoutOption.Margin -> MarginPanel(edit, chrome, actions, onClose, onDone)
+        LayoutOption.Border -> BorderPanel(edit, chrome, actions, onClose, onDone)
+        LayoutOption.Frame -> FramePanel(edit, chrome, actions, onClose, onDone)
+        LayoutOption.Transform -> if (selectedPhotoSlot == null || photo == null) {
+            NoPhotoPanel(option.label, chrome, onClose, onDone)
+        } else {
+            TextSliderPanel(
+                title = option.label,
+                sliders = listOf(
+                    PanelSlider(tr("Horizontal"), photo.tiltX) { actions.setPhotoTiltX(selectedPhotoSlot, it) },
+                    PanelSlider(tr("Vertical"), photo.tiltY) { actions.setPhotoTiltY(selectedPhotoSlot, it) },
+                ),
+                onClose = onClose,
+                onDone = onDone,
+            )
+        }
+        LayoutOption.Mirror -> if (selectedPhotoSlot == null || photo == null) {
+            NoPhotoPanel(option.label, chrome, onClose, onDone)
+        } else {
+            TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                ) {
+                    ActionChip(
+                        icon = vectorResource(Res.drawable.ic_flip_horizontally),
+                        label = tr("Horizontal"),
+                        active = photo.flipX,
+                        chrome = chrome,
+                        onClick = { actions.flipPhoto(selectedPhotoSlot, horizontally = true) },
+                    )
+                    ActionChip(
+                        icon = vectorResource(Res.drawable.ic_flip_vertically),
+                        label = tr("Vertical"),
+                        active = photo.flipY,
+                        chrome = chrome,
+                        onClick = { actions.flipPhoto(selectedPhotoSlot, horizontally = false) },
+                    )
+                }
+            }
+        }
+        LayoutOption.Rotate -> if (selectedPhotoSlot == null || photo == null) {
+            NoPhotoPanel(option.label, chrome, onClose, onDone)
+        } else {
+            TextSliderPanel(
+                title = option.label,
+                sliders = listOf(
+                    PanelSlider(
+                        label = tr("Rotate"),
+                        value = photo.rotationDegrees,
+                        range = LayoutRotationRange,
+                        referenceValue = 0f,
+                    ) { actions.setPhotoRotation(selectedPhotoSlot, it) },
+                ),
+                onClose = onClose,
+                onDone = onDone,
+            )
+        }
+        LayoutOption.Background -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+            BackgroundPanel(selected = edit.background, chrome = chrome, onSelected = actions::setBackground)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+        LayoutOption.Emoji -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+            Box(modifier = Modifier.fillMaxWidth().height(EmojiPanelHeight)) {
+                StickersPanel(chrome = freestyleChrome(), onStickerTapped = onStickerTapped, showHeader = false)
+            }
+        }
+        // These open over the screen instead of a panel.
+        LayoutOption.Text, LayoutOption.Sticker, LayoutOption.Filter, LayoutOption.Ratio -> Unit
     }
 }
 
-private val LayoutThumbnailSize = 64.dp
+/** A photo option's panel while no photo is selected: it says to select one. */
+@Composable
+private fun NoPhotoPanel(title: String, chrome: LayoutChrome, onClose: () -> Unit, onDone: () -> Unit) {
+    TextPanelColumn(title = title, onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
+        Text(
+            text = tr("Tap a photo to select it"),
+            color = chrome.muted,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+        )
+    }
+}
+
+private val LayoutThumbnailSize = 56.dp
+private val LayoutThumbnailSpacing = 10.dp
+private val LayoutPickerPadding = 8.dp
+
+/** Two rows of layouts and their padding. */
+private val LayoutPickerHeight = LayoutThumbnailSize * 2 + LayoutThumbnailSpacing + LayoutPickerPadding * 2
+
+private val EmojiPanelHeight = 150.dp
 
 /** Every layout, two rows scrolling sideways. */
 @Composable
@@ -166,9 +264,9 @@ private fun LayoutPickerPanel(
     }
     LazyHorizontalGrid(
         rows = GridCells.Fixed(2),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = LayoutPickerPadding),
+        horizontalArrangement = Arrangement.spacedBy(LayoutThumbnailSpacing),
+        verticalArrangement = Arrangement.spacedBy(LayoutThumbnailSpacing),
         modifier = Modifier.fillMaxSize(),
     ) {
         items(templates, key = { it.id }) { template ->
@@ -189,7 +287,7 @@ private fun LayoutThumbnail(template: TemplateItem, premium: Boolean, selected: 
             .background(if (selected) chrome.accent.copy(alpha = 0.12f) else Color.Transparent)
             .border(1.5.dp, if (selected) chrome.accent else Color.Transparent, shape)
             .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
-            .padding(7.dp),
+            .padding(5.dp),
         contentAlignment = Alignment.Center,
     ) {
         NetworkImage(
@@ -211,6 +309,48 @@ private fun LayoutThumbnail(template: TemplateItem, premium: Boolean, selected: 
     }
 }
 
+/** A measure as a 0–100 slider over its [range], so every slider reads 0 to 100 as in the design. */
+private fun percentSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onValueChange: (Float) -> Unit): PanelSlider {
+    val span = range.endInclusive - range.start
+    return PanelSlider(label, (value - range.start) / span * 100f) { onValueChange(range.start + it / 100f * span) }
+}
+
+/**
+ * The frame shared by Margin, Border and Frame: ✕ / [title] / ✓, the selected property's control
+ * ([control]: a slider under its name, or a colour row), and under it the chips that pick the property.
+ */
+@Composable
+private fun <T> PropertyPanel(
+    title: String,
+    properties: List<T>,
+    selected: T,
+    label: (T) -> String,
+    chrome: LayoutChrome,
+    onSelected: (T) -> Unit,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+    control: @Composable () -> Unit,
+) {
+    TextPanelColumn(title = title, onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Center) {
+        // One height for every property's control, so the chips under it never move.
+        Box(modifier = Modifier.fillMaxWidth().height(PropertyControlHeight), contentAlignment = Alignment.BottomCenter) {
+            control()
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        ) {
+            for (property in properties) {
+                Chip(label = label(property), selected = property == selected, chrome = chrome, onClick = { onSelected(property) })
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+private val PropertyControlHeight = 86.dp
+
 private enum class MarginProperty(private val englishLabel: String) {
     Corner("Corner"),
     Shadow("Shadow"),
@@ -221,44 +361,45 @@ private enum class MarginProperty(private val englishLabel: String) {
     val label: String get() = tr(englishLabel)
 }
 
-/** Corner, shadow, margin and space: one slider, switched by the chips above it. */
+/** Corner, shadow, margin and space: one slider, switched by the chips under it. */
 @Composable
-private fun MarginPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions) {
-    var property by rememberSaveable { mutableStateOf(MarginProperty.Margin) }
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        PropertyChips(MarginProperty.entries, property, { it.label }, chrome) { property = it }
-        when (property) {
-            MarginProperty.Corner -> PanelSlider(edit.corner, LayoutCornerRange, chrome, onValueChange = actions::setCorner)
-            MarginProperty.Shadow -> PanelSlider(edit.shadow, LayoutShadowRange, chrome, onValueChange = actions::setShadow)
-            MarginProperty.Margin -> PanelSlider(edit.margin, LayoutMarginRange, chrome, onValueChange = actions::setMargin)
-            MarginProperty.Space -> PanelSlider(edit.space, LayoutSpaceRange, chrome, onValueChange = actions::setSpace)
+private fun MarginPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions, onClose: () -> Unit, onDone: () -> Unit) {
+    var property by rememberSaveable { mutableStateOf(MarginProperty.Corner) }
+    PropertyPanel(tr("Margin"), MarginProperty.entries, property, { it.label }, chrome, { property = it }, onClose, onDone) {
+        val slider = when (property) {
+            MarginProperty.Corner -> percentSlider(property.label, edit.corner, LayoutCornerRange, actions::setCorner)
+            MarginProperty.Shadow -> percentSlider(property.label, edit.shadow, LayoutShadowRange, actions::setShadow)
+            MarginProperty.Margin -> percentSlider(property.label, edit.margin, LayoutMarginRange, actions::setMargin)
+            MarginProperty.Space -> percentSlider(property.label, edit.space, LayoutSpaceRange, actions::setSpace)
         }
+        // Keyed, so each property's slider starts from its own value rather than the last one's drag.
+        key(property) { PanelSliderRow(slider) }
     }
 }
 
 private enum class BorderProperty(private val englishLabel: String) {
     Thickness("Thickness"),
     Opacity("Opacity"),
+    Color("Color"),
     ;
 
     val label: String get() = tr(englishLabel)
 }
 
-/** The outline round every slot: its thickness or opacity on the slider, and its colour. */
+/** The outline round every slot: its thickness, its opacity, or its colour. */
 @Composable
-private fun BorderPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions) {
+private fun BorderPanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions, onClose: () -> Unit, onDone: () -> Unit) {
     var property by rememberSaveable { mutableStateOf(BorderProperty.Thickness) }
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        PropertyChips(BorderProperty.entries, property, { it.label }, chrome) { property = it }
+    PropertyPanel(tr("Border"), BorderProperty.entries, property, { it.label }, chrome, { property = it }, onClose, onDone) {
         when (property) {
-            BorderProperty.Thickness -> PanelSlider(edit.borderWidth, LayoutBorderWidthRange, chrome, onValueChange = actions::setBorderWidth)
-            BorderProperty.Opacity -> PanelSlider(edit.borderOpacity, LayoutBorderOpacityRange, chrome, onValueChange = actions::setBorderOpacity)
+            BorderProperty.Thickness -> key(property) {
+                PanelSliderRow(percentSlider(property.label, edit.borderWidth, LayoutBorderWidthRange, actions::setBorderWidth))
+            }
+            BorderProperty.Opacity -> key(property) {
+                PanelSliderRow(percentSlider(property.label, edit.borderOpacity, LayoutBorderOpacityRange, actions::setBorderOpacity))
+            }
+            BorderProperty.Color -> ColorRow(colors = LineColors, selected = edit.borderColor, onSelected = actions::setBorderColor)
         }
-        ColorRow(
-            colors = LineColors,
-            selected = edit.borderColor,
-            onSelected = actions::setBorderColor,
-        )
     }
 }
 
@@ -268,109 +409,25 @@ private val LineColors: List<Color> = FrameColors.map { it.color }.filter { it !
 private enum class FrameProperty(private val englishLabel: String) {
     Width("Width"),
     CornerRadius("Corner Radius"),
+    Color("Color"),
     ;
 
     val label: String get() = tr(englishLabel)
 }
 
-/** The photo editor's frame, round the whole canvas: width or corners on the slider, and its colour (or None). */
+/** The photo editor's frame, round the whole canvas: its width, its corners, or its colour (or None). */
 @Composable
-private fun FramePanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions) {
+private fun FramePanel(edit: LayoutEdit, chrome: LayoutChrome, actions: LayoutEditorActions, onClose: () -> Unit, onDone: () -> Unit) {
     var property by rememberSaveable { mutableStateOf(FrameProperty.Width) }
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        PropertyChips(FrameProperty.entries, property, { it.label }, chrome) { property = it }
+    PropertyPanel(tr("Frame"), FrameProperty.entries, property, { it.label }, chrome, { property = it }, onClose, onDone) {
         when (property) {
-            FrameProperty.Width -> PanelSlider(edit.frameWidth, LayoutFrameWidthRange, chrome, onValueChange = actions::setFrameWidth)
-            FrameProperty.CornerRadius -> PanelSlider(edit.frameCorner, LayoutFrameCornerRange, chrome, onValueChange = actions::setFrameCorner)
-        }
-        ColorRow(
-            colors = FrameColors.map { it.color },
-            selected = edit.frameColor,
-            onSelected = actions::setFrameColor,
-        )
-    }
-}
-
-private enum class TransformProperty(private val englishLabel: String) {
-    Width("Width"),
-    Height("Height"),
-    Rotate("Rotate"),
-    ;
-
-    val label: String get() = tr(englishLabel)
-}
-
-/**
- * The selected photo's mirror (horizontally / vertically, a tap each), and its width, height and
- * turn on the slider. With no photo selected it says to select one.
- */
-@Composable
-private fun TransformPanel(edit: LayoutEdit, chrome: LayoutChrome, selectedSlot: Int?, actions: LayoutEditorActions) {
-    val photo = selectedSlot?.let { edit.photos[it] }
-    if (selectedSlot == null || photo == null) {
-        Text(
-            text = tr("Tap a photo to select it"),
-            color = chrome.muted,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(24.dp),
-        )
-        return
-    }
-    var property by rememberSaveable { mutableStateOf(TransformProperty.Rotate) }
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            item {
-                ActionChip(
-                    icon = vectorResource(Res.drawable.ic_flip_horizontally),
-                    label = tr("Horizontal"),
-                    active = photo.flipX,
-                    chrome = chrome,
-                    onClick = { actions.flipPhoto(selectedSlot, horizontally = true) },
-                )
+            FrameProperty.Width -> key(property) {
+                PanelSliderRow(percentSlider(property.label, edit.frameWidth, LayoutFrameWidthRange, actions::setFrameWidth))
             }
-            item {
-                ActionChip(
-                    icon = vectorResource(Res.drawable.ic_flip_vertically),
-                    label = tr("Vertical"),
-                    active = photo.flipY,
-                    chrome = chrome,
-                    onClick = { actions.flipPhoto(selectedSlot, horizontally = false) },
-                )
+            FrameProperty.CornerRadius -> key(property) {
+                PanelSliderRow(percentSlider(property.label, edit.frameCorner, LayoutFrameCornerRange, actions::setFrameCorner))
             }
-            items(TransformProperty.entries) { p ->
-                Chip(label = p.label, selected = p == property, chrome = chrome, onClick = { property = p })
-            }
-            item {
-                Chip(label = tr("Reset"), selected = false, chrome = chrome, onClick = { actions.resetPhotoTransform(selectedSlot) })
-            }
-        }
-        when (property) {
-            TransformProperty.Width -> PanelSlider(
-                value = photo.stretchX * 100f,
-                range = LayoutStretchRange,
-                chrome = chrome,
-                referenceValue = 100f,
-                onValueChange = { actions.setPhotoStretchX(selectedSlot, it / 100f) },
-            )
-            TransformProperty.Height -> PanelSlider(
-                value = photo.stretchY * 100f,
-                range = LayoutStretchRange,
-                chrome = chrome,
-                referenceValue = 100f,
-                onValueChange = { actions.setPhotoStretchY(selectedSlot, it / 100f) },
-            )
-            TransformProperty.Rotate -> PanelSlider(
-                value = photo.rotationDegrees,
-                range = LayoutRotationRange,
-                chrome = chrome,
-                referenceValue = 0f,
-                onValueChange = { actions.setPhotoRotation(selectedSlot, it) },
-            )
+            FrameProperty.Color -> ColorRow(colors = FrameColors.map { it.color }, selected = edit.frameColor, onSelected = actions::setFrameColor)
         }
     }
 }
@@ -485,26 +542,6 @@ private fun ColorSwatchFill(color: Color) {
     }
 }
 
-/** Picks which of [entries] the slider below edits. */
-@Composable
-private fun <T> PropertyChips(
-    entries: List<T>,
-    selected: T,
-    label: (T) -> String,
-    chrome: LayoutChrome,
-    onSelected: (T) -> Unit,
-) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        items(entries) { entry ->
-            Chip(label = label(entry), selected = entry == selected, chrome = chrome, onClick = { onSelected(entry) })
-        }
-    }
-}
-
 @Composable
 private fun Chip(label: String, selected: Boolean, chrome: LayoutChrome, onClick: () -> Unit) {
     val bounce = rememberSpringBounce()
@@ -545,29 +582,4 @@ private fun ActionChip(icon: ImageVector, label: String, active: Boolean, chrome
         Spacer(modifier = Modifier.width(6.dp))
         Text(text = label, color = tint, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
-}
-
-@Composable
-private fun PanelSlider(
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    chrome: LayoutChrome,
-    referenceValue: Float = range.start,
-    onValueChange: (Float) -> Unit,
-) {
-    CenterFillSlider(
-        value = value,
-        onValueChange = onValueChange,
-        range = range,
-        referenceValue = referenceValue,
-        trackColor = chrome.track,
-        fillColor = chrome.accent,
-        thumbColor = chrome.accent,
-        thumbWidth = 32.dp,
-        thumbHeight = 18.dp,
-        horizontalPadding = 24.dp,
-        glassThumb = true,
-        glassTint = if (chrome.isLight) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
-        valueLabel = ::wholeNumberLabel,
-    )
 }

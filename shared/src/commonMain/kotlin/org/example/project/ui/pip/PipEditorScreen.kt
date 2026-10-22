@@ -83,6 +83,11 @@ import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.text.TextLayers
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersToolOverlay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import org.example.project.ui.freestyle.StickersPanel
 import org.example.project.ui.freestyle.freestyleChrome
 import org.example.project.ui.freestyle.onGestureEnd
@@ -93,6 +98,7 @@ import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_redo
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
+import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
 import photocollagemaker.shared.generated.resources.ic_undo
 
@@ -108,8 +114,8 @@ private const val MaskHitAlpha = 16
 /**
  * Pip editor: the chosen template's frame over a blurred copy of the first photo, with each picked
  * photo showing through its window. Pinch/drag a window to reframe its photo, tap an empty one (or
- * double-tap any) to pick a photo for it, add stickers over the whole picture (the freestyle
- * editor's layers) and text over everything with the photo editor's Text tool. Done bakes it all
+ * double-tap any) to pick a photo for it, add emoji over the whole picture (the freestyle editor's
+ * layers), stickers with the photo editor's Stickers tool and text over everything with its Text tool. Done bakes it all
  * into the session and opens the photo editor.
  */
 @Composable
@@ -124,6 +130,8 @@ fun PipEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -144,6 +152,7 @@ fun PipEditorScreen(
             template = viewModel.template,
             uiState = uiState,
             texts = texts,
+            stickers = stickers,
             onBack = discard::requestBack,
             onDone = { previewSizePx ->
                 // Premium stickers show a non-subscriber the paywall once, as an offer. The
@@ -151,8 +160,10 @@ fun PipEditorScreen(
                 // Done goes through whether or not they subscribed.
                 if (viewModel.consumePremiumOffer()) {
                     onPremium()
-                } else if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) {
-                    onApplied()
+                } else {
+                    scope.launch {
+                        if (viewModel.apply(textMeasurer, previewSizePx.width.toFloat(), density.density)) onApplied()
+                    }
                 }
             },
             onPickSlotPhoto = { index ->
@@ -164,6 +175,9 @@ fun PipEditorScreen(
             onOpenTextTool = { previewSizePx, selectedTextId ->
                 viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
             },
+            onOpenStickersTool = { previewSizePx, selectedStickerId ->
+                viewModel.openStickersTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedStickerId)
+            },
             onTransformLayer = viewModel::transformLayer,
             onScaleRotateLayer = viewModel::setLayerScaleRotation,
             onSelectLayer = viewModel::bringToFront,
@@ -173,12 +187,21 @@ fun PipEditorScreen(
             onGestureEnd = viewModel::endGesture,
             modifier = Modifier.liquefiable(liquidState),
         )
-        // The photo editor's Text tool, over the whole screen.
+        // The photo editor's Text and Stickers tools, over the whole screen.
         TextToolOverlay(
             session = viewModel.textSession.value,
             isPremium = isPremium,
             onClose = viewModel::closeTextTool,
             onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+            // The live stickers sit under the texts, as Done bakes them.
+            underlay = { StickerLayersOverlay(stickers, Modifier.fillMaxSize()) },
+        )
+        StickersToolOverlay(
+            session = viewModel.stickersSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeStickersTool,
+            onApply = viewModel::applyStickers,
             onOpenPremium = onPremium,
         )
         DiscardChangesPopup(discard, liquidState)
@@ -190,12 +213,14 @@ private fun PipEditorContent(
     template: PipTemplate?,
     uiState: PipEditorUiState,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     onBack: () -> Unit,
     onDone: (previewSizePx: IntSize) -> Unit,
     onPickSlotPhoto: (slotIndex: Int) -> Unit,
     onTransformSlot: (index: Int, panX: Float, panY: Float, zoom: Float, slotWidth: Float, slotHeight: Float) -> Unit,
     onAddSticker: (String) -> Unit,
     onOpenTextTool: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
+    onOpenStickersTool: (previewSizePx: IntSize, selectedStickerId: Long?) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
     onScaleRotateLayer: (id: Long, scale: Float, rotationDegrees: Float) -> Unit,
     onSelectLayer: (id: Long) -> Unit,
@@ -215,6 +240,10 @@ private fun PipEditorContent(
     val openTextTool = { selectedTextId: Long? ->
         selectedLayerId = null
         onOpenTextTool(previewSizePx, selectedTextId)
+    }
+    val openStickersTool = { selectedStickerId: Long? ->
+        selectedLayerId = null
+        onOpenStickersTool(previewSizePx, selectedStickerId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch step in progress.
@@ -284,6 +313,12 @@ private fun PipEditorContent(
                                     selectedLayerId = null
                                 },
                             )
+                            // The Stickers tool's stickers, over the emoji; a tap on one opens the tool on it.
+                            StickerLayersOverlay(
+                                stickers = stickers,
+                                modifier = Modifier.fillMaxSize(),
+                                onStickerTapped = { id -> openStickersTool(id) },
+                            )
                             // Above the stickers, as Done bakes them; a tap on one opens the Text tool on it.
                             if (texts != null) {
                                 TextLayersOverlay(
@@ -305,7 +340,7 @@ private fun PipEditorContent(
                     }
                 }
             },
-            // Text opens the Text tool over the screen, so the stickers are the one panel.
+            // Text and Stickers open their tools over the screen, so the emoji are the one panel.
             panel = {
                 if (ready) {
                     StickersPanel(
@@ -328,6 +363,13 @@ private fun PipEditorContent(
                         selected = false,
                         enabled = ready,
                         onClick = { openTextTool(null) },
+                    )
+                    BottomTab(
+                        icon = vectorResource(Res.drawable.ic_sticker_editor),
+                        label = tr("Stickers"),
+                        selected = false,
+                        enabled = ready,
+                        onClick = { openStickersTool(null) },
                     )
                     BottomTab(
                         icon = vectorResource(Res.drawable.ic_stickers_editor),
@@ -525,12 +567,14 @@ private fun PipEditorPreview() {
                 assets = PipFrameAssets(frame = ImageBitmap(612, 612), masks = listOf(ImageBitmap(211, 439))),
             ),
             texts = null,
+            stickers = emptyList(),
             onBack = {},
             onDone = {},
             onPickSlotPhoto = {},
             onTransformSlot = { _, _, _, _, _, _ -> },
             onAddSticker = {},
             onOpenTextTool = { _, _ -> },
+            onOpenStickersTool = { _, _ -> },
             onTransformLayer = { _, _, _, _ -> },
             onScaleRotateLayer = { _, _, _ -> },
             onSelectLayer = {},

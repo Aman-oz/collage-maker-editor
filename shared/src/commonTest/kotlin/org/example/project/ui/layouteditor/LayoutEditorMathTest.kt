@@ -54,10 +54,18 @@ class LayoutEditorMathTest {
     }
 
     @Test
-    fun photoSize_narrowedPhotoStillCovers() {
-        val (w, h) = layoutPhotoSize(1000f, 1000f, 200f, 100f, LayoutPhotoShape(stretchX = 0.5f), 1f)
-        assertTrue(w >= 200f - 0.01f && h >= 100f - 0.01f)
-        assertEquals(0.5f, w / h, 0.001f)
+    fun tilt_flatAtTheMiddleAndFullAtTheEnds() {
+        assertEquals(0f, layoutTiltAmount(LayoutTiltFlat))
+        assertEquals(MaxLayoutTilt, layoutTiltAmount(100f), 0.0001f)
+        assertEquals(-MaxLayoutTilt, layoutTiltAmount(0f), 0.0001f)
+        assertEquals(1f, layoutTiltCover(LayoutPhotoShape()))
+    }
+
+    @Test
+    fun photoSize_leantPhotoIsZoomedToCover() {
+        val flat = layoutPhotoSize(1000f, 1000f, 200f, 200f, LayoutPhotoShape(), 1f)
+        val leant = layoutPhotoSize(1000f, 1000f, 200f, 200f, LayoutPhotoShape(tiltX = 100f), 1f)
+        assertEquals(flat.first / (1f - MaxLayoutTilt), leant.first, 0.01f)
     }
 
     @Test
@@ -80,7 +88,7 @@ class LayoutEditorMathTest {
         val slotW = 300f
         val slotH = 180f
         for (degrees in listOf(-170f, -45f, 0f, 30f, 90f, 135f)) {
-            val shape = LayoutPhotoShape(rotationDegrees = degrees, stretchX = 1.3f, stretchY = 0.8f)
+            val shape = LayoutPhotoShape(rotationDegrees = degrees, tiltX = 85f, tiltY = 10f)
             val t = clampLayoutTransform(SlotTransform(scale = 1.6f, offsetX = 5f, offsetY = -5f), 1200f, 900f, slotW, slotH, shape)
             assertCovers(1200f, 900f, slotW, slotH, shape, t)
         }
@@ -100,16 +108,24 @@ class LayoutEditorMathTest {
         assertEquals(800 to 600, layoutPhotoLoadSize(800, 600))
     }
 
-    /** Every corner of the slot lies inside the drawn photo, measured in the photo's turned frame. */
+    /**
+     * Every corner of the slot shows a point of the drawn photo: each corner is taken back through the
+     * lean (`p = q / (1 - a·q)`, about the slot's centre), then measured in the photo's turned frame.
+     */
     private fun assertCovers(imageW: Float, imageH: Float, slotW: Float, slotH: Float, shape: LayoutPhotoShape, t: SlotTransform) {
         val (drawnW, drawnH) = layoutPhotoSize(imageW, imageH, slotW, slotH, shape, t.scale)
+        val ax = layoutTiltAmount(shape.tiltX) / (slotW / 2f)
+        val ay = layoutTiltAmount(shape.tiltY) / (slotH / 2f)
         val radians = shape.rotationDegrees * PI.toFloat() / 180f
         val c = cos(radians)
         val s = sin(radians)
         val centerX = t.offsetX * slotW
         val centerY = t.offsetY * slotH
-        for (cornerX in listOf(-slotW / 2f, slotW / 2f)) {
-            for (cornerY in listOf(-slotH / 2f, slotH / 2f)) {
+        for (slotCornerX in listOf(-slotW / 2f, slotW / 2f)) {
+            for (slotCornerY in listOf(-slotH / 2f, slotH / 2f)) {
+                val w = 1f - ax * slotCornerX - ay * slotCornerY
+                val cornerX = slotCornerX / w
+                val cornerY = slotCornerY / w
                 val dx = cornerX - centerX
                 val dy = cornerY - centerY
                 val qx = dx * c + dy * s

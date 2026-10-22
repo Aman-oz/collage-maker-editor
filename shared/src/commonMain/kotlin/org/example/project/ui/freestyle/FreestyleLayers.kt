@@ -582,13 +582,18 @@ internal fun PanelHeader(chrome: FreestyleChrome, title: String, trailing: Strin
 }
 
 @Composable
-internal fun StickersPanel(chrome: FreestyleChrome, onStickerTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit) {
+internal fun StickersPanel(
+    chrome: FreestyleChrome,
+    onStickerTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit,
+    // Off where the panel already sits under a titled bar (the layout editor's).
+    showHeader: Boolean = true,
+) {
     // null selects the Recent tab, matching EmojiCategoryTabs.
     var category by remember { mutableStateOf<EmojiCategory?>(EmojiCategory.Smileys) }
     var recent by remember { mutableStateOf(emptyList<String>()) }
 
     Column {
-        PanelHeader(chrome = chrome, title = tr("Emoji"))
+        if (showHeader) PanelHeader(chrome = chrome, title = tr("Emoji"))
         EmojiCategoryTabs(selected = category, onSelected = { category = it })
         EmojiGrid(
             emojis = category?.let { EmojisByCategory[it].orEmpty() } ?: recent,

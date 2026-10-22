@@ -3,13 +3,16 @@ package org.example.project.ui.layouteditor
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.drawscope.withTransform
+import org.example.project.ui.filter.PhotoFilters
+import org.example.project.ui.filter.toColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -77,12 +80,14 @@ internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, e
         for (g in slots) drawSlotShadow(g, edit.shadow / LayoutShadowRange.endInclusive, unit)
     }
 
+    val filter = edit.photoColorFilter()
+
     for (g in slots) {
         translate(g.leftPx, g.topPx) {
             clipPath(g.clipPath) {
                 val photo = edit.photos[g.item.index]
                 if (photo != null) {
-                    drawLayoutPhoto(photo, g.wPx, g.hPx)
+                    drawLayoutPhoto(photo, g.wPx, g.hPx, filter)
                 } else if (emptySlot.alpha > 0f) {
                     drawRect(emptySlot, size = Size(g.wPx, g.hPx))
                 }
@@ -135,25 +140,56 @@ private const val ShadowStepAlpha = 0.07f
 private const val ShadowMaxSpreadUnits = 14f
 private const val ShadowMaxDropUnits = 4f
 
+/** The layout's filter over every photo, or null with none (or None). */
+internal fun LayoutEdit.photoColorFilter(): ColorFilter? {
+    val label = filterLabel ?: return null
+    return PhotoFilters.firstOrNull { it.label == label }?.toColorFilter(filterIntensity)
+}
+
 /**
- * Draws [photo] in a slot-local [slotW] x [slotH] box: about the slot's centre, moved by its
- * (re-clamped) offset, turned, mirrored and sized by [layoutPhotoSize]. The caller clips to the slot.
+ * Draws [photo] in a slot-local [slotW] x [slotH] box: leant about the slot's centre (Transform),
+ * then about its own (re-clamped) centre turned, mirrored and sized by [layoutPhotoSize], through
+ * [colorFilter]. The caller clips to the slot.
  */
-internal fun DrawScope.drawLayoutPhoto(photo: LayoutPhoto, slotW: Float, slotH: Float) {
+internal fun DrawScope.drawLayoutPhoto(photo: LayoutPhoto, slotW: Float, slotH: Float, colorFilter: ColorFilter? = null) {
     val image = photo.image
     val imageW = image.width.toFloat()
     val imageH = image.height.toFloat()
     val t = clampLayoutTransform(photo.transform, imageW, imageH, slotW, slotH, photo.shape)
     val (drawnW, drawnH) = layoutPhotoSize(imageW, imageH, slotW, slotH, photo.shape, t.scale)
     val center = Offset(slotW / 2f + t.offsetX * slotW, slotH / 2f + t.offsetY * slotH)
-    rotate(photo.rotationDegrees, pivot = center) {
-        scale(scaleX = if (photo.flipX) -1f else 1f, scaleY = if (photo.flipY) -1f else 1f, pivot = center) {
-            drawImageScaled(
-                image = image,
-                dstOffset = IntOffset((center.x - drawnW / 2f).roundToInt(), (center.y - drawnH / 2f).roundToInt()),
-                dstSize = IntSize(drawnW.roundToInt().coerceAtLeast(1), drawnH.roundToInt().coerceAtLeast(1)),
-            )
+    val tilt = layoutTiltMatrix(photo, slotW, slotH)
+    withTransform({
+        if (tilt != null) {
+            translate(slotW / 2f, slotH / 2f)
+            transform(tilt)
+            translate(-slotW / 2f, -slotH / 2f)
         }
+        rotate(photo.rotationDegrees, pivot = center)
+        scale(scaleX = if (photo.flipX) -1f else 1f, scaleY = if (photo.flipY) -1f else 1f, pivot = center)
+    }) {
+        drawImageScaled(
+            image = image,
+            dstOffset = IntOffset((center.x - drawnW / 2f).roundToInt(), (center.y - drawnH / 2f).roundToInt()),
+            dstSize = IntSize(drawnW.roundToInt().coerceAtLeast(1), drawnH.roundToInt().coerceAtLeast(1)),
+            colorFilter = colorFilter,
+        )
+    }
+}
+
+/**
+ * The Transform lean as a perspective matrix about a [slotW] x [slotH] slot's centre, as the Stickers
+ * tool's (`stickerTiltMatrix`): a positive horizontal lean shrinks the right side as if leaning away,
+ * the left grows to match. Null when flat.
+ */
+internal fun layoutTiltMatrix(photo: LayoutPhoto, slotW: Float, slotH: Float): Matrix? {
+    val tiltX = layoutTiltAmount(photo.tiltX)
+    val tiltY = layoutTiltAmount(photo.tiltY)
+    if ((tiltX == 0f && tiltY == 0f) || slotW <= 0f || slotH <= 0f) return null
+    return Matrix().apply {
+        // The 4×4 matrix's perspective terms for x and y: w = 1 + px·x + py·y.
+        values[3] = tiltX / (slotW / 2f)
+        values[7] = tiltY / (slotH / 2f)
     }
 }
 

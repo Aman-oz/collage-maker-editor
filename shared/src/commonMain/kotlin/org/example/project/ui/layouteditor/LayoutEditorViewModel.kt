@@ -25,17 +25,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.collage.CollageCatalog
 import org.example.project.ui.collage.geom.TemplateItem
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.crop.AspectRatioOption
 import org.example.project.ui.editor.EditHistory
+import org.example.project.ui.filter.PhotoFilter
 import org.example.project.ui.freestyle.FreestyleContent
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
 import org.example.project.ui.freestyle.isPremiumFreestyle
 import org.example.project.ui.layouts.LayoutsRepository
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickersToolSession
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.freestyle.transformed
 import org.example.project.ui.freestyle.withScaleRotation
 import org.example.project.ui.templates.SlotTransform
@@ -49,14 +54,34 @@ internal sealed interface LayoutEditorUiState {
     data class Error(val message: String) : LayoutEditorUiState
 }
 
-/** The photo editor's tools that open over the layout editor on one slot's photo. */
+/**
+ * The photo editor's tools that open over the layout editor: Filter on the whole layout (its pick
+ * goes over every photo), Ratio on one slot's photo.
+ */
 internal enum class LayoutPhotoTool { Filter, Ratio }
 
-/** [tool] open on the photo in slot [slotIndex], which was [image] when it opened. Identity matters, as for [TextToolSession]. */
-internal class LayoutPhotoToolSession(val tool: LayoutPhotoTool, val slotIndex: Int, val image: ImageBitmap)
+/**
+ * [tool] open over the layout editor on [image]: for Ratio the photo in slot [slotIndex] as it was
+ * when it opened, for Filter the layout without its filter (and [slotIndex] is -1). Identity
+ * matters, as for [TextToolSession].
+ */
+internal class LayoutPhotoToolSession(
+    val tool: LayoutPhotoTool,
+    val slotIndex: Int,
+    val image: ImageBitmap,
+    val filterLabel: String? = null,
+    val filterIntensity: Float = 1f,
+)
 
-/** One state of the layout editor: the layout ([edit]) and the Text tool's texts over it, kept live until Done. */
-private data class LayoutFrame(val edit: LayoutEdit, val texts: TextLayers? = null)
+/**
+ * One state of the layout editor: the layout ([edit]), and the Stickers tool's stickers and the Text
+ * tool's texts over it (stickers under texts), kept live until Done.
+ */
+private data class LayoutFrame(
+    val edit: LayoutEdit,
+    val texts: TextLayers? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+)
 
 /**
  * Drives the layout editor: a collage layout picked on Home or in the Layouts browser, opened with
@@ -67,9 +92,14 @@ private data class LayoutFrame(val edit: LayoutEdit, val texts: TextLayers? = nu
  * continuous edit (a drag, a slider) passes a coalesce key and folds into one undo step until the
  * screen reports the gesture over ([endGesture]).
  *
- * Text is the photo editor's Text tool over the screen ([textSession]); Filter and Ratio are the
- * photo editor's tools over it on the selected slot's photo ([photoTool]), whose result replaces
- * that photo. Both sessions are here so they are still open after the paywall.
+ * Text and Stickers are the photo editor's tools over the screen ([textSession], [stickersSession]),
+ * kept live over the layout until Done bakes them; Filter and Ratio are the
+ * photo editor's tools over it ([photoTool]): Filter's pick goes over every photo, Ratio's result
+ * replaces the selected slot's photo. The sessions are here so they are still open after the
+ * paywall.
+ *
+ * An option's panel edits live, as one would expect, and its ✕ takes back everything since it opened
+ * ([beginPanel] / [cancelPanel]), undo history and all.
  */
 internal class LayoutEditorViewModel(
     private val layoutName: String,
@@ -77,6 +107,7 @@ internal class LayoutEditorViewModel(
     private val catalog: CollageCatalog,
     private val layouts: LayoutsRepository,
     private val settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel(), LayoutEditorActions {
 
     private val _uiState = MutableStateFlow<LayoutEditorUiState>(LayoutEditorUiState.Loading)
@@ -101,6 +132,11 @@ internal class LayoutEditorViewModel(
     /** The texts over the layout, not yet baked; null with none. */
     val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
 
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The Stickers tool's stickers over the layout, not yet baked. */
+    val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
+
     private val _hasChanges = MutableStateFlow(false)
 
     /** Whether anything was done since the editor opened; leaving then asks to discard. */
@@ -115,6 +151,9 @@ internal class LayoutEditorViewModel(
     /** The Text tool open over the screen, or null. */
     val textSession = mutableStateOf<TextToolSession?>(null)
 
+    /** The Stickers tool open over the screen, or null. */
+    val stickersSession = mutableStateOf<StickersToolSession?>(null)
+
     /** The Filter or Ratio tool open over the screen, or null. */
     val photoTool = mutableStateOf<LayoutPhotoToolSession?>(null)
 
@@ -122,6 +161,9 @@ internal class LayoutEditorViewModel(
 
     /** The coalesce key of the continuous edit in progress, or null between gestures. */
     private var gestureKey: String? = null
+
+    /** The history as the open option's panel found it; null while none is open. */
+    private var panelStart: EditHistory<LayoutFrame>? = null
 
     private var nextLayerId = 0L
     private var premiumOfferShown = false
@@ -243,13 +285,29 @@ internal class LayoutEditorViewModel(
     override fun setPhotoRotation(slotIndex: Int, degrees: Float) =
         updatePhoto(slotIndex, "rotate:$slotIndex") { it.copy(rotationDegrees = degrees) }
 
-    override fun setPhotoStretchX(slotIndex: Int, stretch: Float) =
-        updatePhoto(slotIndex, "stretchX:$slotIndex") { it.copy(stretchX = stretch) }
+    override fun setPhotoTiltX(slotIndex: Int, tilt: Float) =
+        updatePhoto(slotIndex, "tiltX:$slotIndex") { it.copy(tiltX = tilt) }
 
-    override fun setPhotoStretchY(slotIndex: Int, stretch: Float) =
-        updatePhoto(slotIndex, "stretchY:$slotIndex") { it.copy(stretchY = stretch) }
+    override fun setPhotoTiltY(slotIndex: Int, tilt: Float) =
+        updatePhoto(slotIndex, "tiltY:$slotIndex") { it.copy(tiltY = tilt) }
 
-    override fun resetPhotoTransform(slotIndex: Int) = updatePhoto(slotIndex) { LayoutPhoto(it.image) }
+    override fun beginPanel() {
+        panelStart = history
+        gestureKey = null
+    }
+
+    override fun cancelPanel() {
+        val start = panelStart ?: return
+        panelStart = null
+        history = start
+        gestureKey = null
+        publish()
+    }
+
+    override fun endPanel() {
+        panelStart = null
+        gestureKey = null
+    }
 
     override fun addSticker(emoji: String) = updateLayers {
         it + FreestyleLayer(id = nextLayerId++, content = FreestyleContent.StickerContent(emoji))
@@ -274,11 +332,25 @@ internal class LayoutEditorViewModel(
 
     override fun redo() = restore { it.redo() }
 
-    /** Bakes the layout, its stickers and texts at full size into the session; see [bakeLayout]. */
-    fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float) {
-        val frame = current ?: return
-        val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
-        session.set(frame.texts?.let { bakeTextLayers(picture, textMeasurer, it) } ?: picture)
+    private var baking = false
+
+    /**
+     * Bakes the layout, its emoji, stickers and texts at full size into the session (see
+     * [bakeLayout] and [bakeStickers]). Suspends while the stickers' SVGs are drawn at full size;
+     * false when a bake was already under way, so a second Done doesn't go on twice.
+     */
+    suspend fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): Boolean {
+        val frame = current ?: return false
+        if (baking) return false
+        baking = true
+        try {
+            val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
+            val withStickers = bakeStickers(picture, frame.stickers, imageLoader::renderSvg)
+            session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
+            return true
+        } finally {
+            baking = false
+        }
     }
 
     /**
@@ -303,10 +375,56 @@ internal class LayoutEditorViewModel(
         push(history.current.copy(texts = layers.takeIf { it.texts.isNotEmpty() }))
     }
 
-    /** Opens [tool] on the photo in [slotIndex]; nothing when that slot has none. */
-    fun openPhotoTool(tool: LayoutPhotoTool, slotIndex: Int) {
+    /**
+     * Opens the Stickers tool on the layout as Done would bake it, without the stickers and texts,
+     * which the tool draws itself. [selectedStickerId] is the sticker tapped on the layout, if one was.
+     */
+    fun openStickersTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedStickerId: Long?) {
+        val frame = current ?: return
+        if (stickersSession.value != null || previewWidthPx <= 0f) return
+        val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity)
+        stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+    }
+
+    fun closeStickersTool() {
+        stickersSession.value = null
+    }
+
+    /** Commits the Stickers tool's stickers as one undo step and closes it. */
+    fun applyStickers(stickers: List<PlacedSticker>) {
+        stickersSession.value = null
+        val history = history ?: return
+        if (stickers == history.current.stickers) return
+        push(history.current.copy(stickers = stickers))
+    }
+
+    /** Opens Ratio on the photo in [slotIndex]; nothing when that slot has none. */
+    fun openRatioTool(slotIndex: Int) {
         val photo = current?.edit?.photos?.get(slotIndex) ?: return
-        if (photoTool.value == null) photoTool.value = LayoutPhotoToolSession(tool, slotIndex, photo.image)
+        if (photoTool.value == null) photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Ratio, slotIndex, photo.image)
+    }
+
+    /**
+     * Opens Filter on the whole layout: the photos as they are without the filter (and without the
+     * stickers, which it doesn't touch), opened on the filter they have now.
+     */
+    fun openFilterTool(textMeasurer: TextMeasurer) {
+        val edit = current?.edit ?: return
+        if (photoTool.value != null || edit.photos.isEmpty()) return
+        val snapshot = bakeLayout(
+            edit.copy(filterLabel = null, layers = emptyList()),
+            textMeasurer,
+            previewWidthPx = 0f,
+            previewDensity = 1f,
+            longSide = FilterPreviewLongSide,
+        )
+        photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Filter, -1, snapshot, edit.filterLabel, edit.filterIntensity)
+    }
+
+    /** Puts [filter] at [intensity] over every photo, as one undo step, and closes the tool. */
+    fun applyFilter(filter: PhotoFilter, intensity: Float) {
+        photoTool.value = null
+        update { it.copy(filterLabel = filter.label.takeUnless { filter.isNoneOption }, filterIntensity = intensity) }
     }
 
     fun closePhotoTool() {
@@ -314,18 +432,13 @@ internal class LayoutEditorViewModel(
     }
 
     /**
-     * Puts the tool's result in its slot as one undo step. A filter keeps the photo's shape, so its
-     * framing stays; a new ratio is another picture to frame, so it starts from the fit again.
+     * Puts Ratio's result in its slot as one undo step. A new ratio is another picture to frame, so
+     * it starts from the fit again.
      */
-    fun applyPhotoTool(image: ImageBitmap) {
+    fun applyRatio(image: ImageBitmap) {
         val opened = photoTool.value ?: return
         photoTool.value = null
-        updatePhoto(opened.slotIndex) { photo ->
-            when (opened.tool) {
-                LayoutPhotoTool.Filter -> photo.copy(image = image)
-                LayoutPhotoTool.Ratio -> photo.copy(image = image, transform = SlotTransform())
-            }
-        }
+        updatePhoto(opened.slotIndex) { photo -> photo.copy(image = image, transform = SlotTransform()) }
     }
 
     private inline fun updatePhoto(slotIndex: Int, coalesceKey: String? = null, transform: (LayoutPhoto) -> LayoutPhoto) {
@@ -386,6 +499,7 @@ internal class LayoutEditorViewModel(
         val history = history ?: return
         _uiState.value = LayoutEditorUiState.Ready(history.current.edit, history.canUndo, history.canRedo)
         _texts.value = history.current.texts
+        _stickers.value = history.current.stickers
     }
 
     private companion object {
@@ -394,5 +508,8 @@ internal class LayoutEditorViewModel(
 
         /** The outline a border colour picked at zero width gets. */
         const val DefaultBorderWidth = 3f
+
+        /** The Filter tool's preview of the whole layout: enough for the screen, quick to make. */
+        const val FilterPreviewLongSide = 1080
     }
 }

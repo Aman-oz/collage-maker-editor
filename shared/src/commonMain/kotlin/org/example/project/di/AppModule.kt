@@ -103,10 +103,10 @@ val viewModelModule: Module = module {
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get(), get()) }
     // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
-    viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get()) }
+    viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get(), get()) }
     // The layout to open on comes from the navigation key.
-    viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get()) }
-    viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get()) }
+    viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get(), get()) }
+    viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get(), get()) }
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
     viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }
     viewModelOf(::SetBackgroundViewModel)
@@ -126,7 +126,7 @@ val viewModelModule: Module = module {
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }
     viewModelOf(::PipViewModel)
-    viewModel { (templateName: String, imagePaths: List<String>) -> PipEditorViewModel(templateName, imagePaths, get(), get(), get()) }
+    viewModel { (templateName: String, imagePaths: List<String>) -> PipEditorViewModel(templateName, imagePaths, get(), get(), get(), get()) }
 }
 
 val appModules: List<Module> = listOf(coreModule, viewModelModule, billingPlatformModule())

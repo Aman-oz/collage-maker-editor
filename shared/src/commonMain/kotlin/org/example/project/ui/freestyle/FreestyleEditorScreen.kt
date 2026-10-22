@@ -2,6 +2,11 @@ package org.example.project.ui.freestyle
 
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickerLayersOverlay
+import org.example.project.ui.stickers.StickersToolOverlay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import org.example.project.ui.text.TextLayers
 import org.example.project.i18n.tr
 import io.github.fletchmckee.liquid.liquefiable
@@ -100,12 +105,15 @@ import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_background
 import photocollagemaker.shared.generated.resources.ic_redo
+import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_undo
 
 /** [icon] is composable so a tool can use a drawable resource, which only loads in composition. */
 private enum class FreestyleTool(private val englishLabel: String, val icon: @Composable () -> ImageVector) {
     Background("Background", { vectorResource(Res.drawable.ic_background) }),
     Stickers("Emoji", { Icons.Outlined.EmojiEmotions }),
+    /** Opens the photo editor's Stickers tool over the screen, as Text opens the Text tool. */
+    ServerStickers("Stickers", { vectorResource(Res.drawable.ic_sticker_editor) }),
     Border("Border", { Icons.Outlined.BorderClear }),
     Text("Text", { Icons.Outlined.TextFields }),
     ;
@@ -132,6 +140,8 @@ fun FreestyleEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val texts by viewModel.texts.collectAsStateWithLifecycle()
+    val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -157,6 +167,7 @@ fun FreestyleEditorScreen(
         FreestyleEditorContent(
             uiState = uiState,
             texts = texts,
+            stickers = stickers,
             onClose = discard::requestBack,
             onDone = { canvasSizePx ->
                 // A canvas that uses something premium shows a non-subscriber the paywall once, as
@@ -165,8 +176,12 @@ fun FreestyleEditorScreen(
                 if (viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
-                    viewModel.applyFreestyle(textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density)
-                    onOpenEditor()
+                    scope.launch {
+                        val applied = viewModel.applyFreestyle(
+                            textMeasurer, canvasSizePx.width.toFloat(), canvasSizePx.height.toFloat(), density.density,
+                        )
+                        if (applied) onOpenEditor()
+                    }
                 }
             },
             onTransformLayer = viewModel::transformLayer,
@@ -187,6 +202,15 @@ fun FreestyleEditorScreen(
                     selectedTextId = selectedTextId,
                 )
             },
+            onOpenStickersTool = { canvasSizePx, selectedStickerId ->
+                viewModel.openStickersTool(
+                    textMeasurer = textMeasurer,
+                    previewWidthPx = canvasSizePx.width.toFloat(),
+                    previewHeightPx = canvasSizePx.height.toFloat(),
+                    previewDensity = density.density,
+                    selectedStickerId = selectedStickerId,
+                )
+            },
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onGestureEnd = viewModel::endGesture,
@@ -196,12 +220,21 @@ fun FreestyleEditorScreen(
             modifier = Modifier.liquefiable(liquidState),
         )
 
-        // The photo editor's Text tool, over the whole screen.
+        // The photo editor's Text and Stickers tools, over the whole screen.
         TextToolOverlay(
             session = viewModel.textSession.value,
             isPremium = isPremium,
             onClose = viewModel::closeTextTool,
             onApply = viewModel::applyTexts,
+            onOpenPremium = onPremium,
+            // The live stickers sit under the texts, as Done bakes them.
+            underlay = { StickerLayersOverlay(stickers, Modifier.fillMaxSize()) },
+        )
+        StickersToolOverlay(
+            session = viewModel.stickersSession.value,
+            isPremium = isPremium,
+            onClose = viewModel::closeStickersTool,
+            onApply = viewModel::applyStickers,
             onOpenPremium = onPremium,
         )
 
@@ -213,6 +246,7 @@ fun FreestyleEditorScreen(
 private fun FreestyleEditorContent(
     uiState: FreestyleEditorUiState,
     texts: TextLayers?,
+    stickers: List<PlacedSticker>,
     onClose: () -> Unit,
     onDone: (canvasSizePx: IntSize) -> Unit,
     onTransformLayer: (id: Long, panFraction: Offset, zoomDelta: Float, rotationDeltaDegrees: Float) -> Unit,
@@ -222,6 +256,7 @@ private fun FreestyleEditorContent(
     onImageAction: (replaceLayerId: Long?) -> Unit,
     onAddSticker: (String) -> Unit,
     onOpenTextTool: (canvasSizePx: IntSize, selectedTextId: Long?) -> Unit,
+    onOpenStickersTool: (canvasSizePx: IntSize, selectedStickerId: Long?) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onGestureEnd: () -> Unit,
@@ -246,6 +281,10 @@ private fun FreestyleEditorContent(
     val openTextTool = { selectedTextId: Long? ->
         selectedLayerId = null
         onOpenTextTool(canvasSizePx, selectedTextId)
+    }
+    val openStickersTool = { selectedStickerId: Long? ->
+        selectedLayerId = null
+        onOpenStickersTool(canvasSizePx, selectedStickerId)
     }
 
     // One observer for the whole screen: any finger lift ends the drag/pinch/slider step in progress.
@@ -301,6 +340,12 @@ private fun FreestyleEditorContent(
                                     selectedLayerId = null
                                 },
                             )
+                            // The Stickers tool's stickers, over every layer; a tap on one opens the tool on it.
+                            StickerLayersOverlay(
+                                stickers = stickers,
+                                modifier = Modifier.fillMaxSize(),
+                                onStickerTapped = { id -> openStickersTool(id) },
+                            )
                             // Above every layer, as Done bakes them; a tap on one opens the Text tool on it.
                             if (texts != null) {
                                 TextLayersOverlay(
@@ -340,8 +385,8 @@ private fun FreestyleEditorContent(
                             onWidthChange = { onBorderWidthChange(selectedImageId, it) },
                             onRadiusChange = { onCornerRadiusChange(selectedImageId, it) },
                         )
-                        // Opens the Text tool over the screen instead of a panel (see onToolSelected).
-                        FreestyleTool.Text -> Unit
+                        // Open their tools over the screen instead of a panel (see onToolSelected).
+                        FreestyleTool.Text, FreestyleTool.ServerStickers -> Unit
                     }
                 }
             },
@@ -351,9 +396,15 @@ private fun FreestyleEditorContent(
                     selected = selectedTool,
                     enabled = freestyle != null,
                     replacing = selectedImageLayer != null,
-                    onToolSelected = { tool -> if (tool == FreestyleTool.Text) openTextTool(null) else selectedTool = tool },
+                    onToolSelected = { tool ->
+                        when (tool) {
+                            FreestyleTool.Text -> openTextTool(null)
+                            FreestyleTool.ServerStickers -> openStickersTool(null)
+                            else -> selectedTool = tool
+                        }
+                    },
                     onImageAction = { onImageAction(selectedImageLayer?.id) },
-                    // Five tools fit the side column's width only a little narrower than usual.
+                    // A little narrower in the side column; the row scrolls for what does not fit.
                     itemWidth = if (sideBySide) 70.dp else ToolItemWidth,
                 )
             },
@@ -774,6 +825,7 @@ private fun FreestyleEditorScreenPreview() {
         FreestyleEditorContent(
             uiState = FreestyleEditorUiState.Ready(FreestyleState()),
             texts = null,
+            stickers = emptyList(),
             onClose = {},
             onDone = {},
             onTransformLayer = { _, _, _, _ -> },
@@ -783,6 +835,7 @@ private fun FreestyleEditorScreenPreview() {
             onImageAction = {},
             onAddSticker = {},
             onOpenTextTool = { _, _ -> },
+            onOpenStickersTool = { _, _ -> },
             onUndo = {},
             onRedo = {},
             onGestureEnd = {},

@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
@@ -27,6 +28,9 @@ import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.broughtToFront
 import org.example.project.ui.freestyle.transformed
 import org.example.project.ui.freestyle.withScaleRotation
+import org.example.project.ui.stickers.PlacedSticker
+import org.example.project.ui.stickers.StickersToolSession
+import org.example.project.ui.stickers.bakeStickers
 import org.example.project.ui.templates.SlotTransform
 import org.example.project.ui.templates.applyGesture
 import org.example.project.ui.text.TextLayers
@@ -45,10 +49,15 @@ data class PipEditorUiState(
 )
 
 /**
- * One state of the PIP editor: the picture and its stickers ([edit]), and the Text tool's texts over
- * it ([TextLayers]), kept live (so a tap opens them again) and baked over everything on Done.
+ * One state of the PIP editor: the picture and its emoji ([edit]), and the Stickers tool's stickers
+ * and the Text tool's texts over it (stickers under texts), kept live (so a tap opens them again)
+ * and baked over everything on Done.
  */
-private data class PipFrame(val edit: PipEdit, val texts: TextLayers? = null)
+private data class PipFrame(
+    val edit: PipEdit,
+    val texts: TextLayers? = null,
+    val stickers: List<PlacedSticker> = emptyList(),
+)
 
 /**
  * Drives the Pip editor (the LAS app's `TemplateDetailActivity`): loads [templateName]'s frame and
@@ -57,7 +66,8 @@ private data class PipFrame(val edit: PipEdit, val texts: TextLayers? = null)
  *
  * Text is the photo editor's Text tool, opened over the screen ([textSession]) on a snapshot of the
  * picture. Its texts come back as [TextLayers] that stay live over the picture ([texts]), above the
- * stickers, until Done bakes them in.
+ * emoji and stickers, until Done bakes them in. Stickers are the photo editor's Stickers tool, opened
+ * the same way ([stickersSession]); its [PlacedSticker]s stay live too ([stickers]), under the texts.
  *
  * The edit history lives here rather than in the composable because Done pushes the photo editor
  * over this screen, and Back must return to the same photos and layers. Like Set Background,
@@ -70,6 +80,7 @@ class PipEditorViewModel(
     private val session: ImageEditSession,
     private val assetLoader: PipAssetLoader,
     private val settings: AppSettings,
+    private val imageLoader: NetworkImageLoader,
 ) : ViewModel() {
 
     private var premiumOfferShown = false
@@ -103,6 +114,16 @@ class PipEditorViewModel(
 
     /** The texts over the picture, not yet baked; null with none. */
     internal val texts: StateFlow<TextLayers?> = _texts.asStateFlow()
+
+    /** The Stickers tool open over the editor, or null; here for the same reason as [textSession]. */
+    internal val stickersSession = mutableStateOf<StickersToolSession?>(null)
+
+    private val _stickers = MutableStateFlow<List<PlacedSticker>>(emptyList())
+
+    /** The Stickers tool's stickers over the picture, not yet baked. */
+    internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
+
+    private var baking = false
 
     private var assets: PipFrameAssets? = null
 
@@ -189,14 +210,46 @@ class PipEditorViewModel(
     fun redo() = restore(history.redo())
 
     /**
-     * Bakes the picture into the session, its texts on top; see [bakePip] for the preview arguments.
-     * Returns false while nothing is loaded yet, so the screen stays put.
+     * Bakes the picture into the session, its stickers and then its texts on top; see [bakePip] for
+     * the preview arguments. Suspends while the stickers' SVGs are drawn at full size. Returns false
+     * while nothing is loaded yet, or a bake is already under way, so the screen stays put.
      */
-    fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): Boolean {
+    suspend fun apply(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float): Boolean {
+        if (baking) return false
+        val frame = history.current
         val picture = bakePicture(textMeasurer, previewWidthPx, previewDensity) ?: return false
-        val texts = history.current.texts
-        session.set(texts?.let { bakeTextLayers(picture, textMeasurer, it) } ?: picture)
-        return true
+        baking = true
+        try {
+            val withStickers = bakeStickers(picture, frame.stickers, imageLoader::renderSvg)
+            session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
+            return true
+        } finally {
+            baking = false
+        }
+    }
+
+    /**
+     * Opens the Stickers tool on the picture as Done would bake it, without the stickers and texts,
+     * which the tool draws itself. [selectedStickerId] is the sticker tapped on the picture, if one was.
+     */
+    internal fun openStickersTool(textMeasurer: TextMeasurer, previewWidthPx: Float, previewDensity: Float, selectedStickerId: Long?) {
+        if (stickersSession.value != null || previewWidthPx <= 0f) return
+        val snapshot = bakePicture(textMeasurer, previewWidthPx, previewDensity) ?: return
+        stickersSession.value = StickersToolSession(snapshot, history.current.stickers, selectedStickerId, history.current.texts)
+    }
+
+    /** Leaves the Stickers tool without its changes. */
+    internal fun closeStickersTool() {
+        stickersSession.value = null
+    }
+
+    /** Commits the Stickers tool's stickers as one undoable step and closes it. */
+    internal fun applyStickers(stickers: List<PlacedSticker>) {
+        stickersSession.value = null
+        if (assets == null || stickers == history.current.stickers) return
+        history = history.push(history.current.copy(stickers = stickers))
+        gestureKey = null
+        publish()
     }
 
     /**
@@ -285,6 +338,7 @@ class PipEditorViewModel(
             canRedo = history.canRedo,
         )
         _texts.value = history.current.texts
+        _stickers.value = history.current.stickers
     }
 
     private fun blurBackdrop(source: ImageBitmap) {

@@ -10,11 +10,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** The shapes Original may take: a panorama or a screenshot as the first photo would leave the slots slivers. */
+/** The shapes Free may take: a panorama or a screenshot as the first photo would leave the slots slivers. */
 internal val OriginalCanvasAspectRange = 0.5f..2f
 
 /**
- * The canvas's width / height for a [ratio] picked in the Canvas panel. Original (`null`) follows the
+ * The canvas's width / height for a [ratio] picked in the Canvas panel. Free (`null`) follows the
  * first photo's shape ([firstPhotoWidth] x [firstPhotoHeight]), kept to [OriginalCanvasAspectRange],
  * and is square while there is no photo yet.
  */
@@ -44,10 +44,33 @@ internal fun rotatedSlotBounds(slotW: Float, slotH: Float, degrees: Float): Pair
     return (slotW * c + slotH * s) to (slotW * s + slotH * c)
 }
 
+/** A Transform slider (0–100) as the lean's perspective across the slot, -[MaxLayoutTilt]..[MaxLayoutTilt]. */
+internal fun layoutTiltAmount(slider: Float): Float = (slider.coerceIn(0f, 100f) - LayoutTiltFlat) / LayoutTiltFlat * MaxLayoutTilt
+
+/**
+ * How much bigger than the slot the photo has to be before it is leant, so the lean still leaves no
+ * corner of the slot bare.
+ *
+ * The lean is drawn about the slot's centre as `q = p / (1 + a·p)`, with `a` the perspective per px
+ * (each tilt over the slot's half side). A slot corner `q` therefore shows the photo's point
+ * `p = q / (1 - a·q)`, and at the worst corner `a·q` is the two tilts' sizes added up.
+ */
+internal fun layoutTiltCover(photo: LayoutPhotoShape): Float =
+    1f / (1f - abs(layoutTiltAmount(photo.tiltX)) - abs(layoutTiltAmount(photo.tiltY)))
+
+/**
+ * The box the photo, in its own turned frame, must cover: the slot grown by [layoutTiltCover], then
+ * [rotatedSlotBounds] for its turn.
+ */
+internal fun layoutCoverBounds(slotW: Float, slotH: Float, photo: LayoutPhotoShape): Pair<Float, Float> {
+    val grow = layoutTiltCover(photo)
+    return rotatedSlotBounds(slotW * grow, slotH * grow, photo.rotationDegrees)
+}
+
 /**
  * The drawn size of [photo] (an [imageW] x [imageH] picture) in a [slotW] x [slotH] slot at zoom
- * [scale]: stretched by its width / height, then cover-fitted to the slot's [rotatedSlotBounds], so
- * a turned or narrowed photo still fills its slot at 1x.
+ * [scale]: cover-fitted to the slot's [layoutCoverBounds], so a turned or leant photo still fills
+ * its slot at 1x.
  */
 internal fun layoutPhotoSize(
     imageW: Float,
@@ -57,30 +80,28 @@ internal fun layoutPhotoSize(
     photo: LayoutPhotoShape,
     scale: Float,
 ): Pair<Float, Float> {
-    val w = imageW * photo.stretchX
-    val h = imageH * photo.stretchY
-    if (w <= 0f || h <= 0f) return 0f to 0f
-    val (boundsW, boundsH) = rotatedSlotBounds(slotW, slotH, photo.rotationDegrees)
-    val cover = max(boundsW / w, boundsH / h) * scale
-    return w * cover to h * cover
+    if (imageW <= 0f || imageH <= 0f) return 0f to 0f
+    val (boundsW, boundsH) = layoutCoverBounds(slotW, slotH, photo)
+    val cover = max(boundsW / imageW, boundsH / imageH) * scale
+    return imageW * cover to imageH * cover
 }
 
 /** What [layoutPhotoSize] needs of a [LayoutPhoto]; split out so the maths is testable without a bitmap. */
 internal data class LayoutPhotoShape(
     val rotationDegrees: Float = 0f,
-    val stretchX: Float = 1f,
-    val stretchY: Float = 1f,
+    val tiltX: Float = LayoutTiltFlat,
+    val tiltY: Float = LayoutTiltFlat,
 )
 
-internal val LayoutPhoto.shape: LayoutPhotoShape get() = LayoutPhotoShape(rotationDegrees, stretchX, stretchY)
+internal val LayoutPhoto.shape: LayoutPhotoShape get() = LayoutPhotoShape(rotationDegrees, tiltX, tiltY)
 
 /**
  * Clamps [transform] so the photo still covers its slot: the zoom to 1..[MaxSlotZoom], and the
  * offset (fractions of the slot's width and height) to the photo's overhang past the slot's
- * [rotatedSlotBounds]. The offset is clamped in the turned photo's own frame, where that overhang is
+ * [layoutCoverBounds]. The offset is clamped in the turned photo's own frame, where that overhang is
  * an upright box, and turned back.
  *
- * Applied on every draw as well as every gesture, because the slot or the photo's turn and stretch
+ * Applied on every draw as well as every gesture, because the slot or the photo's turn and lean
  * change under a stored transform, and a stale offset must never bare the background.
  */
 internal fun clampLayoutTransform(
@@ -94,7 +115,7 @@ internal fun clampLayoutTransform(
     val s = transform.scale.coerceIn(1f, MaxSlotZoom)
     if (slotW <= 0f || slotH <= 0f) return SlotTransform(scale = s)
     val (drawnW, drawnH) = layoutPhotoSize(imageW, imageH, slotW, slotH, photo, s)
-    val (boundsW, boundsH) = rotatedSlotBounds(slotW, slotH, photo.rotationDegrees)
+    val (boundsW, boundsH) = layoutCoverBounds(slotW, slotH, photo)
     val limitX = ((drawnW - boundsW) / 2f).coerceAtLeast(0f)
     val limitY = ((drawnH - boundsH) / 2f).coerceAtLeast(0f)
 
