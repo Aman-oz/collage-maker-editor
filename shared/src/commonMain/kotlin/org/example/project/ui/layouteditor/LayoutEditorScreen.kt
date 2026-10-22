@@ -751,7 +751,7 @@ private val AddBadgeSize = 36.dp
  * until it is in, or with no [art].
  */
 @Composable
-private fun rememberLayoutArtImage(art: LayoutArt?, trim: Boolean = false): ImageBitmap? {
+internal fun rememberLayoutArtImage(art: LayoutArt?, trim: Boolean = false): ImageBitmap? {
     val loader: NetworkImageLoader = koinInject()
     val url = art?.imageUrl
     val image by produceState<ImageBitmap?>(null, url) {
@@ -764,7 +764,7 @@ private fun rememberLayoutArtImage(art: LayoutArt?, trim: Boolean = false): Imag
 
 /** A picture on the canvas and the one it replaced, while [progress] runs 0 → 1 (see [rememberArtTransition]). */
 @Stable
-private class ArtTransition(initial: ImageBitmap?) {
+internal class ArtTransition(initial: ImageBitmap?) {
     var current by mutableStateOf(initial)
     var previous by mutableStateOf<ImageBitmap?>(null)
     val progress = Animatable(1f)
@@ -776,7 +776,7 @@ private class ArtTransition(initial: ImageBitmap?) {
  * up until it is in (see [rememberLayoutArtImage]), so the fade starts with it.
  */
 @Composable
-private fun rememberArtTransition(image: ImageBitmap?): ArtTransition {
+internal fun rememberArtTransition(image: ImageBitmap?): ArtTransition {
     val transition = remember { ArtTransition(image) }
     LaunchedEffect(image) {
         if (image === transition.current) return@LaunchedEffect

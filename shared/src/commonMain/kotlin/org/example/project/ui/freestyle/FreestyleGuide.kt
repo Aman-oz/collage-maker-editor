@@ -77,7 +77,7 @@ private val GuidePoints = listOf(
         Icons.Filled.OpenInFull
     },
     GuidePoint("Delete", "Tap an item, then the red button at its corner to remove it.") { Icons.Filled.Delete },
-    GuidePoint("Background", "Pick a color or a gradient behind your photos, or mix your own color.") {
+    GuidePoint("Background", "Pick a color, a gradient or a background picture behind your photos, or mix your own color.") {
         vectorResource(Res.drawable.ic_background)
     },
     GuidePoint("Emoji", "Tap an emoji to place it on the canvas.") { Icons.Outlined.EmojiEmotions },

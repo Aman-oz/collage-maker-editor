@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import org.example.project.ui.common.copyBitmap
+import org.example.project.ui.common.drawImageCropped
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.text.drawTextPlate
 import kotlin.math.roundToInt
@@ -35,6 +36,8 @@ import kotlin.math.roundToInt
  * [org.example.project.ui.collage.bakeCollage] does.
  * [textMeasurer] renders [FreestyleContent.StickerContent]/[FreestyleContent.TextContent] layers at
  * that same dp-to-output density, so a label keeps its size relative to the canvas.
+ * [backgroundImage] is [FreestyleState.backgroundArt]'s picture (a bitmap this app made, see
+ * [copyBitmap]), cropped to fill the canvas; without it the background fill is drawn.
  */
 internal fun bakeFreestyle(
     state: FreestyleState,
@@ -43,6 +46,7 @@ internal fun bakeFreestyle(
     previewHeightPx: Float,
     previewDensity: Float,
     outputWidth: Int = 1080,
+    backgroundImage: ImageBitmap? = null,
 ): ImageBitmap {
     val aspect = if (previewWidthPx > 0f && previewHeightPx > 0f) previewHeightPx / previewWidthPx else 1f
     val outputHeight = (outputWidth * aspect).roundToInt().coerceAtLeast(1)
@@ -53,7 +57,11 @@ internal fun bakeFreestyle(
     val textDensity = Density(dpToOutputPx)
 
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, size) {
-        drawRect(brush = state.background.brush)
+        if (backgroundImage != null) {
+            drawImageCropped(backgroundImage, IntOffset.Zero, IntSize(outputWidth, outputHeight))
+        } else {
+            drawRect(brush = state.background.brush)
+        }
         for (layer in state.layers) {
             drawFreestyleLayer(layer, textMeasurer, textDensity, size, dpToOutputPx)
         }

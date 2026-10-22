@@ -698,8 +698,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Chạm vào một mục, rồi kéo tay nắm ở góc để đổi kích thước và xoay.",
     "Tap an item, then the red button at its corner to remove it." to
         "Chạm vào một mục, rồi chạm nút đỏ ở góc để xóa.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "Chọn một màu hoặc dải màu phía sau ảnh, hoặc tự pha màu của bạn.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "Chọn một màu, dải màu hoặc ảnh nền phía sau ảnh, hoặc tự pha màu của bạn.",
     "Tap an emoji to place it on the canvas." to
         "Chạm vào một biểu tượng cảm xúc để đặt lên khung vẽ.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

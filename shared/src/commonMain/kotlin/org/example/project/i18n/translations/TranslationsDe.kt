@@ -698,8 +698,8 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Tippe auf ein Element und ziehe dann den Griff an seiner Ecke, um es zu skalieren und zu drehen.",
     "Tap an item, then the red button at its corner to remove it." to
         "Tippe auf ein Element und dann auf die rote Taste an seiner Ecke, um es zu entfernen.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "Wähle eine Farbe oder einen Verlauf hinter deinen Fotos oder mische deine eigene Farbe.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "Wähle eine Farbe, einen Verlauf oder ein Hintergrundbild hinter deinen Fotos oder mische deine eigene Farbe.",
     "Tap an emoji to place it on the canvas." to
         "Tippe auf ein Emoji, um es auf der Leinwand zu platzieren.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

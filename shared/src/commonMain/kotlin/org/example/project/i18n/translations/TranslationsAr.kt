@@ -698,8 +698,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "اضغط على عنصر، ثم اسحب المقبض في زاويته لتغيير حجمه وتدويره.",
     "Tap an item, then the red button at its corner to remove it." to
         "اضغط على عنصر، ثم على الزر الأحمر في زاويته لإزالته.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "اختر لونًا أو تدرجًا خلف صورك، أو امزج لونك الخاص.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "اختر لونًا أو تدرجًا أو صورة خلفية خلف صورك، أو امزج لونك الخاص.",
     "Tap an emoji to place it on the canvas." to
         "اضغط على رمز تعبيري لوضعه على اللوحة.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

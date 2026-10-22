@@ -2,22 +2,30 @@ package org.example.project.ui.freestyle
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.compose.util.toImageBitmap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
+import org.example.project.ui.common.copyBitmap
 import org.example.project.ui.editor.EditHistory
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.layouteditor.LayoutArtLoad
 import org.example.project.ui.editor.MaxEditHistory
 import org.example.project.ui.stickers.PlacedSticker
 import org.example.project.ui.stickers.StickersToolSession
@@ -59,6 +67,10 @@ private data class FreestyleFrame(
  * way ([stickersSession]); its [PlacedSticker]s stay live too ([stickers]), over the layers and
  * under the texts.
  *
+ * The Background panel's Background tab reads the layout editor's server backgrounds
+ * ([LayoutArtLibrary]); a picked one is [FreestyleState.backgroundArt], and a premium one is a hard
+ * gate on Done ([needsPremium]).
+ *
  * Every edit goes through an [EditHistory] of whole states (the canvas and its texts) for undo/redo. Continuous
  * edits (a drag, a slider, retyping a label) pass a coalesce key and are folded into one step until
  * the screen reports the gesture over via [endGesture]; bringing a layer to front on selection is
@@ -71,7 +83,19 @@ class FreestyleEditorViewModel(
     private val session: ImageEditSession,
     private val settings: AppSettings,
     private val imageLoader: NetworkImageLoader,
+    private val artLibrary: LayoutArtLibrary,
 ) : ViewModel() {
+
+    private val _backgroundArtCategories = MutableStateFlow<LayoutArtLoad>(LayoutArtLoad.Loading)
+
+    /** The server's backgrounds for the Background panel's Background tab; loaded when it first opens. */
+    internal val backgroundArtCategories: StateFlow<LayoutArtLoad> = _backgroundArtCategories.asStateFlow()
+
+    /** Background pictures copied once for drawing (see `copyBitmap`), by URL. */
+    private val artCopies = mutableMapOf<String, ImageBitmap>()
+
+    /** Set while a tool is being opened on a snapshot, which waits for the background picture. */
+    private var openingTool = false
 
     private var premiumOfferShown = false
 
@@ -105,6 +129,14 @@ class FreestyleEditorViewModel(
      * time, for a non-subscriber whose canvas [isPremiumFreestyle]. It is an offer, not a gate, so
      * asking marks it as made and the next Done goes through either way.
      */
+    /**
+     * Whether Done must open the paywall instead of creating the freestyle: a non-subscriber with a
+     * premium background picture on. Unlike [consumePremiumOffer] this asks every time.
+     */
+    val needsPremium: Boolean
+        get() = !settings.isPremium.value &&
+            (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle?.backgroundArt?.isPremium == true
+
     fun consumePremiumOffer(): Boolean {
         val freestyle = (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle ?: return false
         if (settings.isPremium.value || premiumOfferShown || !freestyle.layers.isPremiumFreestyle()) return false
@@ -184,7 +216,70 @@ class FreestyleEditorViewModel(
         updateReady { state -> state.copy(layers = state.layers.filterNot { it.id == id }) }
     }
 
-    fun updateBackground(background: FreestyleFill) = updateReady { it.copy(background = background) }
+    /** A colour or gradient takes the background picture's place, if there was one. */
+    fun updateBackground(background: FreestyleFill) = updateReady { it.copy(background = background, backgroundArt = null) }
+
+    /**
+     * Puts [art] behind the layers in the fill's place; picking the one already in use takes it off,
+     * back to the fill.
+     */
+    internal fun toggleBackgroundArt(art: LayoutArt) {
+        val current = (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle ?: return
+        val next = art.takeUnless { it.id == current.backgroundArt?.id }
+        keepArt(next)
+        updateReady { it.copy(backgroundArt = next) }
+    }
+
+    /** Reads the server's backgrounds, once; a failure can be retried. */
+    internal fun loadBackgroundArt() {
+        if (_backgroundArtCategories.value is LayoutArtLoad.Ready) return
+        _backgroundArtCategories.value = LayoutArtLoad.Loading
+        viewModelScope.launch {
+            _backgroundArtCategories.value = runCatching { artLibrary.getCategories(CentralDataConfig.BACKGROUNDS_SUPER_CATEGORY_ID) }
+                .fold({ LayoutArtLoad.Ready(it) }, { LayoutArtLoad.Failed })
+        }
+    }
+
+    /**
+     * Downloads [art]'s picture to the disk cache when it is free (or the user subscribes), so it opens
+     * from there next time; a premium picture only being tried out isn't kept, as with fonts.
+     */
+    private fun keepArt(art: LayoutArt?) {
+        if (art == null || (art.isPremium && !settings.isPremium.value)) return
+        viewModelScope.launch { imageLoader.loadAsset(art.imageUrl, keep = true) }
+    }
+
+    /**
+     * [state]'s background picture for a bake, downloaded once (the preview has usually loaded it
+     * already) and copied so it redraws reliably; null with none, or when it can't be loaded.
+     */
+    private suspend fun backgroundImage(state: FreestyleState): ImageBitmap? {
+        val url = state.backgroundArt?.imageUrl ?: return null
+        artCopies[url]?.let { return it }
+        val loaded = imageLoader.loadAsset(url, keep = false) ?: return null
+        return withContext(Dispatchers.Default) { copyBitmap(loaded) }.also { artCopies[url] = it }
+    }
+
+    /** Bakes the canvas (no stickers or texts) for a tool to open on, then hands it to [open]. */
+    private fun openOnSnapshot(
+        textMeasurer: TextMeasurer,
+        previewWidthPx: Float,
+        previewHeightPx: Float,
+        previewDensity: Float,
+        open: (frame: FreestyleFrame, snapshot: ImageBitmap) -> Unit,
+    ) {
+        val frame = history?.current ?: return
+        if (openingTool || previewWidthPx <= 0f || previewHeightPx <= 0f) return
+        openingTool = true
+        viewModelScope.launch {
+            try {
+                val background = backgroundImage(frame.canvas)
+                open(frame, bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity, backgroundImage = background))
+            } finally {
+                openingTool = false
+            }
+        }
+    }
 
     /** Sets the frame width of image layer [id], or of every image layer when [id] is null. */
     fun updateImageBorderWidth(id: Long?, width: Float) =
@@ -215,10 +310,10 @@ class FreestyleEditorViewModel(
         previewDensity: Float,
         selectedTextId: Long?,
     ) {
-        val frame = history?.current ?: return
-        if (textSession.value != null || previewWidthPx <= 0f || previewHeightPx <= 0f) return
-        val snapshot = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
-        textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
+        if (textSession.value != null) return
+        openOnSnapshot(textMeasurer, previewWidthPx, previewHeightPx, previewDensity) { frame, snapshot ->
+            textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
+        }
     }
 
     /**
@@ -233,10 +328,10 @@ class FreestyleEditorViewModel(
         previewDensity: Float,
         selectedStickerId: Long?,
     ) {
-        val frame = history?.current ?: return
-        if (stickersSession.value != null || previewWidthPx <= 0f || previewHeightPx <= 0f) return
-        val snapshot = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
-        stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+        if (stickersSession.value != null) return
+        openOnSnapshot(textMeasurer, previewWidthPx, previewHeightPx, previewDensity) { frame, snapshot ->
+            stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
+        }
     }
 
     /** Leaves the Stickers tool without its changes. */
@@ -297,7 +392,10 @@ class FreestyleEditorViewModel(
         if (baking) return false
         baking = true
         try {
-            val canvas = bakeFreestyle(frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity)
+            val background = backgroundImage(frame.canvas)
+            val canvas = bakeFreestyle(
+                frame.canvas, textMeasurer, previewWidthPx, previewHeightPx, previewDensity, backgroundImage = background,
+            )
             val withStickers = bakeStickers(canvas, frame.stickers, imageLoader::renderSvg)
             session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
             return true

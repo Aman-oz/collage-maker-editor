@@ -108,7 +108,7 @@ val viewModelModule: Module = module {
     viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get(), get()) }
     // The layout to open on comes from the navigation key.
     viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get(), get(), get()) }
-    viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get(), get()) }
+    viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get(), get(), get()) }
     viewModel { (imagePath: String) -> BackgroundRemoverCropViewModel(imagePath, get()) }
     viewModel { BackgroundRemoverEditorViewModel(get(), get(), get()) }
     viewModelOf(::SetBackgroundViewModel)

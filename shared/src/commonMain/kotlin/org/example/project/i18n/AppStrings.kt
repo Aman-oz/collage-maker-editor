@@ -353,7 +353,7 @@ internal val AppStrings: List<String> = listOf(
     "Pinch with two fingers to make it bigger or smaller, and twist to rotate it.",
     "Tap an item, then drag the handle at its corner to resize and rotate it.",
     "Tap an item, then the red button at its corner to remove it.",
-    "Pick a color or a gradient behind your photos, or mix your own color.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color.",
     "Tap an emoji to place it on the canvas.",
     "Set the border width and corner radius. Tap a photo first to change only that one.",
     "Add text and style it with fonts, colors, shadow and more. Tap a text to edit it again.",

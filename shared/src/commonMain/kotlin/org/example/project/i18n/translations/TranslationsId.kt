@@ -698,8 +698,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Ketuk sebuah item, lalu seret pegangan di sudutnya untuk mengubah ukuran dan memutarnya.",
     "Tap an item, then the red button at its corner to remove it." to
         "Ketuk sebuah item, lalu tombol merah di sudutnya untuk menghapusnya.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "Pilih warna atau gradien di belakang foto Anda, atau racik warna Anda sendiri.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "Pilih warna, gradien, atau gambar latar di belakang foto Anda, atau racik warna Anda sendiri.",
     "Tap an emoji to place it on the canvas." to
         "Ketuk emoji untuk menempatkannya di kanvas.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

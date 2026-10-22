@@ -698,8 +698,8 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "किसी आइटम पर टैप करें, फिर आकार बदलने और घुमाने के लिए उसके कोने का हैंडल खींचें।",
     "Tap an item, then the red button at its corner to remove it." to
         "किसी आइटम पर टैप करें, फिर उसे हटाने के लिए उसके कोने का लाल बटन दबाएँ।",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "अपनी फ़ोटो के पीछे कोई रंग या ग्रेडिएंट चुनें, या अपना खुद का रंग बनाएँ।",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "अपनी फ़ोटो के पीछे कोई रंग, ग्रेडिएंट या बैकग्राउंड चित्र चुनें, या अपना खुद का रंग बनाएँ।",
     "Tap an emoji to place it on the canvas." to
         "किसी इमोजी को कैनवास पर रखने के लिए उस पर टैप करें।",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

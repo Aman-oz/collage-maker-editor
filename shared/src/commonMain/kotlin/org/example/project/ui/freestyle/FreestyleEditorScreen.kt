@@ -102,6 +102,30 @@ import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
+import org.example.project.data.cache.AssetCache
+import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.NetworkImage
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
+import org.example.project.ui.common.drawImageCropped
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLoad
+import org.example.project.ui.layouteditor.rememberArtTransition
+import org.example.project.ui.layouteditor.rememberLayoutArtImage
+import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.painterResource
+import photocollagemaker.shared.generated.resources.ic_premium_icon
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_background
 import photocollagemaker.shared.generated.resources.ic_redo
@@ -143,6 +167,7 @@ fun FreestyleEditorScreen(
     val stickers by viewModel.stickers.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
+    val backgroundLoad by viewModel.backgroundArtCategories.collectAsStateWithLifecycle()
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     // The photo layer the open picker will replace; null means the pick adds a new layer.
@@ -173,7 +198,9 @@ fun FreestyleEditorScreen(
                 // A canvas that uses something premium shows a non-subscriber the paywall once, as
                 // an offer. The canvas lives in the ViewModel, so it is still here when they come
                 // back, and the next Done goes through whether or not they subscribed.
-                if (viewModel.consumePremiumOffer()) {
+                // A premium background picture is a hard gate: the paywall every time. Anything
+                // else premium is an offer, made once.
+                if (viewModel.needsPremium || viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
                     scope.launch {
@@ -215,6 +242,11 @@ fun FreestyleEditorScreen(
             onRedo = viewModel::redo,
             onGestureEnd = viewModel::endGesture,
             onBackgroundChange = viewModel::updateBackground,
+            backgroundLoad = backgroundLoad,
+            isSubscribed = isPremium,
+            onLoadBackgroundArt = viewModel::loadBackgroundArt,
+            onBackgroundArtSelected = viewModel::toggleBackgroundArt,
+            onPremium = onPremium,
             onBorderWidthChange = viewModel::updateImageBorderWidth,
             onCornerRadiusChange = viewModel::updateImageCornerRadius,
             modifier = Modifier.liquefiable(liquidState),
@@ -261,6 +293,11 @@ private fun FreestyleEditorContent(
     onRedo: () -> Unit,
     onGestureEnd: () -> Unit,
     onBackgroundChange: (FreestyleFill) -> Unit,
+    backgroundLoad: LayoutArtLoad,
+    isSubscribed: Boolean,
+    onLoadBackgroundArt: () -> Unit,
+    onBackgroundArtSelected: (LayoutArt) -> Unit,
+    onPremium: () -> Unit,
     onBorderWidthChange: (layerId: Long?, width: Float) -> Unit,
     onCornerRadiusChange: (layerId: Long?, radius: Float) -> Unit,
     modifier: Modifier = Modifier,
@@ -273,6 +310,12 @@ private fun FreestyleEditorContent(
     var showGuide by remember { mutableStateOf(false) }
 
     val freestyle = (uiState as? FreestyleEditorUiState.Ready)?.freestyle
+    val canvasState = freestyle ?: FreestyleState()
+    // The background picture, drawn as the bake draws it; a new one fades in over what was there
+    // (the fill, or the picture before), read only in the draw so the stage isn't recomposed by it.
+    val backgroundArt = rememberArtTransition(rememberLayoutArtImage(freestyle?.backgroundArt))
+    val onPremiumBackground = freestyle?.backgroundArt?.isPremium == true && !isSubscribed
+    PreventScreenCapture(enabled = onPremiumBackground)
     // Border edits and "Replace" target this photo; with none selected they act on every photo / add one.
     val selectedImageLayer = freestyle?.layers?.firstOrNull {
         it.id == selectedLayerId && it.content is FreestyleContent.ImageContent
@@ -312,7 +355,11 @@ private fun FreestyleEditorContent(
             stage = { stageModifier ->
                 Box(
                     modifier = stageModifier
-                        .background((freestyle ?: FreestyleState()).background.brush)
+                        .drawBehind {
+                            val fill = canvasState.background
+                            if (backgroundArt.progress.value < 1f) drawFreestyleBackground(backgroundArt.previous, fill)
+                            drawFreestyleBackground(backgroundArt.current, fill, alpha = backgroundArt.progress.value)
+                        }
                         // Taps that reach the canvas (off every layer) deselect; layers consume their own taps.
                         .pointerInput(Unit) { detectTapGestures(onTap = { selectedLayerId = null }) },
                     contentAlignment = Alignment.Center,
@@ -364,6 +411,14 @@ private fun FreestyleEditorContent(
                             modifier = Modifier.padding(24.dp),
                         )
                     }
+                    // A premium background can be tried by anyone; for a non-subscriber this bar says
+                    // so and leads to the paywall, as Done does. Over the canvas, not under it: a
+                    // smaller canvas would move every layer, which are placed in fractions of it.
+                    ProFeatureBar(
+                        visible = onPremiumBackground,
+                        onClick = onPremium,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
+                    )
                 }
             },
             panel = {
@@ -372,7 +427,11 @@ private fun FreestyleEditorContent(
                         FreestyleTool.Background -> BackgroundPanel(
                             chrome = chrome,
                             selected = freestyle.background,
+                            selectedArt = freestyle.backgroundArt,
+                            artLoad = backgroundLoad,
                             onSelected = onBackgroundChange,
+                            onArtSelected = onBackgroundArtSelected,
+                            onLoadArt = onLoadBackgroundArt,
                         )
                         FreestyleTool.Stickers -> StickersPanel(
                             chrome = chrome,
@@ -594,10 +653,14 @@ private fun ToolItem(
 }
 
 
-/** The two swatch sets of the Background panel; Colour is the one led by the custom colour picker. */
+/**
+ * The Background panel's tabs: flat colours (led by the custom colour picker), gradients, and the
+ * server's background pictures.
+ */
 private enum class BackgroundTab(private val englishLabel: String) {
-    Colour("Colour"),
+    Colour("Color"),
     Gradient("Gradient"),
+    Picture("Background"),
     ;
 
     /** In the app's current language; read it where it is shown, never keep it. */
@@ -607,14 +670,39 @@ private enum class BackgroundTab(private val englishLabel: String) {
 private val BackgroundSwatchSize = 52.dp
 private val BackgroundSwatchSpacing = 10.dp
 
+/** The height under the header every tab fills, so switching tabs never resizes the panel. */
+private val BackgroundTabBodyHeight = BackgroundSwatchSize * 2 + BackgroundSwatchSpacing + 8.dp
+
+/**
+ * The canvas's background in three tabs. Color and Gradient set [selected], the fill, which takes a
+ * picture off; Background lists the server's pictures ([artLoad], read when the tab first opens),
+ * and tapping the one in use ([selectedArt]) again goes back to the fill. The fill is only ringed
+ * while no picture covers it.
+ */
 @Composable
-private fun BackgroundPanel(chrome: FreestyleChrome, selected: FreestyleFill, onSelected: (FreestyleFill) -> Unit) {
-    // Opens on the tab holding the fill in use. The panel is recreated each time the tool is picked.
+private fun BackgroundPanel(
+    chrome: FreestyleChrome,
+    selected: FreestyleFill,
+    selectedArt: LayoutArt?,
+    artLoad: LayoutArtLoad,
+    onSelected: (FreestyleFill) -> Unit,
+    onArtSelected: (LayoutArt) -> Unit,
+    onLoadArt: () -> Unit,
+) {
+    // Opens on the tab holding the background in use. The panel is recreated each time the tool is picked.
     var tab by remember {
-        mutableStateOf(if (selected is FreestyleFill.Gradient) BackgroundTab.Gradient else BackgroundTab.Colour)
+        mutableStateOf(
+            when {
+                selectedArt != null -> BackgroundTab.Picture
+                selected is FreestyleFill.Gradient -> BackgroundTab.Gradient
+                else -> BackgroundTab.Colour
+            },
+        )
     }
+    LaunchedEffect(tab) { if (tab == BackgroundTab.Picture) onLoadArt() }
     var pickingColor by remember { mutableStateOf(false) }
-    val selectedColor = (selected as? FreestyleFill.Solid)?.color
+    val selectedFill = selected.takeIf { selectedArt == null }
+    val selectedColor = (selectedFill as? FreestyleFill.Solid)?.color
 
     Column {
         Row(
@@ -626,19 +714,30 @@ private fun BackgroundPanel(chrome: FreestyleChrome, selected: FreestyleFill, on
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = chrome.content,
-                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
             )
             BackgroundTabSwitch(chrome = chrome, selected = tab, onSelected = { tab = it })
         }
-        LazyHorizontalGrid(
-            rows = GridCells.Fixed(2),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-            verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-            modifier = Modifier.fillMaxWidth().height(BackgroundSwatchSize * 2 + BackgroundSwatchSpacing + 8.dp),
-        ) {
-            when (tab) {
-                BackgroundTab.Colour -> {
+        if (tab == BackgroundTab.Picture) {
+            BackgroundArtBody(
+                chrome = chrome,
+                load = artLoad,
+                selected = selectedArt,
+                onSelected = onArtSelected,
+                onRetry = onLoadArt,
+                modifier = Modifier.fillMaxWidth().height(BackgroundTabBodyHeight),
+            )
+        } else {
+            LazyHorizontalGrid(
+                rows = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+                verticalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+                modifier = Modifier.fillMaxWidth().height(BackgroundTabBodyHeight),
+            ) {
+                if (tab == BackgroundTab.Colour) {
                     // Spans both rows, so the colour pairs after it stay aligned (shade over shade).
                     // Ringed while the background is a colour of the user's own.
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -656,12 +755,12 @@ private fun BackgroundPanel(chrome: FreestyleChrome, selected: FreestyleFill, on
                             onClick = { onSelected(FreestyleFill.Solid(color)) },
                         ) { Box(modifier = it.background(color)) }
                     }
-                }
-
-                BackgroundTab.Gradient -> items(FreestyleBackgroundGradients) { colors ->
-                    val gradient = FreestyleFill.Gradient(colors)
-                    BackgroundSwatch(chrome = chrome, selected = gradient == selected, onClick = { onSelected(gradient) }) {
-                        Box(modifier = it.background(gradient.brush))
+                } else {
+                    items(FreestyleBackgroundGradients) { colors ->
+                        val gradient = FreestyleFill.Gradient(colors)
+                        BackgroundSwatch(chrome = chrome, selected = gradient == selectedFill, onClick = { onSelected(gradient) }) {
+                            Box(modifier = it.background(gradient.brush))
+                        }
                     }
                 }
             }
@@ -680,7 +779,122 @@ private fun BackgroundPanel(chrome: FreestyleChrome, selected: FreestyleFill, on
     }
 }
 
-/** The Colour / Gradient pill switch in the panel's header; the selected half is a soft accent tint. */
+/**
+ * The Background tab: a spinner while [load] is in flight, Retry if it failed, else one row of the
+ * picked sub-category's pictures over a row of sub-category pills (every category's, in order:
+ * the panel has no room for the layout editor's three levels).
+ */
+@Composable
+private fun BackgroundArtBody(
+    chrome: FreestyleChrome,
+    load: LayoutArtLoad,
+    selected: LayoutArt?,
+    onSelected: (LayoutArt) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (load) {
+        LayoutArtLoad.Loading -> Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = chrome.accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+        }
+        LayoutArtLoad.Failed -> Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(text = tr("Couldn't load backgrounds"), color = chrome.muted, fontSize = 13.sp)
+            TextButton(onClick = onRetry) { Text(tr("Retry"), color = chrome.accent) }
+        }
+        is LayoutArtLoad.Ready -> {
+            val subcategories = load.categories.flatMap { it.subcategories }
+            // Opens on the sub-category of the picture in use, else the first.
+            var subcategoryId by rememberSaveable {
+                mutableStateOf(subcategories.firstOrNull { sub -> sub.items.any { it.id == selected?.id } }?.id)
+            }
+            val subcategory = subcategories.firstOrNull { it.id == subcategoryId } ?: subcategories.firstOrNull()
+            Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
+                    modifier = Modifier.fillMaxWidth().height(BackgroundArtSize),
+                ) {
+                    items(subcategory?.items.orEmpty(), key = { it.id }) { art ->
+                        BackgroundArtCell(
+                            chrome = chrome,
+                            art = art,
+                            selected = art.id == selected?.id,
+                            onClick = { onSelected(art) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(subcategories, key = { it.id }) { sub ->
+                        val isSelected = sub.id == subcategory?.id
+                        Text(
+                            text = sub.name,
+                            color = if (isSelected) chrome.content else chrome.muted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(if (isSelected) chrome.accent.copy(alpha = 0.18f) else chrome.content.copy(alpha = 0.06f))
+                                .clickable { subcategoryId = sub.id }
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val BackgroundArtSize = 76.dp
+
+/** One background picture's thumbnail, ringed while [selected], crowned if premium. */
+@Composable
+private fun BackgroundArtCell(chrome: FreestyleChrome, art: LayoutArt, selected: Boolean, onClick: () -> Unit) {
+    // The picture's download into the disk cache, started by a tap on a free one.
+    val assetCache = koinInject<AssetCache>()
+    val download by remember(art.imageUrl) { assetCache.progressOf(art.imageUrl) }.collectAsState(null)
+    BackgroundSwatch(chrome = chrome, selected = selected, onClick = onClick, width = BackgroundArtSize, height = BackgroundArtSize) {
+        Box(modifier = it) {
+            NetworkImage(
+                url = art.thumbnailUrl,
+                contentDescription = art.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (art.isPremium) {
+                Image(
+                    painter = painterResource(Res.drawable.ic_premium_icon),
+                    contentDescription = tr("Premium"),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).size(16.dp),
+                )
+            }
+            DownloadRing(progress = download, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+        }
+    }
+}
+
+/**
+ * The canvas's background: [picture] cropped to fill it, or else [fill]; at [alpha] while it fades in
+ * over the one before. The bake draws the same ([bakeFreestyle]).
+ */
+private fun DrawScope.drawFreestyleBackground(picture: ImageBitmap?, fill: FreestyleFill, alpha: Float = 1f) {
+    if (picture != null) {
+        drawImageCropped(picture, IntOffset.Zero, IntSize(size.width.toInt(), size.height.toInt()), alpha = alpha)
+    } else {
+        drawRect(brush = fill.brush, alpha = alpha)
+    }
+}
+
+/** The Color / Gradient / Background pill switch in the panel's header; the selected one is a soft accent tint. */
 @Composable
 private fun BackgroundTabSwitch(chrome: FreestyleChrome, selected: BackgroundTab, onSelected: (BackgroundTab) -> Unit) {
     Row(
@@ -701,7 +915,7 @@ private fun BackgroundTabSwitch(chrome: FreestyleChrome, selected: BackgroundTab
                     .clip(CircleShape)
                     .background(if (isSelected) chrome.accent.copy(alpha = 0.18f) else Color.Transparent)
                     .clickable { onSelected(tab) }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
     }
@@ -713,6 +927,7 @@ private fun BackgroundSwatch(
     chrome: FreestyleChrome,
     selected: Boolean,
     onClick: () -> Unit,
+    width: Dp = BackgroundSwatchSize,
     height: Dp = BackgroundSwatchSize,
     fill: @Composable (Modifier) -> Unit,
 ) {
@@ -722,7 +937,7 @@ private fun BackgroundSwatch(
     Box(
         modifier = Modifier
             .springBounce(bounce)
-            .size(width = BackgroundSwatchSize, height = height)
+            .size(width = width, height = height)
             .clip(outer)
             .border(2.dp, if (selected) chrome.accent else Color.Transparent, outer)
             .clickable(
@@ -840,6 +1055,11 @@ private fun FreestyleEditorScreenPreview() {
             onRedo = {},
             onGestureEnd = {},
             onBackgroundChange = {},
+            backgroundLoad = LayoutArtLoad.Loading,
+            isSubscribed = false,
+            onLoadBackgroundArt = {},
+            onBackgroundArtSelected = {},
+            onPremium = {},
             onBorderWidthChange = { _, _ -> },
             onCornerRadiusChange = { _, _ -> },
         )

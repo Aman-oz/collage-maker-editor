@@ -698,8 +698,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Нажмите на элемент, затем потяните маркер в его углу, чтобы изменить размер и повернуть.",
     "Tap an item, then the red button at its corner to remove it." to
         "Нажмите на элемент, затем на красную кнопку в его углу, чтобы удалить.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "Выберите цвет или градиент за фотографиями либо подберите свой цвет.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "Выберите цвет, градиент или фоновое изображение за фотографиями либо подберите свой цвет.",
     "Tap an emoji to place it on the canvas." to
         "Нажмите на эмодзи, чтобы поместить его на холст.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

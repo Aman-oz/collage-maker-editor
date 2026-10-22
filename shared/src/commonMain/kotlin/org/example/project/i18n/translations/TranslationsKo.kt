@@ -698,8 +698,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "항목을 탭한 다음 모서리의 핸들을 드래그해 크기를 조절하고 회전합니다.",
     "Tap an item, then the red button at its corner to remove it." to
         "항목을 탭한 다음 모서리의 빨간 버튼을 눌러 삭제합니다.",
-    "Pick a color or a gradient behind your photos, or mix your own color." to
-        "사진 뒤의 색상이나 그라데이션을 고르거나 나만의 색상을 만듭니다.",
+    "Pick a color, a gradient or a background picture behind your photos, or mix your own color." to
+        "사진 뒤의 색상, 그라데이션 또는 배경 이미지를 고르거나 나만의 색상을 만듭니다.",
     "Tap an emoji to place it on the canvas." to
         "이모지를 탭해 캔버스에 놓습니다.",
     "Set the border width and corner radius. Tap a photo first to change only that one." to

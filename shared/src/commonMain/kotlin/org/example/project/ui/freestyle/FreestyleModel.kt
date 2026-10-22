@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import org.example.project.ui.layouteditor.LayoutArt
 import org.example.project.ui.text.TextFontStyleOption
 
 /** What a [FreestyleLayer] renders — a placed photo, sticker, or text label. */
@@ -60,10 +61,17 @@ sealed interface FreestyleFill {
         }
 }
 
-/** Everything needed to render (and later bake) the freestyle canvas. */
+/**
+ * Everything needed to render (and later bake) the freestyle canvas.
+ *
+ * [backgroundArt] is a server background picture (the Background panel's Background tab), cropped to
+ * fill the canvas in [background]'s place; null shows the fill. Picking a colour or gradient takes it
+ * off. Whoever draws loads the picture itself (see [bakeFreestyle]'s `backgroundImage`).
+ */
 data class FreestyleState(
     val layers: List<FreestyleLayer> = emptyList(),
     val background: FreestyleFill = FreestyleFill.Solid(FreestyleBackgroundColors[1]),
+    val backgroundArt: LayoutArt? = null,
 )
 
 /** An [FreestyleContent.ImageContent] layer's width at [FreestyleLayer.scale] == 1f, as a fraction of the canvas width. */

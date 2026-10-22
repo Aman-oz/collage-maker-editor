@@ -228,6 +228,11 @@ from the back stack.
   layers, which no screen creates any more (they still draw, and count in `isPremiumFreestyle`). The canvas fill and a
   text label's fill are both a `FreestyleFill` (solid or gradient) whose `brush` the preview and
   the bake draw; labels use `BasicText`, since Material's `Text` would flatten a gradient brush.
+  The Background panel has three tabs: Color and Gradient set that `FreestyleFill`; Background
+  lists the layout editor's server backgrounds (`LayoutArtLibrary`, flattened to sub-category
+  pills) as `FreestyleState.backgroundArt`, cropped over the canvas in the fill's place (the
+  ViewModel loads it for `bakeFreestyle`'s `backgroundImage`). A colour or gradient takes it off; a
+  premium one is a hard gate on Done (`needsPremium`) with the `ProFeatureBar` over the canvas.
   A label can also carry a `background` fill, drawn by `drawTextPlate` (`ui/text/TextBaking.kt`)
   in both the preview and the bake; the Text panel's words/background switch
   (`TextColorTargetSwitch`) picks which one the colour row edits.

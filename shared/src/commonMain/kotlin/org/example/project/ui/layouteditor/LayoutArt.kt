@@ -20,7 +20,7 @@ import org.example.project.ui.common.copyBitmap
  * canvas's shape, once [trimFrameArt] has cut its transparent margin) or a background (a pattern
  * filling the canvas, cropped to its shape). [aspectRatio] is its width / height.
  */
-internal data class LayoutArt(
+data class LayoutArt(
     val id: String,
     val name: String,
     val thumbnailUrl: String,
