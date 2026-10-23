@@ -114,7 +114,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntOffset
 import org.example.project.data.cache.AssetCache
-import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.DownloadStatus
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.PreventScreenCapture
 import org.example.project.ui.common.ProFeatureBar
@@ -124,6 +124,10 @@ import org.example.project.ui.layouteditor.LayoutArtLoad
 import org.example.project.ui.layouteditor.rememberArtTransition
 import org.example.project.ui.layouteditor.rememberLayoutArtImage
 import org.koin.compose.koinInject
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.stickers.LibrarySearchButton
 import org.jetbrains.compose.resources.painterResource
 import photocollagemaker.shared.generated.resources.ic_premium_icon
 import photocollagemaker.shared.generated.resources.Res
@@ -782,7 +786,8 @@ private fun BackgroundPanel(
 /**
  * The Background tab: a spinner while [load] is in flight, Retry if it failed, else one row of the
  * picked sub-category's pictures over a row of sub-category pills (every category's, in order:
- * the panel has no room for the layout editor's three levels).
+ * the panel has no room for the layout editor's three levels), led by a search button that opens
+ * the Shop's BG tab; "Use" on a pack there brings the tab back open on it.
  */
 @Composable
 private fun BackgroundArtBody(
@@ -812,6 +817,10 @@ private fun BackgroundArtBody(
                 mutableStateOf(subcategories.firstOrNull { sub -> sub.items.any { it.id == selected?.id } }?.id)
             }
             val subcategory = subcategories.firstOrNull { it.id == subcategoryId } ?: subcategories.firstOrNull()
+            val openShop = LocalOpenShop.current
+            val picks: ShopPicks = koinInject()
+            val pick by picks.pick.collectAsState()
+            LaunchedEffect(pick) { picks.take(ShopTab.Backgrounds)?.let { subcategoryId = it.packId } }
             Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 12.dp),
@@ -831,8 +840,10 @@ private fun BackgroundArtBody(
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
+                    item(key = "search") { LibrarySearchButton(onClick = { openShop(ShopTab.Backgrounds) }, size = 30.dp) }
                     items(subcategories, key = { it.id }) { sub ->
                         val isSelected = sub.id == subcategory?.id
                         Text(
@@ -862,6 +873,7 @@ private fun BackgroundArtCell(chrome: FreestyleChrome, art: LayoutArt, selected:
     // The picture's download into the disk cache, started by a tap on a free one.
     val assetCache = koinInject<AssetCache>()
     val download by remember(art.imageUrl) { assetCache.progressOf(art.imageUrl) }.collectAsState(null)
+    val kept by remember(art.imageUrl) { assetCache.keptOf(art.imageUrl) }.collectAsState(null)
     BackgroundSwatch(chrome = chrome, selected = selected, onClick = onClick, width = BackgroundArtSize, height = BackgroundArtSize) {
         Box(modifier = it) {
             NetworkImage(
@@ -877,7 +889,7 @@ private fun BackgroundArtCell(chrome: FreestyleChrome, art: LayoutArt, selected:
                     modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).size(16.dp),
                 )
             }
-            DownloadRing(progress = download, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+            DownloadStatus(progress = download, kept = kept, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
         }
     }
 }

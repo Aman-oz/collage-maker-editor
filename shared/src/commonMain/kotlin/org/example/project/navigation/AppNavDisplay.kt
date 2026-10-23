@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -43,6 +44,9 @@ import org.example.project.ui.home.FreestyleMaxSelection
 import org.example.project.ui.save.SaveImageScreen
 import org.example.project.ui.setbackground.SetBackgroundScreen
 import org.example.project.ui.share.ShareImageScreen
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopScreen
+import org.example.project.ui.shop.ShopTab
 import org.example.project.ui.share.ShareSuggestion
 import org.example.project.ui.settings.SettingsScreen
 import org.example.project.ui.splash.SplashNext
@@ -85,11 +89,14 @@ private fun slideUpMetadata(): Map<String, Any> = metadata {
 @Composable
 fun AppNavDisplay(modifier: Modifier = Modifier) {
     val backStack = rememberNavBackStack(navSavedStateConfiguration, Destination.Splash)
+    // The tools' search buttons open the Shop through this, rather than every editor passing a
+    // lambda down to every tool.
+    val openShop: (ShopTab) -> Unit = remember(backStack) { { tab -> backStack.add(Destination.Shop(tab)) } }
 
     // One scope around the whole NavDisplay so an element can morph between two entries (the
     // Projects grid thumbnail into the full-screen Preview, a Templates grid cell into its editor).
     SharedTransitionLayout(modifier = modifier) {
-        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this, LocalOpenShop provides openShop) {
             NavDisplay(
                 backStack = backStack,
                 sharedTransitionScope = this,
@@ -395,6 +402,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
+                    }
+
+                    entry<Destination.Shop>(metadata = slideUpMetadata()) { key ->
+                        ShopScreen(initialTab = key.tab, onBack = { backStack.removeLastOrNull() })
                     }
 
                     entry<Destination.SetBackground> {

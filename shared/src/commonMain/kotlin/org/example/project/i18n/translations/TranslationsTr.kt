@@ -936,4 +936,16 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Renk seçmek için sürükleyin",
     "Pick a color from the screen" to
         "Ekrandan renk seç",
+    "Shop" to
+        "Mağaza",
+    "Sticker" to
+        "Çıkartma",
+    "BG" to
+        "Arka plan",
+    "Use" to
+        "Kullan",
+    "Download" to
+        "İndir",
+    "No results" to
+        "Sonuç yok",
 )

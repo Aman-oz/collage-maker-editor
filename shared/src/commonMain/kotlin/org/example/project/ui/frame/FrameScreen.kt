@@ -48,111 +48,285 @@ import org.example.project.ui.common.SelectableSwatch
 import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.example.project.data.centraldata.CentralDataConfig
+import org.example.project.data.network.NetworkImageLoader
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
+import org.example.project.ui.common.copyBitmap
+import org.example.project.ui.common.drawImageScaled
+import org.example.project.ui.layouteditor.ArtLibraryBody
+import org.example.project.ui.layouteditor.FrameArtCellAspect
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.layouteditor.LayoutArtLoad
+import org.example.project.ui.layouteditor.layoutChrome
+import org.example.project.ui.layouteditor.rememberArtTransition
+import org.example.project.ui.layouteditor.rememberLayoutArtImage
+import org.example.project.ui.layouteditor.trimFrameArt
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.text.LocalTextPanelSideBySide
+import org.example.project.ui.text.PanelSegmentedTabs
+import org.koin.compose.koinInject
 
+/** The panel's two tabs: the plain border, and the server's decorative frames. */
+private enum class FrameTab(private val englishLabel: String) {
+    Color("Color"),
+    Frame("Frame"),
+    ;
+
+    val label: String get() = tr(englishLabel)
+}
+
+/**
+ * The editor's Frame tool, in two tabs like the layout editor's Frame panel. Color: a plain border
+ * ([FrameColors], its width and corner radius). Frame: the server's decorative frames (the borders
+ * library, [LayoutArtLibrary], read when the tab first opens), each trimmed of its transparent margin
+ * and stretched over the whole photo, on top of the border. Tapping the frame in use takes it off.
+ *
+ * A free frame is kept on the disk when tapped. A premium one previews for anyone, with the Pro bar
+ * under the photo, but Done sends a non-subscriber to the paywall; the picks are saveable, so they
+ * are still there on the way back. Done downloads the frame's full picture before baking.
+ */
 @Composable
 internal fun FrameTool(
     sourceImage: ImageBitmap,
+    isPremium: Boolean,
     onClose: () -> Unit,
     onApply: (ImageBitmap) -> Unit,
+    onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val library: LayoutArtLibrary = koinInject()
+    val loader: NetworkImageLoader = koinInject()
+    val scope = rememberCoroutineScope()
+    var frameLoad by remember { mutableStateOf<LayoutArtLoad>(LayoutArtLoad.Loading) }
+    var loadAttempt by remember { mutableIntStateOf(0) }
+    var libraryWanted by remember { mutableStateOf(false) }
+    LaunchedEffect(libraryWanted, loadAttempt) {
+        if (!libraryWanted || frameLoad is LayoutArtLoad.Ready) return@LaunchedEffect
+        frameLoad = LayoutArtLoad.Loading
+        frameLoad = try {
+            LayoutArtLoad.Ready(library.getCategories(CentralDataConfig.BORDERS_SUPER_CATEGORY_ID))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LayoutArtLoad.Failed
+        }
+    }
+    var baking by remember { mutableStateOf(false) }
+
     FrameContent(
         sourceImage = sourceImage,
+        isSubscribed = isPremium,
+        frameLoad = frameLoad,
+        onFrameLibraryShown = { libraryWanted = true },
+        onRetryFrames = { loadAttempt++ },
+        onFrameArtPicked = { art ->
+            // A premium frame a non-subscriber is only trying out isn't kept on the disk.
+            if (!art.isPremium || isPremium) scope.launch { loader.loadAsset(art.imageUrl, keep = true) }
+        },
         onBack = onClose,
-        onApply = { color, width, cornerRadius, canvasWidthPx ->
-            onApply(
-                bakeFrame(
-                    source = sourceImage,
-                    color = color,
-                    width = width,
-                    cornerRadius = cornerRadius,
-                    previewCanvasWidthPx = canvasWidthPx,
-                ),
-            )
+        onOpenPremium = onOpenPremium,
+        onApply = { color, width, cornerRadius, art, canvasWidthPx ->
+            when {
+                art?.isPremium == true && !isPremium -> onOpenPremium()
+                baking -> Unit
+                else -> {
+                    baking = true
+                    scope.launch {
+                        val artImage = art?.let { frame ->
+                            loader.loadAsset(frame.imageUrl, keep = !frame.isPremium || isPremium)
+                                ?.let { withContext(Dispatchers.Default) { trimFrameArt(copyBitmap(it)) } }
+                        }
+                        val baked = withContext(Dispatchers.Default) {
+                            bakeFrame(
+                                source = sourceImage,
+                                color = color,
+                                width = width,
+                                cornerRadius = cornerRadius,
+                                previewCanvasWidthPx = canvasWidthPx,
+                                frameArt = artImage,
+                            )
+                        }
+                        baking = false
+                        onApply(baked)
+                    }
+                }
+            }
         },
         modifier = modifier,
     )
 }
 
+/** Under the photo, one height for both tabs, so the photo doesn't move when they switch. */
+private val FramePanelBodyHeight = 250.dp
+
 @Composable
 private fun FrameContent(
     sourceImage: ImageBitmap?,
+    isSubscribed: Boolean,
+    frameLoad: LayoutArtLoad,
+    onFrameLibraryShown: () -> Unit,
+    onRetryFrames: () -> Unit,
+    onFrameArtPicked: (LayoutArt) -> Unit,
     onBack: () -> Unit,
-    onApply: (color: Color, width: Float, cornerRadius: Float, canvasWidthPx: Float) -> Unit,
+    onOpenPremium: () -> Unit,
+    onApply: (color: Color, width: Float, cornerRadius: Float, art: LayoutArt?, canvasWidthPx: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var selectedColor by remember { mutableStateOf(FrameColors.first()) }
-    var width by remember { mutableFloatStateOf(FrameWidthDefault) }
-    var cornerRadius by remember { mutableFloatStateOf(FrameCornerRadiusDefault) }
+    // Saveable, so a premium frame's trip to the paywall comes back to the same picks.
+    var tab by rememberSaveable(stateSaver = FrameTabSaver) { mutableStateOf(FrameTab.Color) }
+    var selectedColor by rememberSaveable(stateSaver = FrameColorOptionSaver) { mutableStateOf(FrameColors.first()) }
+    var width by rememberSaveable { mutableFloatStateOf(FrameWidthDefault) }
+    var cornerRadius by rememberSaveable { mutableFloatStateOf(FrameCornerRadiusDefault) }
+    var frameArt by rememberSaveable(stateSaver = LayoutArtSaver) { mutableStateOf<LayoutArt?>(null) }
     var displayedImageWidthPx by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(tab) { if (tab == FrameTab.Frame) onFrameLibraryShown() }
+    val artImage = rememberArtTransition(rememberLayoutArtImage(frameArt, trim = true))
+    val onPremiumFrame = frameArt?.isPremium == true && !isSubscribed
 
     ToolScaffold(modifier = modifier) {
-        Box(
+        Column(
             modifier = Modifier
                 .toolStage()
-                .background(scheme.onSurface.copy(alpha = 0.08f))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center,
+                .background(scheme.onSurface.copy(alpha = 0.08f)),
         ) {
-            if (sourceImage != null) {
-                // aspectRatio sizes the box to the photo itself, so the frame canvas's bounds are
-                // the image bounds (drawn at Offset.Zero) and the rounded clip follows its edges.
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
-                        .clip(RoundedCornerShape(16.dp))
-                        .onSizeChanged { displayedImageWidthPx = it.width.toFloat() },
-                ) {
-                    Image(
-                        bitmap = sourceImage,
-                        contentDescription = tr("Photo preview"),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                    )
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawFrame(
-                            imageOffset = Offset.Zero,
-                            imageSize = size,
-                            color = selectedColor.color,
-                            widthPx = width,
-                            cornerRadiusPx = cornerRadius,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (sourceImage != null) {
+                    // aspectRatio sizes the box to the photo itself, so the frame canvas's bounds are
+                    // the image bounds (drawn at Offset.Zero) and the rounded clip follows its edges.
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(sourceImage.width.toFloat() / sourceImage.height)
+                            .clip(RoundedCornerShape(16.dp))
+                            .onSizeChanged { displayedImageWidthPx = it.width.toFloat() },
+                    ) {
+                        Image(
+                            bitmap = sourceImage,
+                            contentDescription = tr("Photo preview"),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
                         )
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawFrame(
+                                imageOffset = Offset.Zero,
+                                imageSize = size,
+                                color = selectedColor.color,
+                                widthPx = width,
+                                cornerRadiusPx = cornerRadius,
+                            )
+                            // The decorative frame over the border, fading in over the one it replaced.
+                            val progress = artImage.progress.value
+                            val dst = IntSize(size.width.roundToInt(), size.height.roundToInt())
+                            artImage.previous?.takeIf { progress < 1f }?.let { drawImageScaled(it, IntOffset.Zero, dst, alpha = 1f - progress) }
+                            artImage.current?.let { drawImageScaled(it, IntOffset.Zero, dst, alpha = progress) }
+                        }
                     }
+                } else {
+                    Text(
+                        text = tr("No image to frame"),
+                        color = scheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
-            } else {
-                Text(
-                    text = tr("No image to frame"),
-                    color = scheme.onSurface,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
             }
+            // Under the photo while a non-subscriber tries a premium frame; Done leads to the paywall too.
+            ProFeatureBar(visible = onPremiumFrame, onClick = onOpenPremium)
+            PreventScreenCapture(enabled = onPremiumFrame)
         }
 
         ToolPanel(
             title = tr("Frame"),
             onClose = onBack,
-            onDone = { onApply(selectedColor.color, width, cornerRadius, displayedImageWidthPx) },
+            onDone = { onApply(selectedColor.color, width, cornerRadius, frameArt, displayedImageWidthPx) },
             doneEnabled = sourceImage != null,
         ) {
-            FrameSlider(
-                label = tr("Width"),
-                value = width,
-                onValueChange = { width = it },
-                range = FrameWidthRange,
-                modifier = Modifier.padding(top = 12.dp),
+            PanelSegmentedTabs(
+                labels = FrameTab.entries.map { it.label },
+                selectedIndex = tab.ordinal,
+                onSelected = { tab = FrameTab.entries[it] },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
             )
-            FrameSlider(
-                label = tr("Corner Radius"),
-                value = cornerRadius,
-                onValueChange = { cornerRadius = it },
-                range = FrameCornerRadiusRange,
-            )
-
-            FrameColorRow(selected = selectedColor, onSelected = { selectedColor = it })
+            val bodyModifier = if (sideBySide) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(FramePanelBodyHeight)
+            when (tab) {
+                FrameTab.Color -> Column(modifier = bodyModifier, verticalArrangement = Arrangement.Center) {
+                    FrameSlider(
+                        label = tr("Width"),
+                        value = width,
+                        onValueChange = { width = it },
+                        range = FrameWidthRange,
+                    )
+                    FrameSlider(
+                        label = tr("Corner Radius"),
+                        value = cornerRadius,
+                        onValueChange = { cornerRadius = it },
+                        range = FrameCornerRadiusRange,
+                    )
+                    FrameColorRow(selected = selectedColor, onSelected = { selectedColor = it })
+                }
+                FrameTab.Frame -> CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
+                    ArtLibraryBody(
+                        load = frameLoad,
+                        selected = frameArt,
+                        cellAspect = FrameArtCellAspect,
+                        contentScale = ContentScale.Fit,
+                        failedMessage = tr("Couldn't load frames"),
+                        shopTab = ShopTab.Borders,
+                        chrome = layoutChrome(),
+                        onSelected = { art ->
+                            frameArt = art.takeUnless { it.id == frameArt?.id }
+                            frameArt?.let(onFrameArtPicked)
+                        },
+                        onRetry = onRetryFrames,
+                        modifier = bodyModifier.padding(top = 8.dp, bottom = 12.dp),
+                    )
+                }
+            }
         }
     }
 }
+
+private val FrameTabSaver: Saver<FrameTab, String> = Saver(save = { it.name }, restore = { FrameTab.valueOf(it) })
+
+/** A colour option as its label and ARGB, so a custom colour comes back too. */
+private val FrameColorOptionSaver: Saver<FrameColorOption, String> = Saver(
+    save = { "${it.color.toArgb()}\t${it.label}" },
+    restore = { saved ->
+        val argb = saved.substringBefore('\t').toIntOrNull()
+        val label = saved.substringAfter('\t')
+        FrameColors.firstOrNull { it.label == label } ?: argb?.let { FrameColorOption(label, Color(it)) }
+    },
+)
+
+/** A server frame by its fields, none of which holds a tab; "" for none. */
+private val LayoutArtSaver: Saver<LayoutArt?, String> = Saver(
+    save = { art -> art?.let { listOf(it.id, it.name, it.thumbnailUrl, it.imageUrl, it.aspectRatio, it.isPremium).joinToString("\t") } ?: "" },
+    restore = { saved ->
+        val f = saved.split('\t')
+        if (f.size < 6) null else LayoutArt(f[0], f[1], f[2], f[3], f[4].toFloatOrNull() ?: 1f, f[5].toBoolean())
+    },
+)
 
 /** A "label ··· value" row over an accent slider, filling from the range's start. */
 @Composable
@@ -263,6 +437,16 @@ private fun FrameColorSwatch(option: FrameColorOption) {
 @Composable
 private fun FrameScreenPreview() {
     ThemePreviews {
-        FrameContent(sourceImage = ImageBitmap(360, 480), onBack = {}, onApply = { _, _, _, _ -> })
+        FrameContent(
+            sourceImage = ImageBitmap(360, 480),
+            isSubscribed = false,
+            frameLoad = LayoutArtLoad.Loading,
+            onFrameLibraryShown = {},
+            onRetryFrames = {},
+            onFrameArtPicked = {},
+            onBack = {},
+            onOpenPremium = {},
+            onApply = { _, _, _, _, _ -> },
+        )
     }
 }

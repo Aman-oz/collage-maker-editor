@@ -34,6 +34,10 @@ internal fun List<CentralFontAssetDto>.toFonts(): List<FontEntry> =
         }
         .distinctBy { it.family }
 
+/** [fonts] with every family in [premiumFamilies] marked premium; the rest as they are. */
+fun withPremiumFlags(fonts: List<FontEntry>, premiumFamilies: Set<String>): List<FontEntry> =
+    fonts.map { if (!it.isPremium && it.family in premiumFamilies) it.copy(isPremium = true) else it }
+
 /**
  * The favourite and recent fonts as kept on the device, so they can be shown and drawn (and their
  * crown known) without first browsing to the sub-category that lists them. Family names and URLs

@@ -34,6 +34,14 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
     /** Every font seen this run, and the remembered favourites and recents. Replaced, never mutated. */
     private var known: Map<String, FontEntry> = decodeKnownFonts(store.getString(KeyKnown).orEmpty())
 
+    /**
+     * Every family some sub-category lists as premium this run. The server lists one family in
+     * several sub-categories, premium in one and free in the others (Kaushan Script is premium in
+     * Active, free in Artistic), so a family's flag is whether any listing has it premium, never just
+     * the last list read: else opening Artistic made Active's premium fonts apply, and keep, for free.
+     */
+    private var premiumFamilies: Set<String> = emptySet()
+
     suspend fun catalog(): FontCatalog {
         mutex.withLock { catalog }?.let { return it }
         val categories = api.categories(CentralDataConfig.FONTS_SUPER_CATEGORY_ID)
@@ -53,20 +61,30 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
         return FontCatalog(sections, featured(sections)).also { mutex.withLock { catalog = it } }
     }
 
-    /** [subcategory]'s fonts, in server order. */
+    /** [subcategory]'s fonts, in server order, each premium if any listing has it premium. */
     suspend fun fonts(subcategory: FontSubcategory): List<FontEntry> {
-        mutex.withLock { fontsBySubcategory[subcategory.id] }?.let { return it }
-        val fonts = api.fontAssets(subcategory.categoryId, subcategory.id).toFonts()
-        mutex.withLock {
-            fontsBySubcategory[subcategory.id] = fonts
-            // The server's answer wins over what was remembered: a font may have turned premium.
-            known = known + fonts.associateBy { it.family }
+        mutex.withLock { fontsBySubcategory[subcategory.id] }?.let { cached ->
+            return mutex.withLock { withPremiumFlags(cached, premiumFamilies) }
         }
-        return fonts
+        val fonts = api.fontAssets(subcategory.categoryId, subcategory.id).toFonts()
+        return mutex.withLock {
+            fontsBySubcategory[subcategory.id] = fonts
+            premiumFamilies = premiumFamilies + fonts.filter { it.isPremium }.map { it.family }
+            // The server's answer wins over what was remembered: a font may have turned premium.
+            known = known + withPremiumFlags(fonts, premiumFamilies).associateBy { it.family }
+            withPremiumFlags(fonts, premiumFamilies)
+        }
     }
 
-    /** The font named [family], if it has been listed this run or is a favourite or recent one. */
-    fun find(family: String): FontEntry? = known[family]
+    /**
+     * The font named [family], if it has been listed this run or is a favourite or recent one. What
+     * the Text tool's premium gate, Pro bar and keep-on-disk decision read, so it is premium if any
+     * listing has it premium, whichever list was read last.
+     */
+    fun find(family: String): FontEntry? {
+        val entry = known[family] ?: return null
+        return if (family in premiumFamilies && !entry.isPremium) entry.copy(isPremium = true) else entry
+    }
 
     /**
      * The first fonts of the first sub-category that has any. The server has no featured list of its
@@ -105,7 +123,7 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
     /** Stores each favourite and recent font, and nothing else. */
     private fun rememberUrls() {
         val kept = (_favorites.value + _recent.value).toSet()
-        store.putString(KeyKnown, encodeKnownFonts(known.filterKeys { it in kept }.values))
+        store.putString(KeyKnown, encodeKnownFonts(withPremiumFlags(known.filterKeys { it in kept }.values.toList(), premiumFamilies)))
     }
 
     private companion object {

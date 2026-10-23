@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.example.project.data.centraldata.CentralDataConfig
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.layouteditor.LayoutArtLoad
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.network.NetworkImageLoader
@@ -63,6 +69,7 @@ class CollageEditorViewModel(
     private val catalog: CollageCatalog,
     private val settings: AppSettings,
     private val imageLoader: NetworkImageLoader,
+    private val artLibrary: LayoutArtLibrary,
 ) : ViewModel() {
 
     /**
@@ -72,8 +79,8 @@ class CollageEditorViewModel(
      */
     val needsPremium: Boolean
         get() {
-            val template = (_uiState.value as? CollageEditorUiState.Ready)?.collage?.template
-            return template?.isPremium == true && !settings.isPremium.value
+            val collage = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return false
+            return (collage.template.isPremium || collage.backgroundArt?.isPremium == true) && !settings.isPremium.value
         }
 
     /** Whether the user subscribes; a non-subscriber on a premium layout sees the Pro banner. */
@@ -125,6 +132,7 @@ class CollageEditorViewModel(
     internal val stickers: StateFlow<List<PlacedSticker>> = _stickers.asStateFlow()
 
     private var baking = false
+    private var openingStickers = false
 
     // The photos, decoded once and copied so they draw reliably through Canvas (see copyBitmap).
     private var photos: List<ImageBitmap> = emptyList()
@@ -233,7 +241,44 @@ class CollageEditorViewModel(
 
     fun updateCorner(corner: Float) = updateReady { it.copy(corner = corner) }
 
-    fun updateBackgroundColor(color: Color) = updateReady { it.copy(backgroundColor = color) }
+    // A colour takes a background picture off.
+    fun updateBackgroundColor(color: Color) = updateReady { it.copy(backgroundColor = color, backgroundArt = null) }
+
+    private val _backgroundArtCategories = MutableStateFlow<LayoutArtLoad>(LayoutArtLoad.Loading)
+
+    /** The server's backgrounds (the layout editor's library), read when the Background tab first opens. */
+    internal val backgroundArtCategories: StateFlow<LayoutArtLoad> = _backgroundArtCategories.asStateFlow()
+
+    /** Reads the server's backgrounds, once; a failure can be retried. */
+    fun loadBackgroundArt() {
+        if (_backgroundArtCategories.value is LayoutArtLoad.Ready) return
+        _backgroundArtCategories.value = LayoutArtLoad.Loading
+        viewModelScope.launch {
+            _backgroundArtCategories.value = runCatching { artLibrary.getCategories(CentralDataConfig.BACKGROUNDS_SUPER_CATEGORY_ID) }
+                .fold({ LayoutArtLoad.Ready(it) }, { LayoutArtLoad.Failed })
+        }
+    }
+
+    /**
+     * Puts [art] behind the slots, or takes it off when it is the one in use. A free picture (or any,
+     * for a subscriber) is kept on the disk; a premium one a non-subscriber only tries isn't, and
+     * makes Done a gate ([needsPremium]).
+     */
+    internal fun toggleBackgroundArt(art: LayoutArt) {
+        val current = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return
+        val next = art.takeUnless { it.id == current.backgroundArt?.id }
+        if (next != null && (!next.isPremium || settings.isPremium.value)) {
+            viewModelScope.launch { imageLoader.loadAsset(next.imageUrl, keep = true) }
+        }
+        updateReady { it.copy(backgroundArt = next) }
+    }
+
+    /** [state]'s background picture at full size, for a bake; null for a colour. */
+    private suspend fun backgroundImage(state: CollageState): ImageBitmap? {
+        val art = state.backgroundArt ?: return null
+        val loaded = imageLoader.loadAsset(art.imageUrl, keep = !art.isPremium || settings.isPremium.value) ?: return null
+        return withContext(Dispatchers.Default) { copyBitmap(loaded) }
+    }
 
     fun updateRatio(ratio: CollageRatio) = updateReady { it.copy(ratio = ratio) }
 
@@ -247,7 +292,7 @@ class CollageEditorViewModel(
         if (baking) return false
         baking = true
         try {
-            val collage = bakeCollage(state, previewWidthPx, spacePx, cornerPx)
+            val collage = bakeCollage(state, previewWidthPx, spacePx, cornerPx, backgroundImage = backgroundImage(state))
             session.set(bakeStickers(collage, _stickers.value, imageLoader::renderSvg))
             return true
         } finally {
@@ -262,9 +307,17 @@ class CollageEditorViewModel(
      */
     internal fun openStickersTool(previewWidthPx: Float, spacePx: Float, cornerPx: Float, selectedStickerId: Long?) {
         val state = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return
-        if (stickersSession.value != null || previewWidthPx <= 0f) return
-        val snapshot = bakeCollage(state, previewWidthPx, spacePx, cornerPx)
-        stickersSession.value = StickersToolSession(snapshot, _stickers.value, selectedStickerId, texts = null)
+        if (stickersSession.value != null || openingStickers || previewWidthPx <= 0f) return
+        openingStickers = true
+        // The background picture is read (from memory or the disk, as a rule) before the snapshot.
+        viewModelScope.launch {
+            try {
+                val snapshot = bakeCollage(state, previewWidthPx, spacePx, cornerPx, backgroundImage = backgroundImage(state))
+                stickersSession.value = StickersToolSession(snapshot, _stickers.value, selectedStickerId, texts = null)
+            } finally {
+                openingStickers = false
+            }
+        }
     }
 
     /** Leaves the Stickers tool without its changes. */

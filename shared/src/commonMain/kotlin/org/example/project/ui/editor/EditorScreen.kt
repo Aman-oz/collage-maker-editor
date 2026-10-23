@@ -541,7 +541,7 @@ private fun EditorToolContent(
         EditorTool.Splash -> ColorSplashTool(image, onClose, onApply)
         EditorTool.SelectiveSplash -> SelectiveSplashTool(image, onClose, onApply)
         EditorTool.Draw -> DrawTool(image, onClose, onApply)
-        EditorTool.Frame -> FrameTool(image, onClose, onApply)
+        EditorTool.Frame -> FrameTool(image, isPremium, onClose, onApply, onOpenPremium)
     }
 }
 

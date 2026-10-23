@@ -3,6 +3,7 @@ package org.example.project.ui.collage
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import org.example.project.ui.collage.geom.TemplateItem
+import org.example.project.ui.layouteditor.LayoutArt
 import org.example.project.ui.templates.SlotTransform
 
 /** The canvas shapes offered by the Ratio tab; [aspect] is width / height. */
@@ -23,6 +24,8 @@ enum class CollageRatio(val label: String, val aspect: Float) {
  * @param space the border gap between slots (the LAS `space`), as a preview-relative slider value.
  * @param corner the slot corner radius (the LAS `corner`), as a preview-relative slider value.
  * @param backgroundColor the colour shown behind/between the slots.
+ * @param backgroundArt a server background picture (the Background panel's Background tab), cropped
+ *   to fill the canvas in the colour's place; null for the colour. Picking a colour takes it off.
  * @param ratio the canvas aspect ratio; slot geometry is normalized, so it stretches to fit.
  */
 data class CollageState(
@@ -32,5 +35,6 @@ data class CollageState(
     val space: Float = 6f,
     val corner: Float = 0f,
     val backgroundColor: Color = Color.White,
+    val backgroundArt: LayoutArt? = null,
     val ratio: CollageRatio = CollageRatio.Square,
 )

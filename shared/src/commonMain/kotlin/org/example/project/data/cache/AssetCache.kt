@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -75,6 +76,16 @@ class AssetCache(private val client: HttpClient, rootDir: String = platformCache
             }
         }
     }
+
+    // Bumped whenever a file is kept, so [keptOf] checks its key again.
+    private val keptVersion = MutableStateFlow(0)
+
+    /**
+     * Whether [key] is kept on the disk, checked again each time anything is kept: the download
+     * icon on a library's cells, gone once the item (or its whole pack, from the Shop) is kept.
+     */
+    fun keptOf(key: String): Flow<Boolean> =
+        keptVersion.map { isKept(key) }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     /** [key]'s download, while it runs. */
     fun progressOf(key: String): Flow<DownloadProgress?> = progress.map { it[key] }.distinctUntilChanged()
@@ -190,6 +201,7 @@ class AssetCache(private val client: HttpClient, rootDir: String = platformCache
         val part = Path(parent, "${path.name}.${randomSuffix()}.part")
         SystemFileSystem.sink(part).buffered().use { it.write(bytes) }
         SystemFileSystem.atomicMove(part, path)
+        if (parent == keptDir) keptVersion.update { it + 1 }
     }
 
     private fun randomSuffix() = kotlin.random.Random.nextLong().toULong().toString(16)

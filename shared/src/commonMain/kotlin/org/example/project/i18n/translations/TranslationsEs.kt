@@ -936,4 +936,16 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Arrastra para elegir un color",
     "Pick a color from the screen" to
         "Elegir un color de la pantalla",
+    "Shop" to
+        "Tienda",
+    "Sticker" to
+        "Sticker",
+    "BG" to
+        "Fondo",
+    "Use" to
+        "Usar",
+    "Download" to
+        "Descargar",
+    "No results" to
+        "Sin resultados",
 )

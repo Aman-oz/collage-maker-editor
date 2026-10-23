@@ -29,6 +29,12 @@ import org.example.project.ui.home.HomeFeedViewModel
 import org.example.project.ui.layouts.LayoutsRepository
 import org.example.project.ui.layouts.LayoutsViewModel
 import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.shop.ArtShopSource
+import org.example.project.ui.shop.FontShopSource
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.shop.ShopViewModel
+import org.example.project.ui.shop.StickerShopSource
 import org.example.project.ui.layouteditor.LayoutEditorViewModel
 import org.example.project.ui.freestyle.FreestyleEditorViewModel
 import org.example.project.ui.gallery.GalleryViewModel
@@ -84,6 +90,7 @@ val coreModule: Module = module {
     // The editor's sticker library (categories, sub-categories, stickers), kept for the process.
     single { StickersRepository(get()) }
     single { LayoutArtLibrary(get()) }
+    single { ShopPicks() }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -105,7 +112,7 @@ val viewModelModule: Module = module {
     // The image path comes from the navigation key, so it is passed in as a runtime parameter.
     viewModel { (imagePath: String?) -> EditorViewModel(imagePath, get(), get(), get()) }
     // The image paths (and the layout to open on, from Home's Layouts) come from the navigation key.
-    viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get(), get()) }
+    viewModel { params -> CollageEditorViewModel(params.get(), params.getOrNull<String>(), get(), get(), get(), get(), get()) }
     // The layout to open on comes from the navigation key.
     viewModel { (layoutName: String) -> LayoutEditorViewModel(layoutName, get(), get(), get(), get(), get(), get()) }
     viewModel { (imagePaths: List<String>) -> FreestyleEditorViewModel(imagePaths, get(), get(), get(), get()) }
@@ -125,6 +132,20 @@ val viewModelModule: Module = module {
     viewModelOf(::HomeFeedViewModel)
     viewModelOf(::LayoutsViewModel)
     viewModelOf(::PremiumViewModel)
+    viewModel { (tab: ShopTab) ->
+        ShopViewModel(
+            initialTab = tab,
+            sources = mapOf(
+                ShopTab.Stickers to StickerShopSource(get()),
+                ShopTab.Fonts to FontShopSource(get()),
+                ShopTab.Backgrounds to ArtShopSource.backgrounds(get()),
+                ShopTab.Borders to ArtShopSource.borders(get()),
+            ),
+            assetCache = get(),
+            picks = get(),
+            settings = get(),
+        )
+    }
     // The selected template comes from the navigation key, passed in as a runtime parameter.
     viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }
     viewModelOf(::PipViewModel)

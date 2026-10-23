@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -91,6 +92,9 @@ import org.example.project.ui.text.TextToolbarHeight
 import org.example.project.ui.text.rotatedHalfSize
 import org.example.project.ui.text.snapTextRotation
 import org.koin.compose.koinInject
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
 
 /** Something fetched from the sticker library: still on its way, failed, or here. */
 internal sealed interface StickerLoad<out T> {
@@ -133,6 +137,16 @@ internal fun StickersTool(
     var stickers by remember { mutableStateOf<StickerLoad<List<StickerAsset>>>(StickerLoad.Loading) }
     // Bumped by Retry, which reloads whichever level failed.
     var attempt by remember { mutableIntStateOf(0) }
+
+    // "Use" on a pack in the Shop, which the search button opened: the library opens on it.
+    val picks: ShopPicks = koinInject()
+    val pick by picks.pick.collectAsState()
+    LaunchedEffect(pick) {
+        picks.take(ShopTab.Stickers)?.let {
+            categoryId = it.categoryId
+            subcategoryId = it.packId
+        }
+    }
 
     LaunchedEffect(attempt) {
         if (categories is StickerLoad.Ready) return@LaunchedEffect
@@ -243,6 +257,7 @@ private fun StickersContent(
 ) {
     val scheme = MaterialTheme.colorScheme
     val loader: NetworkImageLoader = koinInject()
+    val openShop = LocalOpenShop.current
     // Saveable: the paywall covers the editor, and the stickers placed before it must still be there.
     var placed by rememberSaveable(stateSaver = PlacedStickersSaver) { mutableStateOf(initialStickers) }
     var nextId by rememberSaveable { mutableLongStateOf((initialStickers.maxOfOrNull { it.id } ?: -1L) + 1L) }
@@ -659,6 +674,7 @@ private fun StickersContent(
                                         selectedId = library.selectedSubcategoryId,
                                         thumbnailOf = library.subcategoryThumbnail,
                                         onSelected = library.onSubcategorySelected,
+                                        onSearch = { openShop(ShopTab.Stickers) },
                                     )
                                     CategoryRow(
                                         categories = library.categories,

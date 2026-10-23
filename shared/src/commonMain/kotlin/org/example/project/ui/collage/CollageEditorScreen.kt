@@ -1,5 +1,20 @@
 package org.example.project.ui.collage
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.isSpecified
+import org.example.project.ui.layouteditor.ArtLibraryBody
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLoad
+import org.example.project.ui.layouteditor.layoutChrome
+import org.example.project.ui.layouteditor.rememberArtTransition
+import org.example.project.ui.layouteditor.rememberLayoutArtImage
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.text.LocalTextPanelSideBySide
+import org.example.project.ui.text.PanelSegmentedTabs
 import org.example.project.i18n.tr
 import org.example.project.ui.common.EditorPanelLayout
 import org.example.project.ui.common.TopBarButtonSize
@@ -127,6 +142,9 @@ private val CornerRange = 0f..60f
 /** Fixed height of the tool area, so switching tabs never resizes the canvas above it. */
 private val ToolPanelHeight = 132.dp
 
+/** The Background panel is taller: its tabs over the server library's grid, tiles and pills. */
+private val BackgroundPanelHeight = 300.dp
+
 /**
  * Background swatches. The Background tab is a two-row horizontal grid that fills column by
  * column, so the list is ordered as (top, bottom) pairs.
@@ -207,6 +225,7 @@ fun CollageEditorScreen(
     val hasChanges by viewModel.hasChanges.collectAsStateWithLifecycle()
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val backgroundLoad by viewModel.backgroundArtCategories.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val discard = rememberDiscardChangesState(hasChanges = hasChanges, onBack = onBack)
     // The discard popup is Liquid Glass over the editor, so the editor is its liquefiable backdrop.
@@ -254,6 +273,9 @@ fun CollageEditorScreen(
             onSpaceChange = viewModel::updateSpace,
             onCornerChange = viewModel::updateCorner,
             onBackgroundColorChange = viewModel::updateBackgroundColor,
+            backgroundLoad = backgroundLoad,
+            onLoadBackgroundArt = viewModel::loadBackgroundArt,
+            onBackgroundArtSelected = viewModel::toggleBackgroundArt,
             onRatioChange = viewModel::updateRatio,
             onOpenStickers = viewModel::openStickersTool,
             modifier = Modifier.liquefiable(liquidState),
@@ -294,12 +316,22 @@ private fun CollageEditorContent(
     onSpaceChange: (Float) -> Unit,
     onCornerChange: (Float) -> Unit,
     onBackgroundColorChange: (Color) -> Unit,
+    backgroundLoad: LayoutArtLoad,
+    onLoadBackgroundArt: () -> Unit,
+    onBackgroundArtSelected: (LayoutArt) -> Unit,
     onRatioChange: (CollageRatio) -> Unit,
     onOpenStickers: (canvasWidthPx: Float, spacePx: Float, cornerPx: Float, selectedStickerId: Long?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val chrome = collageChrome()
-    var selectedTool by remember { mutableStateOf(CollageTool.Layouts) }
+    // Saveable: back from the paywall or the Shop (the Background tab's search), the same tab is open.
+    var selectedTool by rememberSaveable(stateSaver = CollageToolSaver) { mutableStateOf(CollageTool.Layouts) }
+    // The Background panel grows to hold the server library, the collage giving way above it.
+    val panelHeight by animateDpAsState(
+        targetValue = if (selectedTool == CollageTool.Background) BackgroundPanelHeight else ToolPanelHeight,
+        animationSpec = tween(260),
+        label = "collagePanelHeight",
+    )
     var selectedSlot by remember { mutableStateOf<Int?>(null) }
     var canvasWidthPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
@@ -312,7 +344,7 @@ private fun CollageEditorContent(
     }
 
     EditorPanelLayout(
-        panelHeight = ToolPanelHeight,
+        panelHeight = panelHeight,
         tabsAbovePanel = true,
         // Beside the collage the column has height to spare, so Layouts and Background grow into it.
         panelFillsSideColumn = true,
@@ -390,7 +422,8 @@ private fun CollageEditorContent(
 
                 // A premium layout can be tried by anyone; for a non-subscriber this bar under the photo
                 // says so and leads to the paywall, as Done does.
-                val onPremiumLayout = (uiState as? CollageEditorUiState.Ready)?.collage?.template?.isPremium == true
+                val readyCollage = (uiState as? CollageEditorUiState.Ready)?.collage
+                val onPremiumLayout = readyCollage?.template?.isPremium == true || readyCollage?.backgroundArt?.isPremium == true
                 ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
                 PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
             }
@@ -431,11 +464,14 @@ private fun CollageEditorContent(
                             onCornerChange = onCornerChange,
                             modifier = fixedHeight,
                         )
-                        CollageTool.Background -> BackgroundTab(
+                        CollageTool.Background -> BackgroundPanel(
                             chrome = chrome,
-                            selected = collage.backgroundColor,
-                            vertical = sideBySide,
+                            collage = collage,
+                            load = backgroundLoad,
+                            sideBySide = sideBySide,
+                            onLoad = onLoadBackgroundArt,
                             onColorChange = onBackgroundColorChange,
+                            onArtSelected = onBackgroundArtSelected,
                         )
                         CollageTool.Ratio -> RatioTab(
                             chrome = chrome,
@@ -490,6 +526,7 @@ private fun CollagePreview(
             computeSlotGeometries(state.template, widthPx, heightPx, spacePx, cornerPx)
         }
 
+        val backgroundArt = rememberArtTransition(rememberLayoutArtImage(state.backgroundArt))
         Box(modifier = Modifier.size(with(density) { widthPx.toDp() }, with(density) { heightPx.toDp() })) {
             Canvas(
                 modifier = Modifier
@@ -518,6 +555,9 @@ private fun CollagePreview(
                     emptySlotColor = chrome.emptySlot,
                     selectedIndex = selectedSlot,
                     selectionColor = chrome.accent,
+                    backgroundImage = backgroundArt.current,
+                    backgroundAlpha = backgroundArt.progress.value,
+                    previousBackgroundImage = backgroundArt.previous.takeIf { backgroundArt.progress.value < 1f },
                 )
             }
 
@@ -739,6 +779,7 @@ private fun CollageOptionGrid(
     cellSize: Dp,
     spacing: Dp = 8.dp,
     userScrollEnabled: Boolean = true,
+    modifier: Modifier = Modifier.fillMaxSize(),
     content: LazyGridScope.() -> Unit,
 ) {
     if (vertical) {
@@ -747,7 +788,7 @@ private fun CollageOptionGrid(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(spacing),
             userScrollEnabled = userScrollEnabled,
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier,
             content = content,
         )
     } else {
@@ -757,7 +798,7 @@ private fun CollageOptionGrid(
             horizontalArrangement = Arrangement.spacedBy(spacing),
             verticalArrangement = Arrangement.spacedBy(spacing),
             userScrollEnabled = userScrollEnabled,
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier,
             content = content,
         )
     }
@@ -895,15 +936,22 @@ private val BackgroundSwatchSpacing = 10.dp
  * that swatch at the colours' own size.
  */
 @Composable
-private fun BackgroundTab(chrome: CollageChrome, selected: Color, vertical: Boolean, onColorChange: (Color) -> Unit) {
-    val pickCustomColor = rememberColorPickerLauncher(initial = selected, onPicked = onColorChange)
-    CollageOptionGrid(vertical = vertical, cellSize = BackgroundSwatchSize, spacing = BackgroundSwatchSpacing) {
+private fun BackgroundTab(
+    chrome: CollageChrome,
+    selected: Color,
+    vertical: Boolean,
+    onColorChange: (Color) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
+) {
+    // Color.Unspecified while a background picture is in use: then no swatch is ringed.
+    val pickCustomColor = rememberColorPickerLauncher(initial = selected.takeIf { it.isSpecified } ?: Color.White, onPicked = onColorChange)
+    CollageOptionGrid(vertical = vertical, cellSize = BackgroundSwatchSize, spacing = BackgroundSwatchSpacing, modifier = modifier) {
         // In the strip the custom colour swatch spans both rows, so the colour pairs after it stay
         // aligned. It is the one ringed while the background is a colour of the user's own.
         item(span = { GridItemSpan(if (vertical) 1 else maxLineSpan) }) {
             BackgroundColorSwatch(
                 chrome = chrome,
-                selected = selected !in CollageBackgroundColors,
+                selected = selected.isSpecified && selected !in CollageBackgroundColors,
                 onClick = pickCustomColor,
                 height = if (vertical) BackgroundSwatchSize else BackgroundSwatchSize * 2 + BackgroundSwatchSpacing,
             ) { ColorPickerFill(it) }
@@ -911,6 +959,77 @@ private fun BackgroundTab(chrome: CollageChrome, selected: Color, vertical: Bool
         items(CollageBackgroundColors) { color ->
             BackgroundColorSwatch(chrome = chrome, selected = color == selected, onClick = { onColorChange(color) }) {
                 Box(modifier = it.background(color))
+            }
+        }
+    }
+}
+
+private enum class BackgroundPanelTab(private val englishLabel: String) {
+    Color("Color"),
+    Background("Background"),
+    ;
+
+    val label: String get() = tr(englishLabel)
+}
+
+private val CollageToolSaver: Saver<CollageTool, String> = Saver(save = { it.name }, restore = { CollageTool.valueOf(it) })
+private val BackgroundPanelTabSaver: Saver<BackgroundPanelTab, String> = Saver(save = { it.name }, restore = { BackgroundPanelTab.valueOf(it) })
+
+/**
+ * The Background tab, in two tabs like the layout editor's Background panel. Color: the colour
+ * swatches. Background: the server's backgrounds ([LayoutArt], cropped to fill the canvas in the
+ * colour's place), read when the tab first opens, in the layout editor's library (grid, search
+ * button and sub-category tiles, category pills). Tapping the one in use again takes it off; a
+ * colour does too. A premium one previews under the Pro bar and gates Done.
+ */
+@Composable
+private fun BackgroundPanel(
+    chrome: CollageChrome,
+    collage: CollageState,
+    load: LayoutArtLoad,
+    sideBySide: Boolean,
+    onLoad: () -> Unit,
+    onColorChange: (Color) -> Unit,
+    onArtSelected: (LayoutArt) -> Unit,
+) {
+    var tab by rememberSaveable(stateSaver = BackgroundPanelTabSaver) {
+        mutableStateOf(if (collage.backgroundArt != null) BackgroundPanelTab.Background else BackgroundPanelTab.Color)
+    }
+    LaunchedEffect(tab) { if (tab == BackgroundPanelTab.Background) onLoad() }
+    Column(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+        PanelSegmentedTabs(
+            labels = BackgroundPanelTab.entries.map { it.label },
+            selectedIndex = tab.ordinal,
+            onSelected = { tab = BackgroundPanelTab.entries[it] },
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        val body = Modifier.fillMaxWidth().weight(1f)
+        when (tab) {
+            BackgroundPanelTab.Color -> Box(modifier = body, contentAlignment = Alignment.Center) {
+                BackgroundTab(
+                    chrome = chrome,
+                    // A picture in use is no colour of the grid's.
+                    selected = if (collage.backgroundArt == null) collage.backgroundColor else Color.Unspecified,
+                    vertical = sideBySide,
+                    onColorChange = onColorChange,
+                    // Under the collage, the two rows at the strip's usual height, centred.
+                    modifier = if (sideBySide) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(ToolPanelHeight),
+                )
+            }
+            BackgroundPanelTab.Background -> CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
+                ArtLibraryBody(
+                    load = load,
+                    selected = collage.backgroundArt,
+                    cellAspect = 1f,
+                    contentScale = ContentScale.Crop,
+                    failedMessage = tr("Couldn't load backgrounds"),
+                    shopTab = ShopTab.Backgrounds,
+                    chrome = layoutChrome(),
+                    onSelected = onArtSelected,
+                    onRetry = onLoad,
+                    modifier = body.padding(bottom = 10.dp),
+                )
             }
         }
     }
@@ -1047,6 +1166,9 @@ private fun CollageEditorScreenPreview() {
             onSpaceChange = {},
             onCornerChange = {},
             onBackgroundColorChange = {},
+            backgroundLoad = LayoutArtLoad.Loading,
+            onLoadBackgroundArt = {},
+            onBackgroundArtSelected = {},
             onRatioChange = {},
             onOpenStickers = { _, _, _, _ -> },
         )

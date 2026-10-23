@@ -244,3 +244,15 @@ internal val TextItemsSaver: Saver<List<TextItem>, String> = Saver(
     save = { TextItemsJson.encodeToString(ListSerializer(TextItem.serializer()), it) },
     restore = { runCatching { TextItemsJson.decodeFromString(ListSerializer(TextItem.serializer()), it) }.getOrNull() },
 )
+
+/** One text or none, saved like [TextItemsSaver]: what an open panel's ✕ puts back. */
+internal val OptionalTextItemSaver: Saver<TextItem?, String> = Saver(
+    save = { TextItemsJson.encodeToString(ListSerializer(TextItem.serializer()), listOfNotNull(it)) },
+    restore = { runCatching { TextItemsJson.decodeFromString(ListSerializer(TextItem.serializer()), it).firstOrNull() }.getOrNull() },
+)
+
+/** Ids saved as one string, which every platform's saved state takes. */
+internal val IdListSaver: Saver<List<Long>, String> = Saver(
+    save = { it.joinToString(",") },
+    restore = { saved -> saved.split(',').mapNotNull { it.toLongOrNull() } },
+)

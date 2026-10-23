@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.FlipToFront
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -87,7 +89,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import org.example.project.data.cache.AssetCache
 import org.example.project.data.network.NetworkImageLoader
-import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.DownloadStatus
 import org.example.project.ui.common.shimmer
 import org.example.project.i18n.tr
 import org.example.project.ui.common.NetworkImage
@@ -223,6 +225,7 @@ private fun StickerCell(
     val assetCache: AssetCache = koinInject()
     val scope = rememberCoroutineScope()
     val download by remember(asset.imageUrl) { assetCache.progressOf(asset.imageUrl) }.collectAsState(null)
+    val kept by remember(asset.imageUrl) { assetCache.keptOf(asset.imageUrl) }.collectAsState(null)
     val bounce = rememberSpringBounce()
     var image by remember(asset.thumbnailUrl) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(asset.thumbnailUrl) { image = loader.load(asset.thumbnailUrl) }
@@ -258,13 +261,14 @@ private fun StickerCell(
             }
         }
         if (asset.isPremium) PremiumBadge(Modifier.align(Alignment.TopEnd).padding(5.dp))
-        DownloadRing(progress = download, modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp))
+        DownloadStatus(progress = download, kept = kept, modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp))
     }
 }
 
 /**
- * The category's sub-category tiles. The server gives them no picture, so each shows the first
- * sticker in it ([thumbnailOf]), fetched as the tile comes into view.
+ * The category's sub-category tiles, after the search button that opens the Shop ([onSearch]). The
+ * server gives the tiles no picture, so each shows the first sticker in it ([thumbnailOf]), fetched
+ * as the tile comes into view.
  */
 @Composable
 internal fun SubcategoryRow(
@@ -272,6 +276,7 @@ internal fun SubcategoryRow(
     selectedId: String?,
     thumbnailOf: suspend (StickerSubcategory) -> String?,
     onSelected: (String) -> Unit,
+    onSearch: () -> Unit,
 ) {
     val tiles = (subcategories as? StickerLoad.Ready)?.value.orEmpty()
     LazyRow(
@@ -280,6 +285,7 @@ internal fun SubcategoryRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        item(key = "search") { LibrarySearchButton(onClick = onSearch) }
         items(tiles, key = { it.id }) { tile ->
             SubcategoryTile(tile = tile, selected = tile.id == selectedId, thumbnailOf = thumbnailOf, onClick = { onSelected(tile.id) })
         }
@@ -287,6 +293,27 @@ internal fun SubcategoryRow(
 }
 
 private val TileHeight = 60.dp
+
+/**
+ * The round search button before a library's tiles, which opens the Shop on that library. Shared by
+ * the Stickers tool and the layout and freestyle editors' picture libraries.
+ */
+@Composable
+internal fun LibrarySearchButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 48.dp) {
+    val scheme = MaterialTheme.colorScheme
+    val bounce = rememberSpringBounce()
+    Box(
+        modifier = modifier
+            .springBounce(bounce)
+            .size(size)
+            .clip(CircleShape)
+            .background(scheme.onSurface.copy(alpha = 0.08f))
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(imageVector = Icons.Filled.Search, contentDescription = tr("Search"), tint = scheme.onSurface, modifier = Modifier.size(size * 0.5f))
+    }
+}
 
 @Composable
 private fun SubcategoryTile(

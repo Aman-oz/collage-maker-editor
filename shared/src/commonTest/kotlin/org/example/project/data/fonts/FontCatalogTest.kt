@@ -58,4 +58,14 @@ class FontCatalogTest {
         assertEquals(listOf("B", "A", "C"), pushRecentFont(listOf("A", "B", "C"), "B"))
         assertEquals(listOf("D", "A"), pushRecentFont(listOf("A", "B"), "D", max = 2))
     }
+
+    @Test
+    fun withPremiumFlags_marksAFamilyPremiumAnywhereAsPremium() {
+        // The server lists Kaushan Script premium in Active and free in Artistic.
+        val artistic = listOf(FontEntry("Kaushan Script", "https://f/k.ttf"), FontEntry("Lora", "https://f/lora.ttf"))
+        assertEquals(
+            listOf(FontEntry("Kaushan Script", "https://f/k.ttf", isPremium = true), FontEntry("Lora", "https://f/lora.ttf")),
+            withPremiumFlags(artistic, setOf("Kaushan Script")),
+        )
+    }
 }

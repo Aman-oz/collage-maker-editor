@@ -64,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -143,6 +144,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import org.koin.compose.koinInject
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
 
 /**
  * The Text tool. It doesn't bake: it hands back its texts as [TextLayers] for the editor to keep
@@ -183,6 +186,12 @@ internal fun TextTool(
     }
     val favorites by library.favorites.collectAsState()
     val recent by library.recent.collectAsState()
+    // "Use" on a font pack in the Shop: held until the catalog that holds it is in.
+    val picks = koinInject<ShopPicks>()
+    val pick by picks.pick.collectAsState()
+    val shopPick = pick?.takeIf { it.tab == ShopTab.Fonts }?.let { p ->
+        catalog?.sections?.firstNotNullOfOrNull { section -> section.subcategories.firstOrNull { it.id == p.packId } }
+    }
     TextContent(
         sourceImage = sourceImage,
         initialTexts = initialTexts,
@@ -202,6 +211,9 @@ internal fun TextTool(
             loadFont = { font -> fontLoader.load(font, keep = !font.isPremium || isPremium) },
             previewFont = fontLoader::preview,
             downloadProgress = { font -> assetCache.progressOf(font.fileUrl) },
+            isKept = { font -> assetCache.keptOf(font.fileUrl) },
+            shopPick = shopPick,
+            onShopPickTaken = { picks.take(ShopTab.Fonts) },
         ),
         onBack = onClose,
         onOpenPremium = onOpenPremium,
@@ -281,7 +293,13 @@ private fun TextContent(
     }
     var nextId by rememberSaveable { mutableLongStateOf(firstNewId + 1L) }
     var selectedId by rememberSaveable { mutableStateOf(selectedTextId) }
-    var editingId by remember { mutableStateOf(items.lastOrNull()?.takeIf { it.content.isEmpty() }?.id) }
+    // Which panel is open is saveable too, with what it needs to put back on ✕: back from the
+    // paywall (which the Pro bar or a premium font's ✓ opens) the Font panel is still open, not the bar.
+    var panel by rememberSaveable(stateSaver = TextPanelSaver) { mutableStateOf(TextPanel.Options) }
+    // Back to a panel, nothing is being typed; else a new text starts typing.
+    var editingId by remember {
+        mutableStateOf(items.lastOrNull()?.takeIf { it.content.isEmpty() && panel == TextPanel.Options }?.id)
+    }
     // Set once text that was already written is gone back into (a tap on the selected text, or Edit).
     var reEdited by rememberSaveable { mutableStateOf(false) }
     // The paywall is an offer, not a gate: it is shown once per edit, on the first finish with a
@@ -328,14 +346,13 @@ private fun TextContent(
     fun fontOf(item: TextItem): TextFontStyleOption =
         item.fontFamily?.let { family -> loadedFonts[family]?.let { TextFontStyleOption(family, it) } } ?: DefaultTextFont
 
-    var panel by remember { mutableStateOf(TextPanel.Options) }
     // Once the panel has switched, the options bar comes back through the two beats, not the tool's opening.
     var panelChanged by remember { mutableStateOf(false) }
     // The text the Font or Font size panel is editing, as it was when the panel opened: its ✕ puts it back.
-    var beforePanel by remember { mutableStateOf<TextItem?>(null) }
+    var beforePanel by rememberSaveable(stateSaver = OptionalTextItemSaver) { mutableStateOf<TextItem?>(null) }
     // And the order of the texts then, which the Position panel's Arrange changes.
-    var orderBeforePanel by remember { mutableStateOf(emptyList<Long>()) }
-    val fontBrowser = remember { FontBrowserState() }
+    var orderBeforePanel by rememberSaveable(stateSaver = IdListSaver) { mutableStateOf(emptyList<Long>()) }
+    val fontBrowser = rememberSaveable(saver = FontBrowserState.Saver) { FontBrowserState() }
     // Where the Font panel's category title / the toolbar's ⋯ is, in root coordinates, while its menu is open.
     var categoryMenuAnchor by remember { mutableStateOf<Rect?>(null) }
     var moreMenuAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -391,6 +408,12 @@ private fun TextContent(
         panel = TextPanel.Options
     }
     val pickFont = { font: FontEntry -> update(activeId) { it.copy(fontFamily = font.family) } }
+    LaunchedEffect(fonts.shopPick) {
+        val subcategory = fonts.shopPick ?: return@LaunchedEffect
+        fonts.onShopPickTaken()
+        fonts.catalog?.let { fontBrowser.show(subcategory, it) }
+        if (panel != TextPanel.Fonts) openPanel(TextPanel.Fonts)
+    }
     // The Color panel's tab, kept while the panel closes and opens again.
     var colorTab by remember { mutableStateOf(TextColorTab.Text) }
     // Likewise the options bar's scroll and the Shadow and Position panels' tabs: the bar and panels
@@ -732,8 +755,14 @@ private fun TextContent(
                                 onFontSelected = pickFont,
                                 onClose = { closePanel(true) },
                                 onDone = {
-                                    active?.fontFamily?.let(fonts.onUsed)
-                                    closePanel(false)
+                                    // A premium font is a non-subscriber's to try, not to keep: ✓ opens the
+                                    // paywall instead, and the panel is still open on the way back.
+                                    if (!isPremium && active?.fontFamily?.let(fonts.find)?.isPremium == true) {
+                                        onOpenPremium()
+                                    } else {
+                                        active?.fontFamily?.let(fonts.onUsed)
+                                        closePanel(false)
+                                    }
                                 },
                             )
                             TextPanel.FontSize -> TextSliderPanel(
@@ -863,7 +892,15 @@ private fun TextContent(
                 onShowAllFonts = { openPanel(TextPanel.Fonts) },
                 // ✓ keeps what was typed (focus loss ends the typing, dropping a blank text); ✕
                 // puts the text back as it was, or takes a new one away.
-                onDone = { focusManager.clearFocus() },
+                onDone = {
+                    // As the Font panel's ✓: a premium font picked from the bar opens the paywall.
+                    if (!isPremium && editing?.fontFamily?.let(fonts.find)?.isPremium == true) {
+                        focusManager.clearFocus()
+                        onOpenPremium()
+                    } else {
+                        focusManager.clearFocus()
+                    }
+                },
                 onCancel = {
                     val id = editingId
                     val before = beforeTyping
@@ -909,6 +946,9 @@ private fun TextContent(
 }
 
 /** What the tool's panel shows: the floating options bar, or one of the options' panels. */
+// By name: an enum is not saveable on every platform, a String is.
+private val TextPanelSaver: Saver<TextPanel, String> = Saver(save = { it.name }, restore = { TextPanel.valueOf(it) })
+
 private enum class TextPanel { Options, Fonts, FontSize, Color, Opacity, Format, Spacing, Padding, Shadow, Curve, Position, Nudge }
 
 /** Tall enough for the Font panel's title, four rows of fonts and its category bar. */

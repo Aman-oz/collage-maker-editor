@@ -127,6 +127,12 @@ recordings (Android `FLAG_SECURE`, reference-counted; a no-op on iOS, which has 
 it). Templates and frames therefore open from the grid for anyone; their
 editor's Done is the gate (`TemplatesEditorViewModel.needsPremium`).
 
+The editor's Frame tool (`ui/frame/`) has the layout editor's two tabs: Color (the plain border's
+width, corner radius and colour) and Frame (the server's borders library through the layout
+editor's `ArtLibraryBody`, search button included). A picked frame is trimmed (`trimFrameArt`) and
+stretched over the whole photo, over the border, by both the preview and `bakeFrame`; a premium one
+shows the `ProFeatureBar` and is a hard gate on Done. Its picks are saveable for the paywall's trip.
+
 The editor's own Done makes that one-time offer too, when more than `FreeEditCount` (3) tool edits
 are applied (`EditorViewModel.consumePremiumOffer`, counted from the undo history).
 
@@ -157,6 +163,18 @@ stage, the editor and the bake: a cached *body* (crop, stretch, colour matrix, e
 blurred silhouette, then `drawSticker` places them with tilt, flips, shadow, outline and opacity.
 A premium sticker or premium effect is a hard gate on applying.
 
+The Shop (`ui/shop/`, `Destination.Shop(tab)`) lists the server's stickers, fonts, backgrounds
+and frames (the Border tab) as packs (a sub-category each), after a Premium tab that is the paywall
+(`PremiumScreen(embedded = true)`: no close or back of its own). Each tab reads through its tool's
+own repository (`ShopSource`s over `StickersRepository`, `FontLibrary`, `LayoutArtLibrary`). The
+search buttons in the Stickers tool, the Font panel and the layout / freestyle picture libraries
+open it through `LocalOpenShop`, provided by `AppNavDisplay`, so no editor passes a lambda down. A
+pack's download keeps every item in `AssetCache` under the key its tool reads (a premium pack sends
+a non-subscriber to the Premium tab); "Use" posts a `ShopPick` to the `ShopPicks` singleton and
+pops, and the tool, composed again, `take`s it and opens on that pack. The items themselves aren't
+tappable: a pack is downloaded, then used, whole. "New" is each category's
+first pack: the server has no dates.
+
 The background remover's crop step still uses the full-screen `CropContent`; it shares
 `CropState` / `CropStage` with the editor's `CropTool`.
 
@@ -176,6 +194,11 @@ from the back stack.
   `data/collage/RemoteCollages.kt`) and drops entries with no generator. Without the API key, or
   offline, the bundled `composeResources/files/collages.json` is used. A new layout needs both a
   server asset and a generator case.
+  Its Background tab has two tabs like the layout editor's: Color (the swatches) and Background
+  (the server's backgrounds through `ArtLibraryBody`, kept as `CollageState.backgroundArt` and
+  cropped over the canvas in the colour's place by `drawCollage`, in the preview and the bake). The
+  panel grows to `BackgroundPanelHeight` while it is open. A premium background is a hard gate
+  (`needsPremium`) with the `ProFeatureBar`.
 - **Layouts** (`ui/layouts/`): Home's Layouts row (two rows that scroll together, under the tools
   card) and its View All, `Destination.Layouts` (one tab per photo-count sub-category). They come
   from the server's Layouts category: transparent line pictures, drawn tinted to `onBackground` in
@@ -371,7 +394,9 @@ asks: picking a font or tapping a sticker keeps it unless it is premium and the 
 subscribe, so a premium item that is only being tried out never lands on the disk. Downloads run in
 the cache's own scope, are shared per key, and report `progress`, which the cells show as a
 `DownloadRing` (`ui/common/LoadingPlaceholders.kt`, beside `Modifier.shimmer()`, the placeholder of
-the font and sticker grids while they load). The tap never waits for it.
+the font and sticker grids while they load). A cell whose file isn't
+kept shows a small download icon instead (`DownloadStatus`, fed by `AssetCache.keptOf`, which
+checks again whenever anything is kept, so a pack downloaded in the Shop clears it). The tap never waits for it.
 
 The collage, template and frame catalogs come from one central-data server,
 `data/centraldata/CentralDataApi` (`GET /api/v1/instance/{instanceId}/subcategories` and

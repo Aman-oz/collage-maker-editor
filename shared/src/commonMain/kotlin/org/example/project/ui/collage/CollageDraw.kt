@@ -17,6 +17,7 @@ import org.example.project.ui.collage.geom.GeometryUtils
 import org.example.project.ui.collage.geom.PhotoItem
 import org.example.project.ui.collage.geom.PointF
 import org.example.project.ui.collage.geom.RectF
+import org.example.project.ui.common.drawImageCropped
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.templates.SlotTransform
 import kotlin.math.min
@@ -273,7 +274,9 @@ private fun buildRealClearPath(viewWidth: Float, viewHeight: Float, item: PhotoI
 }
 
 /**
- * Draws the whole collage: [background] fill, then each slot's photo cover-fitted, moved by its
+ * Draws the whole collage: [background] fill (with [backgroundImage] cropped over it at
+ * [backgroundAlpha], over [previousBackgroundImage] while the preview fades one picture into the
+ * next), then each slot's photo cover-fitted, moved by its
  * [transforms] entry and clipped to its polygon. [selectedIndex] (if any) is outlined, and empty slots get a faint fill so the user
  * sees where to tap. Shared by the on-screen preview and the final bake.
  */
@@ -287,8 +290,14 @@ internal fun DrawScope.drawCollage(
     emptySlotColor: Color,
     selectedIndex: Int? = null,
     selectionColor: Color = Color.Transparent,
+    backgroundImage: ImageBitmap? = null,
+    backgroundAlpha: Float = 1f,
+    previousBackgroundImage: ImageBitmap? = null,
 ) {
     drawRect(color = background, size = Size(canvasW, canvasH))
+    val canvasSize = IntSize(canvasW.roundToInt(), canvasH.roundToInt())
+    previousBackgroundImage?.let { drawImageCropped(it, IntOffset.Zero, canvasSize) }
+    backgroundImage?.let { drawImageCropped(it, IntOffset.Zero, canvasSize, alpha = backgroundAlpha) }
     for (g in geometries) {
         translate(g.leftPx, g.topPx) {
             clipPath(g.clipPath) {

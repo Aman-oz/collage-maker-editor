@@ -192,12 +192,16 @@ private val PremiumFeatures = listOf(
  * @param fromSplash the paywall is part of the launch flow: closing it the first time offers the
  *   limited-time launch deal ([LaunchOfferDialog]) while its two hours last. Opened from inside the
  *   app, it just closes.
+ * @param embedded the paywall is a tab of another screen (the Shop's Premium tab), under that
+ *   screen's own top bar: no close button and no back handling of its own, and [onClose] is only
+ *   called once a purchase unlocks premium.
  */
 @Composable
 fun PremiumScreen(
     fromSplash: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    embedded: Boolean = false,
     viewModel: PremiumViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -232,6 +236,7 @@ fun PremiumScreen(
     // paywall (alone on the stack) would close the app.
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = !embedded,
         onBackCompleted = requestClose,
     )
 
@@ -248,7 +253,7 @@ fun PremiumScreen(
     PremiumContent(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
-        onClose = requestClose,
+        onClose = requestClose.takeUnless { embedded },
         onStart = { plan -> viewModel.purchase(plan.plan) },
         offerEndsAt = offerEndsAt,
         onOfferTryNow = { viewModel.purchase(SubscriptionPlan.Yearly) },
@@ -267,7 +272,7 @@ fun PremiumScreen(
 private fun PremiumContent(
     uiState: PremiumUiState,
     snackbarHostState: SnackbarHostState,
-    onClose: () -> Unit,
+    onClose: (() -> Unit)?,
     onStart: (PremiumPlan) -> Unit,
     onRestore: () -> Unit,
     onTermsAndPrivacy: () -> Unit,
@@ -427,7 +432,7 @@ private fun rememberHeroPagerState(): PagerState {
 
 /** The swiping hero, with the features card riding up over its faded-out bottom edge. */
 @Composable
-private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
+private fun PremiumTop(onClose: (() -> Unit)?, onRestore: () -> Unit) {
     val pagerState = rememberHeroPagerState()
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // Full width, but no taller than the hero is at the content's capped width: on a tablet the
@@ -439,7 +444,7 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
             modifier = Modifier.align(Alignment.TopCenter).padding(top = heroHeight - CardOverlap - 18.dp),
         )
         // Top-left, below the status bar, where the design places it (≈ 8.7% across, 21.6% down the hero).
-        CloseButton(
+        if (onClose != null) CloseButton(
             onClose = onClose,
             modifier = Modifier.offset(x = maxWidth * 0.087f - 20.dp, y = heroHeight * 0.216f - 20.dp),
         )
@@ -464,13 +469,13 @@ private fun PremiumTop(onClose: () -> Unit, onRestore: () -> Unit) {
  * close and Restore in its top corners.
  */
 @Composable
-private fun PremiumSideHero(onClose: () -> Unit, onRestore: () -> Unit, modifier: Modifier = Modifier) {
+private fun PremiumSideHero(onClose: (() -> Unit)?, onRestore: () -> Unit, modifier: Modifier = Modifier) {
     val pagerState = rememberHeroPagerState()
     // The photo runs under the notch; what sits on it keeps clear of it.
     val insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start)
     Box(modifier = modifier) {
         HeroPager(pagerState, Modifier.fillMaxSize())
-        CloseButton(
+        if (onClose != null) CloseButton(
             onClose = onClose,
             modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(insets).padding(16.dp),
         )

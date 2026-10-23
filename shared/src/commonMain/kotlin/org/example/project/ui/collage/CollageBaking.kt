@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.LayoutDirection
  * [previewWidthPx] is the on-screen canvas's pixel width and [spacePxPreview]/[cornerPxPreview] are
  * the border/corner gaps in that preview's pixels; both are scaled up to the output resolution the
  * same way every other tool scales a preview-relative measure up to the source's full resolution.
+ * [backgroundImage] is [CollageState.backgroundArt]'s picture (a bitmap this app made, see copyBitmap).
  */
 internal fun bakeCollage(
     state: CollageState,
@@ -20,6 +21,7 @@ internal fun bakeCollage(
     spacePxPreview: Float,
     cornerPxPreview: Float,
     longSide: Int = 1080,
+    backgroundImage: ImageBitmap? = null,
 ): ImageBitmap {
     val (outW, outH) = collageOutputSize(state.ratio.aspect, longSide)
     val output = ImageBitmap(outW, outH)
@@ -44,6 +46,7 @@ internal fun bakeCollage(
             canvasW = size.width,
             canvasH = size.height,
             emptySlotColor = Color.White,
+            backgroundImage = backgroundImage,
         )
     }
     return output

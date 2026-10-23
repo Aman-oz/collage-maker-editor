@@ -936,4 +936,16 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "드래그하여 색상 선택",
     "Pick a color from the screen" to
         "화면에서 색상 선택",
+    "Shop" to
+        "상점",
+    "Sticker" to
+        "스티커",
+    "BG" to
+        "배경",
+    "Use" to
+        "사용",
+    "Download" to
+        "다운로드",
+    "No results" to
+        "결과 없음",
 )

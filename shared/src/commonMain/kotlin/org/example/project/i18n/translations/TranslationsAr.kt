@@ -936,4 +936,16 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "اسحب لاختيار لون",
     "Pick a color from the screen" to
         "اختر لونًا من الشاشة",
+    "Shop" to
+        "المتجر",
+    "Sticker" to
+        "ملصق",
+    "BG" to
+        "خلفية",
+    "Use" to
+        "استخدام",
+    "Download" to
+        "تنزيل",
+    "No results" to
+        "لا توجد نتائج",
 )

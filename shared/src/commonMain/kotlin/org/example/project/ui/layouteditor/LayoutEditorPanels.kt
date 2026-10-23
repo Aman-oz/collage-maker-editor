@@ -34,11 +34,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.DownloadStatus
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import org.example.project.data.cache.AssetCache
 import org.koin.compose.koinInject
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.stickers.LibrarySearchButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -55,8 +59,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.aspectRatio
@@ -448,8 +450,8 @@ private enum class FrameProperty(private val englishLabel: String) {
  * The Frame option, in two tabs over the whole canvas. Color: the photo editor's plain frame, its
  * width or corner radius on the slider (picked by the chips at the foot) over a grid of colours,
  * whose checkerboard takes it off. Frame: the server's decorative frames ([LayoutArt]), read
- * when the tab first opens, in a grid over the sub-category tiles (after a search button, not wired
- * yet) and the category pills. Tapping the frame in use again takes it off.
+ * when the tab first opens, in a grid over the sub-category tiles (after a search button, which
+ * opens the Shop's Border tab) and the category pills. Tapping the frame in use again takes it off.
  *
  * Under the canvas the area under the tabs is one fixed height for both, so nothing moves when they
  * switch; beside it the area takes the column's spare height.
@@ -498,6 +500,7 @@ private fun FramePanel(
                 cellAspect = FrameArtCellAspect,
                 contentScale = ContentScale.Fit,
                 failedMessage = tr("Couldn't load frames"),
+                shopTab = ShopTab.Borders,
                 chrome = chrome,
                 onSelected = { art -> actions.setFrameArt(art.takeUnless { it.id == edit.frameArt?.id }) },
                 onRetry = actions::loadFrameArt,
@@ -640,15 +643,17 @@ private fun Checkerboard(modifier: Modifier = Modifier) {
  * A server library's tab (Frame, Background): a spinner while [load] is in flight, Retry under
  * [failedMessage] if it failed, else the picked sub-category's pictures in a grid of [cellAspect]
  * cells (each drawn with [contentScale]), over a row of the search button and the sub-category
- * tiles, and the category pills at the foot.
+ * tiles, and the category pills at the foot. The search button opens the Shop on [shopTab]; "Use"
+ * on a pack there brings the panel back open on it.
  */
 @Composable
-private fun ArtLibraryBody(
+internal fun ArtLibraryBody(
     load: LayoutArtLoad,
     selected: LayoutArt?,
     cellAspect: Float,
     contentScale: ContentScale,
     failedMessage: String,
+    shopTab: ShopTab,
     chrome: LayoutChrome,
     onSelected: (LayoutArt) -> Unit,
     onRetry: () -> Unit,
@@ -656,6 +661,15 @@ private fun ArtLibraryBody(
 ) {
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var subcategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    val openShop = LocalOpenShop.current
+    val picks: ShopPicks = koinInject()
+    val pick by picks.pick.collectAsState()
+    LaunchedEffect(pick) {
+        picks.take(shopTab)?.let {
+            categoryId = it.categoryId
+            subcategoryId = it.packId
+        }
+    }
     when (load) {
         LayoutArtLoad.Loading -> Box(modifier = modifier, contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = chrome.accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
@@ -699,7 +713,7 @@ private fun ArtLibraryBody(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().height(ArtTileHeight),
                 ) {
-                    item { LibrarySearchButton(chrome) }
+                    item { LibrarySearchButton(onClick = { openShop(shopTab) }, size = 44.dp) }
                     items(category?.subcategories.orEmpty(), key = { it.id }) { sub ->
                         ArtSubcategoryTile(
                             subcategory = sub,
@@ -729,7 +743,7 @@ private fun ArtLibraryBody(
 }
 
 /** A frame cell is 4:5, the shape of most frames (a taller one is fitted inside); a background's is square. */
-private const val FrameArtCellAspect = 0.8f
+internal const val FrameArtCellAspect = 0.8f
 private const val BackgroundArtCellAspect = 1f
 private val ArtSpacing = 8.dp
 private val ArtTileHeight = 58.dp
@@ -749,6 +763,7 @@ private fun ArtCell(
     // The picture's download into the disk cache, started by a tap on a free one.
     val assetCache = koinInject<AssetCache>()
     val download by remember(art.imageUrl) { assetCache.progressOf(art.imageUrl) }.collectAsState(null)
+    val kept by remember(art.imageUrl) { assetCache.keptOf(art.imageUrl) }.collectAsState(null)
     Box(
         modifier = modifier
             .springBounce(bounce)
@@ -772,24 +787,7 @@ private fun ArtCell(
                 modifier = Modifier.align(Alignment.TopEnd).size(16.dp),
             )
         }
-        DownloadRing(progress = download, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
-    }
-}
-
-/** The search button before the sub-category tiles; it does nothing yet. */
-@Composable
-private fun LibrarySearchButton(chrome: LayoutChrome) {
-    val bounce = rememberSpringBounce()
-    Box(
-        modifier = Modifier
-            .springBounce(bounce)
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(chrome.content.copy(alpha = 0.06f))
-            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = {}),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(imageVector = Icons.Filled.Search, contentDescription = tr("Search"), tint = chrome.content, modifier = Modifier.size(22.dp))
+        DownloadStatus(progress = download, kept = kept, size = 18.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
     }
 }
 
@@ -898,6 +896,7 @@ private fun BackgroundPanel(
                 cellAspect = BackgroundArtCellAspect,
                 contentScale = ContentScale.Crop,
                 failedMessage = tr("Couldn't load backgrounds"),
+                shopTab = ShopTab.Backgrounds,
                 chrome = chrome,
                 onSelected = { art -> actions.setBackgroundArt(art.takeUnless { it.id == edit.backgroundArt?.id }) },
                 onRetry = actions::loadBackgroundArt,

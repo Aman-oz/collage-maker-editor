@@ -225,4 +225,12 @@ sealed interface Destination : NavKey {
     @Serializable
     data object SetBackground : Destination
 
+    /**
+     * The Shop: the server's stickers, fonts, backgrounds and frames, and the paywall, one tab each.
+     * Opened by a tool's search button on that tool's [tab]; "Use" on a pack pops back to the tool,
+     * which opens on it (see [org.example.project.ui.shop.ShopPicks]).
+     */
+    @Serializable
+    data class Shop(val tab: org.example.project.ui.shop.ShopTab) : Destination
+
 }

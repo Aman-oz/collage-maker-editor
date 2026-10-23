@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -37,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.example.project.data.cache.DownloadProgress
+import org.example.project.i18n.tr
 
 /**
  * A placeholder's loading shimmer: a faint block with a lighter band sweeping across it. The band is
@@ -111,5 +116,39 @@ internal fun DownloadRing(progress: DownloadProgress?, modifier: Modifier = Modi
                 )
             }
         }
+    }
+}
+
+/**
+ * A library cell's download state, in one corner: [DownloadRing] while the item downloads, and a
+ * small download icon while it isn't kept on the disk ([kept] false; null until that is known, so
+ * a kept item doesn't flash the icon). Tapping the item (or downloading its pack in the Shop) keeps
+ * it, and the icon goes. A premium item a non-subscriber only tries isn't kept, so it keeps the icon.
+ */
+@Composable
+internal fun DownloadStatus(progress: DownloadProgress?, kept: Boolean?, modifier: Modifier = Modifier, size: Dp = 22.dp) {
+    val scheme = MaterialTheme.colorScheme
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        AnimatedVisibility(
+            visible = kept == false && progress == null,
+            enter = fadeIn(tween(160)),
+            exit = fadeOut(tween(120)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .background(scheme.surface.copy(alpha = 0.92f), CircleShape)
+                    .padding(3.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FileDownload,
+                    contentDescription = tr("Download"),
+                    tint = scheme.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        DownloadRing(progress = progress, size = size)
     }
 }

@@ -936,4 +936,16 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "रंग चुनने के लिए खींचें",
     "Pick a color from the screen" to
         "स्क्रीन से रंग चुनें",
+    "Shop" to
+        "शॉप",
+    "Sticker" to
+        "स्टिकर",
+    "BG" to
+        "बैकग्राउंड",
+    "Use" to
+        "इस्तेमाल करें",
+    "Download" to
+        "डाउनलोड",
+    "No results" to
+        "कोई परिणाम नहीं",
 )

@@ -936,4 +936,16 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Seret untuk memilih warna",
     "Pick a color from the screen" to
         "Pilih warna dari layar",
+    "Shop" to
+        "Toko",
+    "Sticker" to
+        "Stiker",
+    "BG" to
+        "Latar",
+    "Use" to
+        "Pakai",
+    "Download" to
+        "Unduh",
+    "No results" to
+        "Tidak ada hasil",
 )

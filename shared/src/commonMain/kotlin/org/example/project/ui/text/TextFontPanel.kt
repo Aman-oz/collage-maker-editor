@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -67,12 +68,15 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.example.project.data.cache.DownloadProgress
-import org.example.project.ui.common.DownloadRing
+import org.example.project.ui.common.DownloadStatus
 import org.example.project.ui.common.shimmer
 import org.example.project.data.fonts.FontSubcategory
 import org.example.project.i18n.tr
 import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.stickers.PremiumBadge
+import org.example.project.ui.stickers.LibrarySearchButton
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopTab
 
 /**
  * What the Text tool knows about fonts, handed in from [TextTool] so the tool's content stays free
@@ -97,6 +101,14 @@ internal class TextFonts(
     val previewFont: suspend (FontEntry) -> FontFamily?,
     /** The font's download into the cache, while it runs. */
     val downloadProgress: (FontEntry) -> Flow<DownloadProgress?>,
+    /** Whether the whole font is kept on the disk: the cell's download icon goes once it is. */
+    val isKept: (FontEntry) -> Flow<Boolean> = { flowOf(true) },
+    /**
+     * The sub-category "Use" picked in the Shop (which the Font panel's search button opens), once
+     * the catalog is in: the tool opens the Font panel on it and calls [onShopPickTaken].
+     */
+    val shopPick: FontSubcategory? = null,
+    val onShopPickTaken: () -> Unit = {},
 ) {
     /** The fonts the keyboard bar offers: the recent ones, then the featured. */
     val quickPicks: List<FontEntry>
@@ -147,11 +159,48 @@ internal class FontBrowserState {
     var sectionIndex by mutableIntStateOf(0)
         private set
 
+    /** Shows [subcategory], switching to the main category that holds it. */
+    fun show(subcategory: FontSubcategory, catalog: FontCatalog) {
+        val index = catalog.sections.indexOfFirst { section -> subcategory in section.subcategories }
+        if (index >= 0) sectionIndex = index
+        source = FontListSource.Subcategory(subcategory)
+    }
+
     /** Switches the main category; the grid follows, to its first sub-category. */
     fun selectSection(index: Int, catalog: FontCatalog?) {
         if (index == sectionIndex) return
         sectionIndex = index
         catalog?.sections?.getOrNull(index)?.subcategories?.firstOrNull()?.let { source = FontListSource.Subcategory(it) }
+    }
+
+    companion object {
+        /**
+         * Saved as text, so the Font panel comes back from the paywall on the list it showed. A
+         * sub-category's fields hold no tab: `section<TAB>kind[<TAB>id<TAB>categoryId<TAB>name]`.
+         */
+        val Saver: androidx.compose.runtime.saveable.Saver<FontBrowserState, String> = androidx.compose.runtime.saveable.Saver(
+            save = { state ->
+                val source = when (val s = state.source) {
+                    FontListSource.Favorites -> "favorites"
+                    FontListSource.Recent -> "recent"
+                    FontListSource.Featured -> "featured"
+                    is FontListSource.Subcategory -> listOf("sub", s.subcategory.id, s.subcategory.categoryId, s.subcategory.name).joinToString("\t")
+                }
+                "${state.sectionIndex}\t$source"
+            },
+            restore = { saved ->
+                val fields = saved.split('\t')
+                FontBrowserState().apply {
+                    sectionIndex = fields[0].toIntOrNull() ?: 0
+                    source = when (fields.getOrNull(1)) {
+                        "favorites" -> FontListSource.Favorites
+                        "recent" -> FontListSource.Recent
+                        "sub" -> if (fields.size >= 5) FontListSource.Subcategory(FontSubcategory(fields[2], fields[3], fields[4])) else FontListSource.Featured
+                        else -> FontListSource.Featured
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -178,6 +227,7 @@ internal fun TextFontPanel(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val openShop = LocalOpenShop.current
     val catalog = fonts.catalog
     val source = browser.source
     val sectionIndex = browser.sectionIndex
@@ -253,13 +303,16 @@ internal fun TextFontPanel(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
-                            items(listed.fonts, key = { it.family }) { font ->
+                            // Through find, so the crown is the flag the tool gates on: a family the server
+                            // lists free here may be premium in another sub-category.
+                            items(listed.fonts.map { fonts.find(it.family) ?: it }, key = { it.family }) { font ->
                                 FontGridCell(
                                     font = font,
                                     selected = font.family == selectedFamily,
                                     favorite = font.family in fonts.favorites,
                                     previewFont = fonts.previewFont,
                                     downloadProgress = fonts.downloadProgress,
+                                    isKept = fonts.isKept,
                                     onClick = { onFontSelected(font) },
                                     onToggleFavorite = { fonts.onToggleFavorite(font.family) },
                                 )
@@ -274,6 +327,7 @@ internal fun TextFontPanel(
                 subcategories = section?.subcategories.orEmpty(),
                 source = source,
                 onSourceSelected = { browser.source = it },
+                onSearch = { openShop(ShopTab.Fonts) },
             )
         }
 
@@ -358,6 +412,7 @@ private fun FontGridCell(
     favorite: Boolean,
     previewFont: suspend (FontEntry) -> FontFamily?,
     downloadProgress: (FontEntry) -> Flow<DownloadProgress?>,
+    isKept: (FontEntry) -> Flow<Boolean>,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
@@ -365,6 +420,7 @@ private fun FontGridCell(
     // Null while the name's own letters are on their way; the default font if they can't be had.
     val family by produceState<FontFamily?>(null, font) { value = previewFont(font) ?: FontFamily.Default }
     val download by remember(font) { downloadProgress(font) }.collectAsState(null)
+    val kept by remember(font) { isKept(font) }.collectAsState(null)
     val shown by animateFloatAsState(if (family != null) 1f else 0f, tween(220))
     Row(
         modifier = Modifier
@@ -391,7 +447,7 @@ private fun FontGridCell(
                 )
             }
         }
-        DownloadRing(progress = download, size = 20.dp, modifier = Modifier.padding(start = 4.dp))
+        DownloadStatus(progress = download, kept = kept, size = 20.dp, modifier = Modifier.padding(start = 4.dp))
         if (font.isPremium) PremiumBadge(size = 20.dp)
         Box(
             modifier = Modifier
@@ -416,6 +472,7 @@ private fun FontCategoryBar(
     subcategories: List<FontSubcategory>,
     source: FontListSource,
     onSourceSelected: (FontListSource) -> Unit,
+    onSearch: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     // Restarted for each main category, so its sub-categories rise in one after another.
@@ -427,6 +484,8 @@ private fun FontCategoryBar(
         modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        LibrarySearchButton(onClick = onSearch, size = 36.dp)
+        Spacer(modifier = Modifier.width(8.dp))
         FavoritesButton(
             selected = source == FontListSource.Favorites,
             onClick = { onSourceSelected(FontListSource.Favorites) },

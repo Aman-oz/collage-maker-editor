@@ -936,4 +936,16 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Kéo để chọn màu",
     "Pick a color from the screen" to
         "Chọn màu từ màn hình",
+    "Shop" to
+        "Cửa hàng",
+    "Sticker" to
+        "Nhãn dán",
+    "BG" to
+        "Nền",
+    "Use" to
+        "Dùng",
+    "Download" to
+        "Tải xuống",
+    "No results" to
+        "Không có kết quả",
 )

@@ -472,4 +472,10 @@ internal val AppStrings: List<String> = listOf(
     "Save color",
     "Drag to pick a color",
     "Pick a color from the screen",
+    "Shop",
+    "Sticker",
+    "BG",
+    "Use",
+    "Download",
+    "No results",
 )

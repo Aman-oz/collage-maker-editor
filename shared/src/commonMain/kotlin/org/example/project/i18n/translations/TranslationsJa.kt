@@ -936,4 +936,16 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "ドラッグして色を選択",
     "Pick a color from the screen" to
         "画面から色を選択",
+    "Shop" to
+        "ショップ",
+    "Sticker" to
+        "ステッカー",
+    "BG" to
+        "背景",
+    "Use" to
+        "使う",
+    "Download" to
+        "ダウンロード",
+    "No results" to
+        "結果がありません",
 )
