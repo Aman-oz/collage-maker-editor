@@ -914,4 +914,26 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Не удалось загрузить шрифты",
     "No fonts here yet" to
         "Здесь пока нет шрифтов",
+    "Colors" to
+        "Цвета",
+    "Grid" to
+        "Сетка",
+    "Spectrum" to
+        "Спектр",
+    "Sliders" to
+        "Ползунки",
+    "Red" to
+        "Красный",
+    "Green" to
+        "Зелёный",
+    "Blue" to
+        "Синий",
+    "Hex Color #" to
+        "Цвет HEX #",
+    "Save color" to
+        "Сохранить цвет",
+    "Drag to pick a color" to
+        "Перетащите, чтобы выбрать цвет",
+    "Pick a color from the screen" to
+        "Выбрать цвет с экрана",
 )

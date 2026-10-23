@@ -914,4 +914,26 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "글꼴을 불러올 수 없습니다",
     "No fonts here yet" to
         "아직 여기에 글꼴이 없습니다",
+    "Colors" to
+        "색상",
+    "Grid" to
+        "격자",
+    "Spectrum" to
+        "스펙트럼",
+    "Sliders" to
+        "슬라이더",
+    "Red" to
+        "빨강",
+    "Green" to
+        "초록",
+    "Blue" to
+        "파랑",
+    "Hex Color #" to
+        "16진수 색상 #",
+    "Save color" to
+        "색상 저장",
+    "Drag to pick a color" to
+        "드래그하여 색상 선택",
+    "Pick a color from the screen" to
+        "화면에서 색상 선택",
 )

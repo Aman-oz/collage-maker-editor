@@ -914,4 +914,26 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "フォントを読み込めませんでした",
     "No fonts here yet" to
         "ここにはまだフォントがありません",
+    "Colors" to
+        "カラー",
+    "Grid" to
+        "グリッド",
+    "Spectrum" to
+        "スペクトル",
+    "Sliders" to
+        "スライダー",
+    "Red" to
+        "赤",
+    "Green" to
+        "緑",
+    "Blue" to
+        "青",
+    "Hex Color #" to
+        "16進カラー #",
+    "Save color" to
+        "色を保存",
+    "Drag to pick a color" to
+        "ドラッグして色を選択",
+    "Pick a color from the screen" to
+        "画面から色を選択",
 )

@@ -914,4 +914,26 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Não foi possível carregar as fontes",
     "No fonts here yet" to
         "Ainda não há fontes aqui",
+    "Colors" to
+        "Cores",
+    "Grid" to
+        "Grade",
+    "Spectrum" to
+        "Espectro",
+    "Sliders" to
+        "Controles",
+    "Red" to
+        "Vermelho",
+    "Green" to
+        "Verde",
+    "Blue" to
+        "Azul",
+    "Hex Color #" to
+        "Cor hex #",
+    "Save color" to
+        "Salvar cor",
+    "Drag to pick a color" to
+        "Arraste para escolher uma cor",
+    "Pick a color from the screen" to
+        "Escolher uma cor da tela",
 )

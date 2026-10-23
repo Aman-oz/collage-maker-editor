@@ -914,4 +914,26 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Yazı tipleri yüklenemedi",
     "No fonts here yet" to
         "Burada henüz yazı tipi yok",
+    "Colors" to
+        "Renkler",
+    "Grid" to
+        "Izgara",
+    "Spectrum" to
+        "Spektrum",
+    "Sliders" to
+        "Kaydırıcılar",
+    "Red" to
+        "Kırmızı",
+    "Green" to
+        "Yeşil",
+    "Blue" to
+        "Mavi",
+    "Hex Color #" to
+        "Hex Renk #",
+    "Save color" to
+        "Rengi kaydet",
+    "Drag to pick a color" to
+        "Renk seçmek için sürükleyin",
+    "Pick a color from the screen" to
+        "Ekrandan renk seç",
 )

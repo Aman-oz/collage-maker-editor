@@ -914,4 +914,26 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Tidak dapat memuat font",
     "No fonts here yet" to
         "Belum ada font di sini",
+    "Colors" to
+        "Warna",
+    "Grid" to
+        "Kisi",
+    "Spectrum" to
+        "Spektrum",
+    "Sliders" to
+        "Penggeser",
+    "Red" to
+        "Merah",
+    "Green" to
+        "Hijau",
+    "Blue" to
+        "Biru",
+    "Hex Color #" to
+        "Warna Hex #",
+    "Save color" to
+        "Simpan warna",
+    "Drag to pick a color" to
+        "Seret untuk memilih warna",
+    "Pick a color from the screen" to
+        "Pilih warna dari layar",
 )

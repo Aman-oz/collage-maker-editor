@@ -914,4 +914,26 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "فونٹس لوڈ نہیں ہو سکے",
     "No fonts here yet" to
         "یہاں ابھی کوئی فونٹ نہیں ہے",
+    "Colors" to
+        "رنگ",
+    "Grid" to
+        "گرڈ",
+    "Spectrum" to
+        "اسپیکٹرم",
+    "Sliders" to
+        "سلائیڈرز",
+    "Red" to
+        "سرخ",
+    "Green" to
+        "سبز",
+    "Blue" to
+        "نیلا",
+    "Hex Color #" to
+        "ہیکس رنگ #",
+    "Save color" to
+        "رنگ محفوظ کریں",
+    "Drag to pick a color" to
+        "رنگ چننے کے لیے گھسیٹیں",
+    "Pick a color from the screen" to
+        "اسکرین سے رنگ چنیں",
 )

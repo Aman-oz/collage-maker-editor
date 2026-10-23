@@ -295,7 +295,10 @@ from the back stack.
 - **Custom colours**: every colour row or grid (text, text background, Draw, Frame, and the
   collage, freestyle and Set Background backgrounds) leads with a colour-wheel swatch
   (`ColorPickerFill`) that opens `ColorPickerDialog` through `rememberColorPickerLauncher`
-  (`ui/common/ColorPicker.kt`, HSV maths in `ColorPickerMath.kt`). A new colour list should too.
+  (`ui/common/ColorPicker.kt`, HSV maths in `ColorPickerMath.kt`): Grid / Spectrum / Sliders
+  tabs, opacity, saved colours (`AppSettings.savedColors`) and an eyedropper, which samples the
+  whole screen through `EyedropperHost` around `App` (`ui/common/Eyedropper.kt`). Closing the
+  dialog keeps the colour; there is no Done. A new colour list should lead with the swatch too.
 - **Templates** (`ui/templates/`): server-driven. `TemplatesRepository` reads the central-data
   server's `subcategories?categoryId=` (the category pills) and `assets?subCategoryId=` (the
   templates). Each asset's `more_fields.frames` holds the frame picture, its pixel size (which

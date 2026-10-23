@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.project.data.AppSettings
 import org.example.project.data.ThemeMode
 import org.example.project.navigation.AppNavDisplay
+import org.example.project.ui.common.EyedropperHost
 import org.example.project.ui.theme.AppTheme
 import org.example.project.ui.theme.SystemBarsAppearance
 import org.koin.compose.koinInject
@@ -28,10 +29,13 @@ fun App() {
     SystemBarsAppearance(themeMode, darkTheme)
 
     AppTheme(darkTheme = darkTheme) {
-        AppNavDisplay(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-        )
+        // The colour picker's eyedropper samples whatever is on screen, so it wraps everything.
+        EyedropperHost(modifier = Modifier.fillMaxSize()) {
+            AppNavDisplay(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            )
+        }
     }
 }

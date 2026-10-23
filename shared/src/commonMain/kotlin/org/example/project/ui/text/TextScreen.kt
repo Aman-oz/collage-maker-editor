@@ -402,23 +402,26 @@ private fun TextContent(
     // the Shadow panel's, the shadow.
     val pickingPanelColor = panel == TextPanel.Color
     val pickingShadowColor = panel == TextPanel.Shadow
+    // The picker's opacity is the picked colour's own opacity (Text, Background or Stroke), kept
+    // beside the colour rather than in it; the shadow has its own on the Shadow panel.
     val pickColor = rememberColorPickerLauncher(
-        initial = Color(
-            when {
-                pickingShadowColor -> active?.shadowArgb
-                !pickingPanelColor || colorTab == TextColorTab.Text -> active?.colorArgb
-                colorTab == TextColorTab.Background -> active?.backgroundArgb
-                else -> active?.strokeArgb
-            } ?: DefaultTextColorArgb,
-        ),
+        initial = when {
+            pickingShadowColor -> Color(active?.shadowArgb ?: DefaultTextColorArgb)
+            !pickingPanelColor || colorTab == TextColorTab.Text ->
+                Color(active?.colorArgb ?: DefaultTextColorArgb).copy(alpha = active?.textOpacity ?: 1f)
+            colorTab == TextColorTab.Background ->
+                Color(active?.backgroundArgb ?: DefaultTextColorArgb).copy(alpha = active?.backgroundOpacity ?: 1f)
+            else -> Color(active?.strokeArgb ?: DefaultTextColorArgb).copy(alpha = active?.strokeOpacity ?: 1f)
+        },
+        showOpacity = !pickingShadowColor,
         onPicked = { color ->
-            val argb = color.toArgb()
+            val argb = color.copy(alpha = 1f).toArgb()
             update(activeId) {
                 when {
                     pickingShadowColor -> it.copy(shadowArgb = argb)
-                    !pickingPanelColor || colorTab == TextColorTab.Text -> it.copy(colorArgb = argb)
-                    colorTab == TextColorTab.Background -> it.copy(backgroundArgb = argb)
-                    else -> it.copy(strokeArgb = argb)
+                    !pickingPanelColor || colorTab == TextColorTab.Text -> it.copy(colorArgb = argb, textOpacity = color.alpha)
+                    colorTab == TextColorTab.Background -> it.copy(backgroundArgb = argb, backgroundOpacity = color.alpha)
+                    else -> it.copy(strokeArgb = argb, strokeOpacity = color.alpha)
                 }
             }
         },

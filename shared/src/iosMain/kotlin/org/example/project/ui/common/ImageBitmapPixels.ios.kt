@@ -24,3 +24,5 @@ internal actual fun imageBitmapFromArgb(pixels: IntArray, width: Int, height: In
     val info = ImageInfo(width, height, ColorType.BGRA_8888, ColorAlphaType.PREMUL)
     return Image.makeRaster(info, bytes, width * 4).toComposeImageBitmap()
 }
+
+internal actual fun ImageBitmap.toReadable(): ImageBitmap = this

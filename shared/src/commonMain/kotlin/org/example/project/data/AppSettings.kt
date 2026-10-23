@@ -79,11 +79,24 @@ class AppSettings(private val store: KeyValueStore) {
             if (value != null) store.putString(KeyLaunchOfferStartedAt, value.toString())
         }
 
+    /**
+     * The colour picker's saved colours (ARGB, most recent first), or `null` if the user never
+     * changed them, so the picker can show its own starting set until then.
+     */
+    var savedColors: List<Int>?
+        get() = store.getString(KeySavedColors)?.let { saved ->
+            saved.split(',').mapNotNull { it.toLongOrNull()?.toInt() }
+        }
+        set(value) {
+            if (value != null) store.putString(KeySavedColors, value.joinToString(",") { (it.toLong() and 0xFFFFFFFFL).toString() })
+        }
+
     private companion object {
         const val KeyThemeMode = "theme_mode"
         const val KeyLanguageCode = "language_code"
         const val KeyPremium = "is_premium"
         const val KeyOnboardingCompleted = "onboarding_completed"
         const val KeyLaunchOfferStartedAt = "launch_offer_started_at"
+        const val KeySavedColors = "saved_colors"
     }
 }

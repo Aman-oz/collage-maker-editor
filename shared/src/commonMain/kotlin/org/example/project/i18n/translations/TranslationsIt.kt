@@ -914,4 +914,26 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Impossibile caricare i caratteri",
     "No fonts here yet" to
         "Ancora nessun carattere qui",
+    "Colors" to
+        "Colori",
+    "Grid" to
+        "Griglia",
+    "Spectrum" to
+        "Spettro",
+    "Sliders" to
+        "Cursori",
+    "Red" to
+        "Rosso",
+    "Green" to
+        "Verde",
+    "Blue" to
+        "Blu",
+    "Hex Color #" to
+        "Colore esadecimale #",
+    "Save color" to
+        "Salva colore",
+    "Drag to pick a color" to
+        "Trascina per scegliere un colore",
+    "Pick a color from the screen" to
+        "Scegli un colore dallo schermo",
 )

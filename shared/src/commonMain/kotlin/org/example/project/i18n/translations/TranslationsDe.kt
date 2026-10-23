@@ -914,4 +914,26 @@ internal val TranslationsDe: Map<String, String> = mapOf(
         "Schriftarten konnten nicht geladen werden",
     "No fonts here yet" to
         "Hier gibt es noch keine Schriftarten",
+    "Colors" to
+        "Farben",
+    "Grid" to
+        "Raster",
+    "Spectrum" to
+        "Spektrum",
+    "Sliders" to
+        "Regler",
+    "Red" to
+        "Rot",
+    "Green" to
+        "Grün",
+    "Blue" to
+        "Blau",
+    "Hex Color #" to
+        "Hex-Farbe #",
+    "Save color" to
+        "Farbe speichern",
+    "Drag to pick a color" to
+        "Ziehen, um eine Farbe zu wählen",
+    "Pick a color from the screen" to
+        "Farbe vom Bildschirm wählen",
 )

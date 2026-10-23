@@ -914,4 +914,26 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "تعذر تحميل الخطوط",
     "No fonts here yet" to
         "لا توجد خطوط هنا بعد",
+    "Colors" to
+        "الألوان",
+    "Grid" to
+        "شبكة",
+    "Spectrum" to
+        "طيف",
+    "Sliders" to
+        "أشرطة التمرير",
+    "Red" to
+        "أحمر",
+    "Green" to
+        "أخضر",
+    "Blue" to
+        "أزرق",
+    "Hex Color #" to
+        "لون سداسي عشري #",
+    "Save color" to
+        "حفظ اللون",
+    "Drag to pick a color" to
+        "اسحب لاختيار لون",
+    "Pick a color from the screen" to
+        "اختر لونًا من الشاشة",
 )

@@ -914,4 +914,26 @@ internal val TranslationsFr: Map<String, String> = mapOf(
         "Impossible de charger les polices",
     "No fonts here yet" to
         "Pas encore de polices ici",
+    "Colors" to
+        "Couleurs",
+    "Grid" to
+        "Grille",
+    "Spectrum" to
+        "Spectre",
+    "Sliders" to
+        "Curseurs",
+    "Red" to
+        "Rouge",
+    "Green" to
+        "Vert",
+    "Blue" to
+        "Bleu",
+    "Hex Color #" to
+        "Couleur hex #",
+    "Save color" to
+        "Enregistrer la couleur",
+    "Drag to pick a color" to
+        "Faites glisser pour choisir une couleur",
+    "Pick a color from the screen" to
+        "Choisir une couleur à l'écran",
 )

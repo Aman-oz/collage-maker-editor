@@ -400,6 +400,9 @@ private fun StickersContent(
                 else -> selected?.fillArgb ?: Color.White.toArgb()
             },
         ),
+        // The outline's colour keeps its alpha; the shadow has its own opacity, and a fill is a
+        // tint, whose strength is its intensity.
+        showOpacity = panel == StickerPanel.Outline,
         onPicked = { color ->
             val argb = color.toArgb()
             when (panel) {

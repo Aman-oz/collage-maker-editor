@@ -914,4 +914,26 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Không thể tải phông chữ",
     "No fonts here yet" to
         "Chưa có phông chữ nào ở đây",
+    "Colors" to
+        "Màu",
+    "Grid" to
+        "Lưới",
+    "Spectrum" to
+        "Quang phổ",
+    "Sliders" to
+        "Thanh trượt",
+    "Red" to
+        "Đỏ",
+    "Green" to
+        "Xanh lá",
+    "Blue" to
+        "Xanh dương",
+    "Hex Color #" to
+        "Màu Hex #",
+    "Save color" to
+        "Lưu màu",
+    "Drag to pick a color" to
+        "Kéo để chọn màu",
+    "Pick a color from the screen" to
+        "Chọn màu từ màn hình",
 )

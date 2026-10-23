@@ -914,4 +914,26 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "फ़ॉन्ट लोड नहीं हो सके",
     "No fonts here yet" to
         "यहाँ अभी कोई फ़ॉन्ट नहीं है",
+    "Colors" to
+        "रंग",
+    "Grid" to
+        "ग्रिड",
+    "Spectrum" to
+        "स्पेक्ट्रम",
+    "Sliders" to
+        "स्लाइडर",
+    "Red" to
+        "लाल",
+    "Green" to
+        "हरा",
+    "Blue" to
+        "नीला",
+    "Hex Color #" to
+        "हेक्स रंग #",
+    "Save color" to
+        "रंग सहेजें",
+    "Drag to pick a color" to
+        "रंग चुनने के लिए खींचें",
+    "Pick a color from the screen" to
+        "स्क्रीन से रंग चुनें",
 )
