@@ -948,4 +948,6 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "다운로드",
     "No results" to
         "결과 없음",
+    "Search fonts, styles…" to
+        "글꼴, 스타일 검색…",
 )

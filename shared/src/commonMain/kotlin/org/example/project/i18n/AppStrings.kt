@@ -478,4 +478,5 @@ internal val AppStrings: List<String> = listOf(
     "Use",
     "Download",
     "No results",
+    "Search fonts, styles…",
 )

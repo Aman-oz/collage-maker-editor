@@ -948,4 +948,6 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Скачать",
     "No results" to
         "Ничего не найдено",
+    "Search fonts, styles…" to
+        "Поиск шрифтов, стилей…",
 )

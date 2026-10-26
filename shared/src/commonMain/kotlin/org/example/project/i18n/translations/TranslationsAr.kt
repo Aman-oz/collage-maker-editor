@@ -948,4 +948,6 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "تنزيل",
     "No results" to
         "لا توجد نتائج",
+    "Search fonts, styles…" to
+        "ابحث عن الخطوط والأنماط…",
 )

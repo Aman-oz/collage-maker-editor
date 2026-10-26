@@ -948,4 +948,6 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "ڈاؤن لوڈ",
     "No results" to
         "کوئی نتیجہ نہیں",
+    "Search fonts, styles…" to
+        "فونٹس، اسٹائلز تلاش کریں…",
 )

@@ -948,4 +948,6 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "Baixar",
     "No results" to
         "Nenhum resultado",
+    "Search fonts, styles…" to
+        "Pesquisar fontes, estilos…",
 )

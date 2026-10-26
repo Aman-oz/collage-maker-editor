@@ -948,4 +948,6 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Scarica",
     "No results" to
         "Nessun risultato",
+    "Search fonts, styles…" to
+        "Cerca font, stili…",
 )

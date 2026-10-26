@@ -47,7 +47,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,17 +56,14 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.example.project.data.fonts.FontLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.rememberSpringBounce
@@ -77,7 +73,6 @@ import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.premium.PremiumScreen
 import org.example.project.ui.stickers.PremiumBadge
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
@@ -251,9 +246,18 @@ private fun LibraryTab(
     onUse: (ShopPack) -> Unit,
     onRetry: () -> Unit,
 ) {
+    if (tab == ShopTab.Fonts) {
+        FontsLibraryTab(state, downloading, downloaded, onQueryChange, onPillSelected, onDownload, onUse, onRetry)
+        return
+    }
     val scheme = MaterialTheme.colorScheme
     Column(modifier = Modifier.fillMaxSize()) {
-        SearchField(query = state.query, onQueryChange = onQueryChange)
+        SearchField(
+            query = state.query,
+            onQueryChange = onQueryChange,
+            placeholder = tr("Search"),
+            modifier = Modifier.padding(horizontal = SidePadding),
+        )
         val categories = (state.categories as? ShopLoad.Ready)?.value
         // A search runs over every category, so the pills step aside while there is one.
         if (categories != null && state.query.isBlank()) {
@@ -263,7 +267,7 @@ private fun LibraryTab(
             // Four cells and a sliver of the fifth across the screen, so a longer pack shows it scrolls.
             val cellWidth = (maxWidth - SidePadding * 2 - CellSpacing * 3) / 4.15f
             when (val shown = state.shown) {
-                ShopLoad.Loading -> PacksPlaceholder(tab, cellWidth)
+                ShopLoad.Loading -> PacksPlaceholder(cellWidth)
                 ShopLoad.Failed -> Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -300,34 +304,33 @@ private fun LibraryTab(
     }
 }
 
-private val SidePadding = 16.dp
+internal val SidePadding = 16.dp
 private val CellSpacing = 10.dp
 private val CellShape = RoundedCornerShape(12.dp)
 
 /** Pink, as the design draws "Use": apart from the brand colour of the download buttons. */
-private val UseColor = Color(0xFFE8457C)
+internal val UseColor = Color(0xFFE8457C)
 
-private fun ShopTab.failedMessage(): String = when (this) {
+internal fun ShopTab.failedMessage(): String = when (this) {
     ShopTab.Fonts -> tr("Couldn't load fonts")
     ShopTab.Backgrounds -> tr("Couldn't load backgrounds")
     ShopTab.Borders -> tr("Couldn't load frames")
     else -> tr("Couldn't load stickers")
 }
 
-private fun ShopTab.emptyMessage(): String = when (this) {
+internal fun ShopTab.emptyMessage(): String = when (this) {
     ShopTab.Stickers -> tr("No stickers here yet")
     ShopTab.Fonts -> tr("No fonts here yet")
     else -> tr("No results")
 }
 
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+internal fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = SidePadding)
             .height(48.dp)
             .clip(RoundedCornerShape(50))
             .background(scheme.onSurface.copy(alpha = 0.08f))
@@ -338,7 +341,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         Spacer(modifier = Modifier.width(10.dp))
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (query.isEmpty()) {
-                Text(text = tr("Search"), color = scheme.onSurface.copy(alpha = 0.45f), fontSize = 15.sp)
+                Text(text = placeholder, color = scheme.onSurface.copy(alpha = 0.45f), fontSize = 15.sp, maxLines = 1)
             }
             BasicTextField(
                 value = query,
@@ -494,16 +497,15 @@ private fun UseButton(onClick: () -> Unit) {
 }
 
 /**
- * One item of a pack: a sticker fitted in a grey tile, a background filling it, a frame fitted on
- * white (frames are transparent in the middle), or a font's name drawn in itself.
+ * One item of a pack: a sticker fitted in a grey tile, a background filling it, or a frame fitted on
+ * white (frames are transparent in the middle). The Fonts tab has its own cards ([FontsLibraryTab]).
  */
 @Composable
 private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp) {
     val scheme = MaterialTheme.colorScheme
-    val font = item.font
     Box(
         modifier = Modifier
-            .width(if (font != null) width * 2f + CellSpacing else width)
+            .width(width)
             .height(width)
             .clip(CellShape)
             .background(
@@ -514,50 +516,30 @@ private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (font != null) {
-            val loader: FontLoader = koinInject()
-            val family by produceState<FontFamily?>(null, font) { value = loader.preview(font) }
-            val loaded = family
-            if (loaded == null) {
-                Box(modifier = Modifier.fillMaxWidth(0.6f).height(18.dp).shimmer())
-            } else {
-                Text(
-                    text = item.name,
-                    color = scheme.onSurface,
-                    fontFamily = loaded,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 10.dp),
-                )
-            }
-        } else {
-            NetworkImage(
-                url = item.thumbnailUrl,
-                contentDescription = item.name,
-                contentScale = if (tab == ShopTab.Backgrounds) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(if (tab == ShopTab.Backgrounds) 0.dp else 6.dp),
-            )
-        }
+        NetworkImage(
+            url = item.thumbnailUrl,
+            contentDescription = item.name,
+            contentScale = if (tab == ShopTab.Backgrounds) ContentScale.Crop else ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (tab == ShopTab.Backgrounds) 0.dp else 6.dp),
+        )
         if (item.isPremium) PremiumBadge(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp), size = 18.dp)
     }
 }
 
 /** Shimmering sections where the packs will be. */
 @Composable
-private fun PacksPlaceholder(tab: ShopTab, cellWidth: Dp) {
+private fun PacksPlaceholder(cellWidth: Dp) {
     Column(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
         repeat(4) {
             Box(modifier = Modifier.padding(horizontal = SidePadding).width(120.dp).height(20.dp).shimmer())
             Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.padding(horizontal = SidePadding), horizontalArrangement = Arrangement.spacedBy(CellSpacing)) {
-                repeat(if (tab == ShopTab.Fonts) 2 else 4) {
+                repeat(4) {
                     Box(
                         modifier = Modifier
-                            .width(if (tab == ShopTab.Fonts) cellWidth * 2f + CellSpacing else cellWidth)
+                            .width(cellWidth)
                             .height(cellWidth)
                             .shimmer(CellShape),
                     )

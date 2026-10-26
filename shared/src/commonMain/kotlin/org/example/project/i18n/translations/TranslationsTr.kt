@@ -948,4 +948,6 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "İndir",
     "No results" to
         "Sonuç yok",
+    "Search fonts, styles…" to
+        "Yazı tipi, stil ara…",
 )

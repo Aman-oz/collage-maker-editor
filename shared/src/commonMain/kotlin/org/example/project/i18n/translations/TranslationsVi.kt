@@ -948,4 +948,6 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Tải xuống",
     "No results" to
         "Không có kết quả",
+    "Search fonts, styles…" to
+        "Tìm phông chữ, kiểu…",
 )

@@ -39,22 +39,26 @@ class FontLoader(private val cache: AssetCache, private val client: HttpClient) 
         fontFamilyFromFile(cache.file(font.fileUrl, keep))
     }
 
-    /** [font] cut down to the letters of its own name, for drawing the name; null when it can't be had. */
-    suspend fun preview(font: FontEntry): FontFamily? {
+    /**
+     * [font] cut down to the letters of [text] (its own name unless said otherwise), for drawing that
+     * text; null when it can't be had.
+     */
+    suspend fun preview(font: FontEntry, text: String = font.family): FontFamily? {
         lock.withLock { memory[font.fileUrl] }?.let { return it }
         if (cache.isKept(font.fileUrl)) load(font, keep = true)?.let { return it }
-        return remembered(previewKey(font)) {
-            fontFamilyFromFile(cache.file(previewKey(font), keep = true, track = false) { previewBytes(font) })
+        val key = previewKey(font, text)
+        return remembered(key) {
+            fontFamilyFromFile(cache.file(key, keep = true, track = false) { previewBytes(font, text) })
         }
             // Google can't cut some families (one with no regular weight, say): fetch it whole, for now.
             ?: remembered(font.fileUrl) { fontFamilyFromFile(cache.file(font.fileUrl, keep = false, track = false)) }
     }
 
-    /** Asks Google Fonts for [font] cut to its name's letters: a stylesheet naming the cut file, then the file. */
-    private suspend fun previewBytes(font: FontEntry): ByteArray {
+    /** Asks Google Fonts for [font] cut to [text]'s letters: a stylesheet naming the cut file, then the file. */
+    private suspend fun previewBytes(font: FontEntry, text: String): ByteArray {
         val css = client.get("https://fonts.googleapis.com/css2") {
             parameter("family", font.family)
-            parameter("text", font.family)
+            parameter("text", text.toSet().sorted().joinToString(""))
             // An old browser's agent gets TrueType, which both platforms read, rather than WOFF2.
             header(HttpHeaders.UserAgent, "Mozilla/4.0")
         }
@@ -85,6 +89,9 @@ class FontLoader(private val cache: AssetCache, private val client: HttpClient) 
         const val MaxInMemory = 200
         val PreviewFontUrl = Regex("""url\((https://[^)\s]+)\)""")
 
-        fun previewKey(font: FontEntry) = font.fileUrl + "#preview"
+        // The name's cut keeps its old key, so previews already on the disk are still found.
+        fun previewKey(font: FontEntry, text: String) =
+            if (text == font.family) font.fileUrl + "#preview"
+            else font.fileUrl + "#preview:" + text.toSet().sorted().joinToString("").hashCode()
     }
 }

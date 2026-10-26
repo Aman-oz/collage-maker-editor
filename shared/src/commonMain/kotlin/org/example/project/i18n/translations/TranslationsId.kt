@@ -948,4 +948,6 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Unduh",
     "No results" to
         "Tidak ada hasil",
+    "Search fonts, styles…" to
+        "Cari font, gaya…",
 )
