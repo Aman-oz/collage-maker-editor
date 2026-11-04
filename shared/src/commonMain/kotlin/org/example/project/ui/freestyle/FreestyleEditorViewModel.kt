@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
@@ -134,7 +135,7 @@ class FreestyleEditorViewModel(
      * premium background picture on. Unlike [consumePremiumOffer] this asks every time.
      */
     val needsPremium: Boolean
-        get() = !settings.isPremium.value &&
+        get() = !settings.hasUnlocked(PremiumPack.Backgrounds) &&
             (_uiState.value as? FreestyleEditorUiState.Ready)?.freestyle?.backgroundArt?.isPremium == true
 
     fun consumePremiumOffer(): Boolean {
@@ -245,7 +246,7 @@ class FreestyleEditorViewModel(
      * from there next time; a premium picture only being tried out isn't kept, as with fonts.
      */
     private fun keepArt(art: LayoutArt?) {
-        if (art == null || (art.isPremium && !settings.isPremium.value)) return
+        if (art == null || (art.isPremium && !settings.hasUnlocked(PremiumPack.Backgrounds))) return
         viewModelScope.launch { imageLoader.loadAsset(art.imageUrl, keep = true) }
     }
 

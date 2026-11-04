@@ -123,6 +123,8 @@ import kotlinx.coroutines.flow.first
 import org.example.project.data.fonts.FontCatalog
 import org.example.project.data.fonts.FontEntry
 import org.example.project.data.fonts.FontLibrary
+import org.example.project.data.billing.PremiumPack
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.data.cache.AssetCache
 import org.example.project.data.fonts.FontLoader
 import org.example.project.i18n.tr
@@ -169,6 +171,8 @@ internal fun TextTool(
 ) {
     val library = koinInject<FontLibrary>()
     val fontLoader = koinInject<FontLoader>()
+    // A fonts pack bought on its own unlocks the premium fonts (and with them the tool's premium edits).
+    val unlocked = unlockedFor(PremiumPack.Fonts, isPremium)
     val assetCache = koinInject<AssetCache>()
     // Fetched as the tool opens, so the catalog is ready by the time the Font panel is.
     var catalogAttempt by remember { mutableIntStateOf(0) }
@@ -196,7 +200,7 @@ internal fun TextTool(
         sourceImage = sourceImage,
         initialTexts = initialTexts,
         selectedTextId = selectedTextId,
-        isPremium = isPremium,
+        isPremium = unlocked,
         fonts = TextFonts(
             catalog = catalog,
             catalogFailed = catalogFailed,
@@ -208,7 +212,7 @@ internal fun TextTool(
             onToggleFavorite = library::toggleFavorite,
             onUsed = library::markUsed,
             // A premium font a non-subscriber is only trying out isn't kept on the disk.
-            loadFont = { font -> fontLoader.load(font, keep = !font.isPremium || isPremium) },
+            loadFont = { font -> fontLoader.load(font, keep = !font.isPremium || unlocked) },
             previewFont = fontLoader::preview,
             downloadProgress = { font -> assetCache.progressOf(font.fileUrl) },
             isKept = { font -> assetCache.keptOf(font.fileUrl) },
@@ -696,7 +700,7 @@ private fun TextContent(
             }
             // Under the photo while a non-subscriber has a premium font on a text; finishing leads to
             // the paywall the same way.
-            ProFeatureBar(visible = premiumFontInUse, onClick = onOpenPremium)
+            ProFeatureBar(visible = premiumFontInUse)
             PreventScreenCapture(enabled = premiumFontInUse)
 
             ToolPanel {

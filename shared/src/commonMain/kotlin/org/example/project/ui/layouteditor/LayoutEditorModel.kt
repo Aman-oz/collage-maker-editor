@@ -42,8 +42,9 @@ internal data class LayoutPhoto(
  * @param shadow the slots' drop shadow, 0..100.
  * @param borderOpacity the slot outline's opacity, 0..100.
  * @param frameColor the frame around the whole canvas, [FrameColorNone] for none.
- * @param filterLabel the photo filter over every photo (a `PhotoFilter`'s label), null for none; kept
- *   live, so a photo placed later is filtered too and undo takes it off again.
+ * @param filterId the photo filter over every photo (a `PhotoFilter`'s id), null for none; kept
+ *   live, so a photo placed later is filtered too and undo takes it off again. It is drawn from
+ *   filtered copies of the photos ([LayoutPhotoFilters]), since a filter can't be a `ColorFilter`.
  * @param filterIntensity that filter's strength, 0..1.
  * @param background the canvas's colour behind the slots; transparent for none.
  * @param backgroundOpacity the background's opacity, colour or picture alike, 0..100.
@@ -68,7 +69,7 @@ internal data class LayoutEdit(
     val frameCorner: Float = 0f,
     val background: Color = Color.White,
     val layers: List<FreestyleLayer> = emptyList(),
-    val filterLabel: String? = null,
+    val filterId: String? = null,
     val filterIntensity: Float = 1f,
     val frameArt: LayoutArt? = null,
     val backgroundArt: LayoutArt? = null,

@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
@@ -77,7 +78,7 @@ internal class LayoutPhotoToolSession(
     val tool: LayoutPhotoTool,
     val slotIndex: Int,
     val image: ImageBitmap,
-    val filterLabel: String? = null,
+    val filterId: String? = null,
     val filterIntensity: Float = 1f,
 )
 
@@ -197,9 +198,10 @@ internal class LayoutEditorViewModel(
         get() {
             val edit = current?.edit ?: return false
             if (settings.isPremium.value) return false
+            // A frame or background picture is also unlocked by its own pack; the layout only by premium.
             return edit.template.title in _premiumLayouts.value ||
-                edit.frameArt?.isPremium == true ||
-                edit.backgroundArt?.isPremium == true
+                (edit.frameArt?.isPremium == true && !settings.hasUnlocked(PremiumPack.Frames)) ||
+                (edit.backgroundArt?.isPremium == true && !settings.hasUnlocked(PremiumPack.Backgrounds))
         }
 
     /**
@@ -287,7 +289,7 @@ internal class LayoutEditorViewModel(
 
     /** Puts [art] over the layout, or takes it off with null. The canvas keeps its shape; the frame stretches to it. */
     override fun setFrameArt(art: LayoutArt?) {
-        keepArt(art)
+        keepArt(art, PremiumPack.Frames)
         update { it.copy(frameArt = art) }
     }
 
@@ -296,8 +298,8 @@ internal class LayoutEditorViewModel(
      * from there next time; a premium picture only being tried out isn't kept, as with fonts. Its cell
      * shows the download's ring.
      */
-    private fun keepArt(art: LayoutArt?) {
-        if (art == null || (art.isPremium && !settings.isPremium.value)) return
+    private fun keepArt(art: LayoutArt?, pack: PremiumPack) {
+        if (art == null || (art.isPremium && !settings.hasUnlocked(pack))) return
         viewModelScope.launch { imageLoader.loadAsset(art.imageUrl, keep = true) }
     }
 
@@ -327,7 +329,7 @@ internal class LayoutEditorViewModel(
 
     /** Puts [art] behind the slots in the colour's place, or goes back to the colour with null. */
     override fun setBackgroundArt(art: LayoutArt?) {
-        keepArt(art)
+        keepArt(art, PremiumPack.Backgrounds)
         update { it.copy(backgroundArt = art) }
     }
 
@@ -413,7 +415,7 @@ internal class LayoutEditorViewModel(
         if (baking) return false
         baking = true
         try {
-            val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
+            val picture = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit), filtered = LayoutPhotoFilters.of(frame.edit))
             val withStickers = bakeStickers(picture, frame.stickers, imageLoader::renderSvg)
             session.set(frame.texts?.let { bakeTextLayers(withStickers, textMeasurer, it) } ?: withStickers)
             return true
@@ -430,7 +432,7 @@ internal class LayoutEditorViewModel(
         val frame = current ?: return
         if (textSession.value != null || openingTool || previewWidthPx <= 0f) return
         openTool {
-            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
+            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit), filtered = LayoutPhotoFilters.of(frame.edit))
             textSession.value = TextToolSession(snapshot, frame.texts, selectedTextId)
         }
     }
@@ -486,7 +488,7 @@ internal class LayoutEditorViewModel(
         val frame = current ?: return
         if (stickersSession.value != null || openingTool || previewWidthPx <= 0f) return
         openTool {
-            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit))
+            val snapshot = bakeLayout(frame.edit, textMeasurer, previewWidthPx, previewDensity, art = artImages(frame.edit), filtered = LayoutPhotoFilters.of(frame.edit))
             stickersSession.value = StickersToolSession(snapshot, frame.stickers, selectedStickerId, frame.texts)
         }
     }
@@ -518,21 +520,21 @@ internal class LayoutEditorViewModel(
         if (photoTool.value != null || openingTool || edit.photos.isEmpty()) return
         openTool {
             val snapshot = bakeLayout(
-                edit.copy(filterLabel = null, layers = emptyList()),
+                edit.copy(filterId = null, layers = emptyList()),
                 textMeasurer,
                 previewWidthPx = 0f,
                 previewDensity = 1f,
                 longSide = FilterPreviewLongSide,
                 art = artImages(edit),
             )
-            photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Filter, -1, snapshot, edit.filterLabel, edit.filterIntensity)
+            photoTool.value = LayoutPhotoToolSession(LayoutPhotoTool.Filter, -1, snapshot, edit.filterId, edit.filterIntensity)
         }
     }
 
     /** Puts [filter] at [intensity] over every photo, as one undo step, and closes the tool. */
     fun applyFilter(filter: PhotoFilter, intensity: Float) {
         photoTool.value = null
-        update { it.copy(filterLabel = filter.label.takeUnless { filter.isNoneOption }, filterIntensity = intensity) }
+        update { it.copy(filterId = filter.id.takeUnless { filter.isNoneOption }, filterIntensity = intensity) }
     }
 
     fun closePhotoTool() {

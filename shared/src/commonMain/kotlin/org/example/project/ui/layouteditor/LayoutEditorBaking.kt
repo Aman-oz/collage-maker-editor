@@ -22,8 +22,9 @@ internal const val LayoutBakeLongSide = 1440
  * themselves. The stickers are sized in dp against the on-screen canvas ([previewWidthPx] wide at
  * [previewDensity]), so their dp turn into output pixels by the same ratio, as `bakeFreestyle` does.
  *
- * [art] holds the background and frame pictures (see [LayoutArtImages]); the caller loads them,
- * since this doesn't suspend.
+ * [art] holds the background and frame pictures (see [LayoutArtImages]) and [filtered] the photos
+ * through the layout's filter ([LayoutPhotoFilters.of]); the caller makes both, since this doesn't
+ * suspend.
  */
 internal fun bakeLayout(
     edit: LayoutEdit,
@@ -32,6 +33,7 @@ internal fun bakeLayout(
     previewDensity: Float,
     longSide: Int = LayoutBakeLongSide,
     art: LayoutArtImages = LayoutArtImages(),
+    filtered: Map<ImageBitmap, ImageBitmap> = emptyMap(),
 ): ImageBitmap {
     val (outW, outH) = collageOutputSize(edit.canvasAspect(), longSide)
     val output = ImageBitmap(outW, outH)
@@ -39,7 +41,7 @@ internal fun bakeLayout(
     val dpToOutputPx = previewDensity * (if (previewWidthPx > 0f) outW / previewWidthPx else 1f)
     val slots = edit.slots(size.width, size.height)
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(output), size) {
-        drawLayout(edit, slots, emptySlot = Color.Transparent, art = art)
+        drawLayout(edit, slots, emptySlot = Color.Transparent, art = art, filtered = filtered)
         for (layer in edit.layers) {
             drawFreestyleLayer(layer, textMeasurer, Density(dpToOutputPx), size, dpToOutputPx)
         }

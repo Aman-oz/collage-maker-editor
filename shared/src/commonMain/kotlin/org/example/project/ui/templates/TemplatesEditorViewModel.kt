@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.compose.util.toImageBitmap
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.common.copyBitmap
@@ -45,20 +49,22 @@ sealed interface TemplatesEditorUiState {
  */
 class TemplatesEditorViewModel(
     private val frame: TemplateFrame,
+    private val pack: PremiumPack,
     private val session: ImageEditSession,
     private val imageLoader: NetworkImageLoader,
     private val settings: AppSettings,
 ) : ViewModel() {
 
-    /** Whether the user subscribes; a non-subscriber on a premium frame sees the Pro bar. */
-    val isSubscribed: StateFlow<Boolean> = settings.isPremium
+    /** Whether the user subscribes, or has [pack]'s own plan; anyone else on a premium frame sees the Pro bar. */
+    val isSubscribed: StateFlow<Boolean> = combine(settings.isPremium, settings.unlockedPacks) { premium, packs -> premium || pack in packs }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, settings.hasUnlocked(pack))
 
     /**
      * Whether Done has to go to the paywall instead of baking: the frame is premium and the user is
      * not subscribed. Read at the moment of Done, so it is `false` for someone just back from
      * subscribing; the placed photos are kept here meanwhile.
      */
-    val needsPremium: Boolean get() = frame.isPremium && !settings.isPremium.value
+    val needsPremium: Boolean get() = frame.isPremium && !settings.hasUnlocked(pack)
 
     private val _uiState = MutableStateFlow<TemplatesEditorUiState>(TemplatesEditorUiState.Loading)
     val uiState: StateFlow<TemplatesEditorUiState> = _uiState.asStateFlow()

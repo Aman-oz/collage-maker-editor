@@ -28,7 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.example.project.data.billing.PremiumPack
 import org.example.project.i18n.tr
+import org.example.project.ui.premium.LocalOpenProOffer
 import org.example.project.ui.premium.SelectedPlanGradient
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
@@ -38,11 +40,14 @@ import photocollagemaker.shared.generated.resources.ic_premium_icon
 /**
  * The bar under the photo while a non-subscriber is trying a premium item (a collage layout, a
  * filter, an overlay, a template or a frame): the crown and "Try this Pro feature for free" on the paywall's
- * selected-plan gradient, "Get PRO" at the end. The whole bar opens the paywall. It slides open
- * when [visible] turns on, so a screen can leave it in place and only flip the flag.
+ * selected-plan gradient, "Get PRO" at the end. The whole bar opens the single-plan paywall
+ * ([org.example.project.ui.premium.ProOfferScreen], through [LocalOpenProOffer]), offering [pack]
+ * on its own if it is left without subscribing. It slides open when [visible] turns on, so a screen
+ * can leave it in place and only flip the flag.
  */
 @Composable
-internal fun ProFeatureBar(visible: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ProFeatureBar(visible: Boolean, modifier: Modifier = Modifier, pack: PremiumPack? = null) {
+    val openProOffer = LocalOpenProOffer.current
     AnimatedVisibility(
         visible = visible,
         enter = expandVertically() + fadeIn(),
@@ -58,7 +63,7 @@ internal fun ProFeatureBar(visible: Boolean, onClick: () -> Unit, modifier: Modi
                 .clickable(
                     interactionSource = bounce.interactionSource,
                     indication = LocalIndication.current,
-                    onClick = onClick,
+                    onClick = { openProOffer(pack) },
                 )
                 .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -99,6 +104,6 @@ internal fun ProFeatureBar(visible: Boolean, onClick: () -> Unit, modifier: Modi
 @Composable
 private fun ProFeatureBarPreview() {
     ThemePreviews {
-        ProFeatureBar(visible = true, onClick = {})
+        ProFeatureBar(visible = true)
     }
 }

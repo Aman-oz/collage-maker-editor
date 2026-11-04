@@ -248,6 +248,14 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Retro",
     "Vintage" to
         "Vintage",
+    "B&W" to
+        "H&P",
+    "Smooth" to
+        "Halus",
+    "Cold" to
+        "Dingin",
+    "Legacy" to
+        "Klasik",
     "Fade" to
         "Pudar",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "DISKON",
     "BEST VALUE" to
         "NILAI TERBAIK",
-    "Annual Plan" to
-        "Paket tahunan",
-    "per year" to
-        "per tahun",
+    "per month" to
+        "per bulan",
     "Price unavailable" to
         "Harga tidak tersedia",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Tutup penawaran",
     "Weekly" to
         "Mingguan",
-    "Annual" to
-        "Tahunan",
+    "Monthly" to
+        "Bulanan",
     "High-Quality Exports" to
         "Ekspor kualitas tinggi",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Mulai uji coba gratis",
     "Restore" to
         "Pulihkan",
+    "Get Premium" to
+        "Dapatkan Premium",
+    "Unlock Unlimited Power" to
+        "Buka kekuatan tanpa batas",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "Akses semua alat pro, font, stiker, latar, filter, dan aset tanpa watermark",
     "Loading price…" to
         "Memuat harga…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Tidak ada hasil",
     "Search fonts, styles…" to
         "Cari font, gaya…",
+    "Unlock {0} Pack" to
+        "Buka Paket {0}",
+    "Best Value" to
+        "Nilai Terbaik",
+    "Daily Plan" to
+        "Paket Harian",
+    "Weekly Plan" to
+        "Paket Mingguan",
+    "Monthly Plan" to
+        "Paket Bulanan",
+    "Yearly Plan" to
+        "Paket Tahunan",
+    "Try for {0}" to
+        "Coba seharga {0}",
+    "1000+ Stickers" to
+        "1000+ Stiker",
+    "5000+ Stickers Pack" to
+        "Paket 5000+ Stiker",
+    "1000+ Fonts" to
+        "1000+ Font",
+    "1000+ Background" to
+        "1000+ Latar",
+    "1000+ Templates" to
+        "1000+ Template",
+    "5000+ Frames" to
+        "5000+ Bingkai",
+    "Exclusive Designs" to
+        "Desain Eksklusif",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "Buat kolase menakjubkan dan bingkai indah dengan alat desain premium tanpa batas",
+    "Then {0}/{1} will be charged." to
+        "Lalu akan dikenakan {0}/{1}.",
+    "2000+ Layouts" to
+        "2000+ Tata Letak",
+    "No Watermark" to
+        "Tanpa Watermark",
+    "100+ Filters" to
+        "100+ Filter",
+    "500+ Stickers" to
+        "500+ Stiker",
+    "200+ Backgrounds" to
+        "200+ Latar Belakang",
+    "100+ Overlays" to
+        "100+ Overlay",
+    "2000+ Fonts" to
+        "2000+ Font",
 )

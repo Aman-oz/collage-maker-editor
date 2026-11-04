@@ -587,12 +587,16 @@ internal fun StickersPanel(
     onStickerTapped: (emoji: String, cellBoundsInRoot: Rect) -> Unit,
     // Off where the panel already sits under a titled bar (the layout editor's).
     showHeader: Boolean = true,
+    modifier: Modifier = Modifier,
+    // The grid takes all the height [modifier] gives the panel (a tall column beside the canvas)
+    // instead of its usual short strip.
+    fillHeight: Boolean = false,
 ) {
     // null selects the Recent tab, matching EmojiCategoryTabs.
     var category by remember { mutableStateOf<EmojiCategory?>(EmojiCategory.Smileys) }
     var recent by remember { mutableStateOf(emptyList<String>()) }
 
-    Column {
+    Column(modifier = modifier) {
         if (showHeader) PanelHeader(chrome = chrome, title = tr("Emoji"))
         EmojiCategoryTabs(selected = category, onSelected = { category = it })
         EmojiGrid(
@@ -601,7 +605,7 @@ internal fun StickersPanel(
                 onStickerTapped(emoji, cellBounds)
                 recent = (listOf(emoji) + (recent - emoji)).take(MaxRecentEmojis)
             },
-            modifier = Modifier.fillMaxWidth().height(100.dp),
+            modifier = if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(100.dp),
         )
     }
 }

@@ -37,6 +37,8 @@ import org.example.project.ui.onboarding.OnboardingScreen
 import org.example.project.ui.pip.PipEditorScreen
 import org.example.project.ui.pip.PipScreen
 import org.example.project.ui.premium.PremiumScreen
+import org.example.project.ui.premium.LocalOpenProOffer
+import org.example.project.ui.premium.ProOfferScreen
 import org.example.project.ui.projects.PreviewScreen
 import org.example.project.ui.proeditor.ProEditorScreen
 import org.example.project.ui.home.CollageMaxSelection
@@ -45,6 +47,11 @@ import org.example.project.ui.save.SaveImageScreen
 import org.example.project.ui.setbackground.SetBackgroundScreen
 import org.example.project.ui.share.ShareImageScreen
 import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.data.billing.PremiumPack
+import org.example.project.ui.premium.PremiumPackOfferOnLeave
+import org.example.project.ui.premium.PremiumPackSheetHost
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import org.example.project.ui.shop.ShopScreen
 import org.example.project.ui.shop.ShopTab
 import org.example.project.ui.share.ShareSuggestion
@@ -92,11 +99,12 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
     // The tools' search buttons open the Shop through this, rather than every editor passing a
     // lambda down to every tool.
     val openShop: (ShopTab) -> Unit = remember(backStack) { { tab -> backStack.add(Destination.Shop(tab)) } }
+    val openProOffer: (PremiumPack?) -> Unit = remember(backStack) { { pack -> backStack.add(Destination.ProOffer(pack)) } }
 
     // One scope around the whole NavDisplay so an element can morph between two entries (the
     // Projects grid thumbnail into the full-screen Preview, a Templates grid cell into its editor).
     SharedTransitionLayout(modifier = modifier) {
-        CompositionLocalProvider(LocalSharedTransitionScope provides this, LocalOpenShop provides openShop) {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this, LocalOpenShop provides openShop, LocalOpenProOffer provides openProOffer) {
             NavDisplay(
                 backStack = backStack,
                 sharedTransitionScope = this,
@@ -189,10 +197,17 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     }
 
                     entry<Destination.Premium>(metadata = slideUpMetadata()) { key ->
+                        // Scoped to this entry: popping it without subscribing offers the pack.
+                        key.pack?.let { pack -> koinViewModel<PremiumPackOfferOnLeave>(key = pack.name) { parametersOf(pack) } }
                         PremiumScreen(
                             fromSplash = key.fromSplash,
                             onClose = { backStack.closePremium(key) },
                         )
+                    }
+
+                    entry<Destination.ProOffer>(metadata = slideUpMetadata()) { key ->
+                        key.pack?.let { pack -> koinViewModel<PremiumPackOfferOnLeave>(key = pack.name) { parametersOf(pack) } }
+                        ProOfferScreen(onClose = { backStack.removeLastOrNull() })
                     }
 
                     entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
@@ -218,7 +233,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 // The baked template is already in the session; the template editor stays
                                 // underneath so Back from the editor returns to it for further tweaks.
                                 onDone = { backStack.add(Destination.Editor()) },
-                                onPremium = { backStack.add(Destination.Premium()) },
+                                onPremium = { backStack.add(Destination.Premium(pack = PremiumPack.Templates)) },
                             )
                         }
                     }
@@ -260,11 +275,14 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                             TemplatesEditorScreen(
                                 frame = key.frame,
                                 title = tr("Frames"),
+                                // Home's frames are photo templates too: the Templates pack (and its sheet) covers
+                                // them. PremiumPack.Frames is the decorative borders (the Shop's Border tab, Frame tool).
+                                premiumPack = PremiumPack.Templates,
                                 onBack = { backStack.removeLastOrNull() },
                                 // Same as Templates: the baked frame is in the session and the frame editor
                                 // stays underneath, so Back from the editor returns to it.
                                 onDone = { backStack.add(Destination.Editor()) },
-                                onPremium = { backStack.add(Destination.Premium()) },
+                                onPremium = { backStack.add(Destination.Premium(pack = PremiumPack.Templates)) },
                             )
                         }
                     }
@@ -420,6 +438,8 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                 },
             )
+            // Over every entry: the pack offer is made as a paywall is left, on what is under it.
+            PremiumPackSheetHost()
         }
     }
 }

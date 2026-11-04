@@ -1,16 +1,13 @@
 package org.example.project.ui.overlay
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,25 +20,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.luminance
@@ -52,13 +52,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.example.project.i18n.tr
+import org.example.project.ui.filter.FilterPreviewLongSide
+import org.example.project.ui.filter.FilterThumbnailLongSide
+import org.example.project.ui.filter.FilterThumbnails
+import org.example.project.ui.filter.ToolCategoryTabs
+import org.example.project.ui.filter.rememberFilterThumbnails
+import org.example.project.ui.filter.rememberRendered
+import org.example.project.ui.filter.rememberScaledImage
+import org.example.project.ui.filter.thumbnail
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.PreventScreenCapture
 import org.example.project.ui.common.ProFeatureBar
+import org.example.project.ui.common.shimmer
 import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.ToolScaffold
 import org.example.project.ui.preview.ThemePreviews
+import org.example.project.ui.shop.LocalOpenShop
+import org.example.project.ui.shop.ShopPicks
+import org.example.project.ui.shop.ShopTab
+import org.example.project.ui.stickers.LibrarySearchButton
+import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.vectorResource
 import photocollagemaker.shared.generated.resources.Res
@@ -67,9 +82,6 @@ import photocollagemaker.shared.generated.resources.ic_premium_icon
 
 private val OverlayIntensityRange = 0f..100f
 private val ChipShape = RoundedCornerShape(6.dp)
-
-/** Thumbnails paint the overlay over this dark ground so light, screen-style effects stay visible. */
-private val ThumbnailGround = Color(0xFF16161C)
 
 @Composable
 internal fun OverlayTool(
@@ -80,11 +92,23 @@ internal fun OverlayTool(
     onOpenPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
+    // Done renders the photo at its own size, which takes a moment; Done waits rather than twice.
+    var baking by remember { mutableStateOf(false) }
+    val openShop = LocalOpenShop.current
+    // "Use" on a pack in the Shop, which the search button opened: the tool opens on that tab.
+    val picks: ShopPicks = koinInject()
+    val pick by picks.pick.collectAsState()
+    val shopCategory = pick?.takeIf { it.tab == ShopTab.Overlays }?.let { p -> OverlayCategory.entries.firstOrNull { it.name == p.categoryId } }
     OverlayContent(
         sourceImage = sourceImage,
         isSubscribed = isPremium,
         onOpenPremium = onOpenPremium,
+        onOpenShop = { openShop(ShopTab.Overlays) },
+        shopCategory = shopCategory,
+        onShopPickTaken = { picks.take(ShopTab.Overlays) },
         onBack = onClose,
+        busy = baking,
         onApply = { preset, intensity ->
             when {
                 // "None", or an overlay faded all the way out, leaves the photo as it was.
@@ -93,7 +117,14 @@ internal fun OverlayTool(
                 // paywall. The tool stays open underneath, so Done applies it once they come back
                 // subscribed.
                 preset.isPremium && !isPremium -> onOpenPremium()
-                else -> onApply(bakeOverlay(sourceImage, preset, intensity / 100f))
+                !baking -> {
+                    baking = true
+                    scope.launch {
+                        val baked = bakeOverlay(sourceImage, preset, intensity / 100f)
+                        baking = false
+                        onApply(baked)
+                    }
+                }
             }
         },
         modifier = modifier,
@@ -108,16 +139,37 @@ private fun OverlayContent(
     onBack: () -> Unit,
     onApply: (OverlayPreset?, Float) -> Unit,
     modifier: Modifier = Modifier,
+    busy: Boolean = false,
+    onOpenShop: () -> Unit = {},
+    shopCategory: OverlayCategory? = null,
+    onShopPickTaken: () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     // Saveable, unlike most tools' edits: the paywall covers the editor, which drops plain
     // `remember` state, and the overlay picked before subscribing has to still be there after.
-    var selectedCategory by rememberSaveable { mutableStateOf(OverlayCategory.Effect) }
+    // Saved by name: an enum is not saveable on every platform, a String is.
+    var selectedCategoryName by rememberSaveable { mutableStateOf(OverlayCategory.Effect.name) }
+    val selectedCategory = OverlayCategory.entries.firstOrNull { it.name == selectedCategoryName } ?: OverlayCategory.Effect
     // null is the "None" chip: the photo is shown untouched.
     var selectedPresetKey by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedPreset = selectedPresetKey?.let { key -> OverlayPresets.firstOrNull { it.key == key } }
     var intensity by rememberSaveable { mutableFloatStateOf(OverlayIntensityRange.endInclusive) }
     var comparing by remember { mutableStateOf(false) }
+    LaunchedEffect(shopCategory) {
+        val category = shopCategory ?: return@LaunchedEffect
+        onShopPickTaken()
+        selectedCategoryName = category.name
+    }
+
+    // The blends run on the CPU (see runFilterSteps), so the stage shows the photo cut to
+    // FilterPreviewLongSide with the picked overlay's render over it at the slider's strength, and
+    // each chip renders its own thumbnail once, all off the main thread.
+    val previewSource = rememberScaledImage(sourceImage, FilterPreviewLongSide)
+    val rendered = rememberRendered(previewSource, selectedPreset?.key) { image ->
+        selectedPreset?.let { renderOverlay(image, it) } ?: image
+    }
+    val thumbnailSource = rememberScaledImage(sourceImage, FilterThumbnailLongSide)
+    val thumbnails = rememberFilterThumbnails(thumbnailSource)
 
     ToolScaffold(modifier = modifier) {
         Column(
@@ -141,16 +193,27 @@ private fun OverlayContent(
                             .clip(RoundedCornerShape(16.dp)),
                     ) {
                         Image(
-                            bitmap = sourceImage,
+                            bitmap = previewSource ?: sourceImage,
                             contentDescription = tr("Photo preview"),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
                         )
-                        val preset = selectedPreset
-                        if (preset != null && !comparing && intensity > 0f) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                preset.draw(this, intensity / 100f, preset.naturalBlendMode)
-                            }
+                        if (rendered != null && selectedPreset != null && !comparing) {
+                            Image(
+                                bitmap = rendered.image,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit,
+                                alpha = intensity / OverlayIntensityRange.endInclusive,
+                            )
+                        }
+                        val rendering = selectedPreset != null && rendered?.key != selectedPreset.key
+                        if (rendering || busy) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.5.dp,
+                                modifier = Modifier.align(Alignment.Center).size(28.dp),
+                            )
                         }
                     }
                 } else {
@@ -165,7 +228,7 @@ private fun OverlayContent(
             // apply, so not faded out); it is part of the stage so it fades in and out with it, and
             // leads to the paywall like Done does.
             val tryingPremium = selectedPreset?.isPremium == true && intensity > 0f && !isSubscribed
-            ProFeatureBar(visible = tryingPremium, onClick = onOpenPremium)
+            ProFeatureBar(visible = tryingPremium)
             PreventScreenCapture(enabled = tryingPremium)
         }
 
@@ -173,7 +236,7 @@ private fun OverlayContent(
             title = tr("Overlay"),
             onClose = onBack,
             onDone = { onApply(selectedPreset, intensity) },
-            doneEnabled = sourceImage != null,
+            doneEnabled = sourceImage != null && !busy,
         ) {
             // The tabs scroll; the compare button stays pinned at the row's end. Beside the photo it
             // moves to the column's bottom-right corner instead.
@@ -181,9 +244,11 @@ private fun OverlayContent(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OverlayCategoryTabs(
+                ToolCategoryTabs(
+                    categories = OverlayCategory.entries,
                     selected = selectedCategory,
-                    onSelected = { selectedCategory = it },
+                    label = { it.label },
+                    onSelected = { selectedCategoryName = it.name },
                     modifier = Modifier.weight(1f),
                 )
                 if (!sideBySide) CompareIconButton(onComparingChange = { comparing = it })
@@ -207,57 +272,16 @@ private fun OverlayContent(
 
             OverlayPresetStrip(
                 category = selectedCategory,
+                thumbnails = thumbnails,
+                thumbnailSource = thumbnailSource,
                 selected = selectedPreset,
                 onSelected = { selectedPresetKey = it?.key },
+                onSearch = onOpenShop,
             )
             if (sideBySide) {
                 CompareIconButton(
                     onComparingChange = { comparing = it },
                     modifier = Modifier.align(Alignment.End).padding(end = 12.dp, bottom = 12.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun OverlayCategoryTabs(
-    selected: OverlayCategory,
-    onSelected: (OverlayCategory) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp),
-    ) {
-        OverlayCategory.entries.forEach { category ->
-            val isSelected = category == selected
-            // Width(IntrinsicSize.Max) sizes the column to its label, so the underline below can
-            // be a fraction of the text width without measuring it.
-            Column(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onSelected(category) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                    .width(IntrinsicSize.Max),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = category.label,
-                    color = if (isSelected) scheme.onSurface else scheme.onSurface.copy(alpha = 0.55f),
-                    fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                )
-                Spacer(Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isSelected) scheme.primary else Color.Transparent),
                 )
             }
         }
@@ -294,19 +318,34 @@ private fun CompareIconButton(onComparingChange: (Boolean) -> Unit, modifier: Mo
 @Composable
 private fun OverlayPresetStrip(
     category: OverlayCategory,
+    thumbnails: FilterThumbnails,
+    thumbnailSource: ImageBitmap?,
     selected: OverlayPreset?,
     onSelected: (OverlayPreset?) -> Unit,
+    onSearch: () -> Unit,
 ) {
     val presets = remember(category) { OverlayPresets.filter { it.category == category } }
+    val listState = rememberLazyListState()
+    // A tab picked (or opened from the Shop) starts at its first overlay.
+    LaunchedEffect(category) { listState.scrollToItem(0) }
     LazyRow(
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Opens the Shop's Overlay tab, as the Stickers tool's search button opens its own.
+        item(key = "search") { LibrarySearchButton(onClick = onSearch, size = 44.dp) }
         item(key = "none") {
             NoneChip(selected = selected == null, onClick = { onSelected(null) })
         }
         items(presets, key = { it.key }) { preset ->
-            OverlayPresetChip(preset = preset, selected = preset == selected, onClick = { onSelected(preset) })
+            OverlayPresetChip(
+                preset = preset,
+                thumbnail = thumbnails.thumbnail(preset.key, thumbnailSource) { renderOverlay(it, preset, FilterThumbnailLongSide) },
+                selected = preset == selected,
+                onClick = { onSelected(preset) },
+            )
         }
     }
 }
@@ -348,22 +387,25 @@ private fun NoneChip(selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** An unlabeled swatch of the overlay itself, drawn flat (SrcOver) so it reads at thumbnail size. */
+/** The photo with the overlay on it, unlabeled; it shimmers until it has rendered. */
 @Composable
-private fun OverlayPresetChip(preset: OverlayPreset, selected: Boolean, onClick: () -> Unit) {
+private fun OverlayPresetChip(preset: OverlayPreset, thumbnail: ImageBitmap?, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .chipFrame(selected, scheme.primary, onClick)
             .padding(if (selected) 3.dp else 0.dp),
     ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(if (selected) RoundedCornerShape(4.dp) else ChipShape)
-                .background(ThumbnailGround),
-        ) {
-            preset.draw(this, 1f, BlendMode.SrcOver)
+        val shape = if (selected) RoundedCornerShape(4.dp) else ChipShape
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().clip(shape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(Modifier.fillMaxSize().shimmer(shape))
         }
         if (preset.isPremium) {
             // Inside the swatch rather than hanging off its corner: the chip clips its content.

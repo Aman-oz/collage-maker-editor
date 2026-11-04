@@ -64,6 +64,7 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.i18n.tr
 import org.example.project.ui.common.PreventScreenCapture
@@ -74,6 +75,7 @@ import org.example.project.ui.common.ToolTopBar
 import org.example.project.ui.common.dropSpec
 import org.example.project.ui.common.rememberColorPickerLauncher
 import org.example.project.ui.common.settleSpec
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.text.LocalTextPanelSideBySide
 import org.example.project.ui.text.PanelSlider
@@ -173,7 +175,7 @@ internal fun StickersTool(
         initialStickers = initialStickers,
         selectedStickerId = selectedStickerId,
         texts = texts,
-        isSubscribed = isPremium,
+        isSubscribed = unlockedFor(PremiumPack.Stickers, isPremium),
         library = StickerLibrary(
             categories = categories,
             selectedCategoryId = category?.id,
@@ -618,7 +620,7 @@ private fun StickersContent(
                 }
                 // Under the photo while a non-subscriber has a premium sticker or effect on it;
                 // applying leads to the paywall the same way.
-                ProFeatureBar(visible = showPro, onClick = onOpenPremium)
+                ProFeatureBar(visible = showPro)
                 PreventScreenCapture(enabled = showPro)
             }
 

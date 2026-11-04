@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.ui.layouteditor.LayoutArt
 import org.example.project.ui.layouteditor.LayoutArtLibrary
@@ -80,7 +81,8 @@ class CollageEditorViewModel(
     val needsPremium: Boolean
         get() {
             val collage = (_uiState.value as? CollageEditorUiState.Ready)?.collage ?: return false
-            return (collage.template.isPremium || collage.backgroundArt?.isPremium == true) && !settings.isPremium.value
+            return (collage.template.isPremium && !settings.isPremium.value) ||
+                (collage.backgroundArt?.isPremium == true && !settings.hasUnlocked(PremiumPack.Backgrounds))
         }
 
     /** Whether the user subscribes; a non-subscriber on a premium layout sees the Pro banner. */
@@ -276,7 +278,7 @@ class CollageEditorViewModel(
     /** [state]'s background picture at full size, for a bake; null for a colour. */
     private suspend fun backgroundImage(state: CollageState): ImageBitmap? {
         val art = state.backgroundArt ?: return null
-        val loaded = imageLoader.loadAsset(art.imageUrl, keep = !art.isPremium || settings.isPremium.value) ?: return null
+        val loaded = imageLoader.loadAsset(art.imageUrl, keep = !art.isPremium || settings.hasUnlocked(PremiumPack.Backgrounds)) ?: return null
         return withContext(Dispatchers.Default) { copyBitmap(loaded) }
     }
 

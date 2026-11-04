@@ -107,8 +107,10 @@ first composition can be heavy (blurring, desaturating, thumbnails), and an anim
 that frame skips ahead by however long it took. The tool is mounted hidden *between* the two beats,
 while nothing is moving. Keep heavy work out of the frames where something slides.
 
-Five filters (`PhotoFilter.isPremium`) and seven overlays (`OverlayPreset.isPremium`, picked by
-position in `PremiumOverlayPositions`) are premium, with a crown on the chip: anyone can preview
+The filters of the B&W, Cold and Warm tabs (`FilterCategory.isPremium`) plus two more
+(`PremiumFilterPositions`) and the overlays of
+the Effect, Dodge and Burn tabs (`OverlayCategory.isPremium`) plus one more (`PremiumOverlayPositions`)
+are premium, with a crown on the chip: anyone can preview
 them, but Done sends a non-subscriber to `Destination.Premium` instead of applying. The selection is
 `rememberSaveable` so it survives that trip. Adjust is a softer offer: the first Done with
 `PremiumAdjustmentCount` (3) or more adjustments off zero opens the paywall for a non-subscriber,
@@ -122,7 +124,10 @@ the paywall every time for a non-subscriber.
 
 While a non-subscriber tries a premium filter, overlay, collage layout, template or frame, a
 `ProFeatureBar` (`ui/common/ProFeatureBar.kt`, on the paywall's `SelectedPlanGradient`) sits under
-the photo and opens the paywall. At the same moments `PreventScreenCapture` blocks screenshots and
+the photo and opens the single-plan paywall, `Destination.ProOffer` (`ui/premium/ProOfferScreen.kt`:
+a hero pager of `img_premium_*` pictures and `ProOfferPlan`, whose trial and price the copy follows),
+through `LocalOpenProOffer` from `AppNavDisplay`, so no screen passes it a lambda; Done gates still
+open the full `Destination.Premium`. At the same moments `PreventScreenCapture` blocks screenshots and
 recordings (Android `FLAG_SECURE`, reference-counted; a no-op on iOS, which has no public API for
 it). Templates and frames therefore open from the grid for anyone; their
 editor's Done is the gate (`TemplatesEditorViewModel.needsPremium`).
@@ -164,8 +169,13 @@ blurred silhouette, then `drawSticker` places them with tilt, flips, shadow, out
 A premium sticker or premium effect is a hard gate on applying.
 
 The Shop (`ui/shop/`, `Destination.Shop(tab)`) lists the server's stickers, fonts, backgrounds
-and frames (the Border tab) as packs (a sub-category each), after a Premium tab that is the paywall
-(`PremiumScreen(embedded = true)`: no close or back of its own). Each tab reads through its tool's
+and frames (the Border tab) as packs (a sub-category each), and the bundled filters and overlays (the
+Filter and Overlay tabs, `ShopTab.isBundled`: `FilterShopSource` / `OverlayShopSource`, one pack per
+`FilterCategory` but All / `OverlayCategory`, an All pill in New's place, each cell its filter or
+overlay rendered over a sample photo; nothing downloads, so a pack shows Use, or Unlock while premium
+and locked; the Filter and Overlay tools' search buttons open them), after a Premium tab (`ShopPremiumTab`: its own screen, not `PremiumScreen`, so the two change
+independently; the paywall's feature cards sliding over a blurred copy of the centred card, which
+crossfades as they move, then the plans; no close or back of its own). Each tab reads through its tool's
 own repository (`ShopSource`s over `StickersRepository`, `FontLibrary`, `LayoutArtLibrary`). The
 search buttons in the Stickers tool, the Font panel and the layout / freestyle picture libraries
 open it through `LocalOpenShop`, provided by `AppNavDisplay`, so no editor passes a lambda down. A
@@ -177,6 +187,27 @@ first pack: the server has no dates.
 
 The background remover's crop step still uses the full-screen `CropContent`; it shares
 `CropState` / `CropStage` with the editor's `CropTool`.
+
+### Filters and overlays — a CPU port of CGE (`ui/filter/`)
+
+The Filter and Overlay tools are the LAS app's (`EditorApp`'s `FilterCodeAsset` / `EffectCodeAsset`),
+which ran on CGE (android-gpuimage-plus). Each filter is kept as CGE's own config string
+(`"@adjust lut filters/filter_3.webp"`, `"@curve R(0, 28)(23, 45)…"`, `"@pixblend screen …"`) in
+`PhotoFilters.kt`, by tab (B&W, Vintage, Smooth, Cold, Warm, Legacy, and All), so a new one from the
+LAS app can be pasted in. `FilterEngine.kt` parses those strings (`parseFilterRecipe`) and runs them
+(`runFilterSteps`) on packed ARGB pixels, each command's maths ported from CGE's fragment shader for
+it; a command it doesn't know is skipped. Runs of colour-only steps fold into a 64³ colour cube; spatial
+ones (edge, emboss, sketch, sharpen, bilateral, halftone, crosshatch, vignette, haze) take pixel
+measures as pixels of a 1000 px picture, scaled, so the preview and the bake agree. The overlays are
+`TextureBlendStep`s (CGE's `krblend`: a texture covering the photo, blended by the tab's mode) over
+`composeResources/files/overlay|effect/scr<n>.jpg`. LUTs are `files/filters/filter_<n>.webp` (512 ×
+512, 8 × 8 tiles); the LAS app lists LUTs it never shipped, and those filters are left out.
+
+None of it is a `ColorFilter`, so nothing filters live: `FilterRendering.kt` renders off the main
+thread (`renderFilter`, `renderOverlay`), the tools show a `FilterPreviewLongSide` copy with the render
+over it at the slider's strength (`mixFiltered`, which is also what Done bakes at full size), and each
+chip renders its own thumbnail once (`FilterThumbnails`). The Stickers tool's Effects, which redraw
+live per sticker, keep the older colour-matrix list (`ColorMatrixFilters`).
 
 ### Multi-image editors — Collage, Freestyle, Templates
 
@@ -209,9 +240,10 @@ from the back stack.
   gallery step.
 - **Layout editor** (`ui/layouteditor/`): the picked layout with every slot empty (dashed outline and a ＋);
   a tap picks that slot's photo (FileKit), which then pans/pinches inside it (the collage editor's
-  `detectSlotTransformGestures`). Its controls are the Text and Stickers tools' floating glass bar
-  (`GlassOptionsBar` of `LayoutOption`s, whose ✕ leaves the editor); an option opens its panel in
-  the bar's place, framed like theirs (`TextPanelColumn`: ✕ / title / ✓, `PanelSliderRow`s), in a
+  `detectSlotTransformGestures`). Its controls are the photo editor's toolbar
+  (`EditorToolStrip` of `LayoutOption`s, `ui/common/EditorToolStrip.kt`; its grid beside the
+  canvas, under its top bar: `EditorPanelLayout(topBarInSidePanel = true)`, so a panel takes the
+  whole column and slides in from the right, as the photo editor's tools do); an option opens its panel in the toolbar's place, framed like theirs (`TextPanelColumn`: ✕ / title / ✓, `PanelSliderRow`s), in a
   fixed-height area so the canvas never moves. A panel edits live; its ✕ (and back) restores the
   history as the panel found it (`beginPanel` / `cancelPanel`). Options: Canvas (the ratio strip;
   Free = the first photo's shape), Layout (every catalog layout; photos stay keyed by slot index),
@@ -233,7 +265,8 @@ from the back stack.
   Stickers, Filter and Ratio, which open the photo editor's tools over the screen: Stickers'
   `PlacedSticker`s stay live in the history (`LayoutFrame.stickers`, drawn under the texts, a tap
   reopens the tool) and Done bakes them with `bakeStickers` (which suspends, so `apply` does); Filter on the whole layout
-  (`FilterPickerTool`; the pick is kept live as `LayoutEdit.filterLabel` over every photo), Ratio
+  (`FilterPickerTool`; the pick is kept live as `LayoutEdit.filterId`, drawn from the filtered copies
+  of `LayoutPhotoFilters` over every photo), Ratio
   on the selected slot's photo, replacing it. Its measures are layout units (1/360 of the canvas's
   shorter side, `layoutUnitPx`), so preview and bake agree without passing sizes; only the stickers
   need the preview width. History, the text session and the photo-tool session live in
@@ -408,7 +441,7 @@ need the key too: `NetworkImageLoader` sends the key to that host only.
 ### Billing — `AppBillingWrapper`
 
 `data/billing/` holds the subscriptions. `BillingProductIds` has the three store product IDs
-(`weekly_subscription`, `monthly_subscription`, `yearly_subscription`), which must match Play
+(`item_1week`, `item_1m`, `yearly_subscription`), which must match Play
 Console and App Store Connect exactly. `AppBillingWrapper` (a Koin singleton with
 `createdAtStart = true`) loads prices, tracks the active plan and runs purchase/restore. It is the
 only thing that writes `AppSettings.isPremium`, and only from a successful store answer, so an
@@ -421,6 +454,17 @@ The store sits behind `BillingClientAdapter`, bound per platform by `billingPlat
 - iOS: `StoreKitBillingAdapter` over the Kotlin `StoreKitBridge` interface, which is implemented
   in Swift on StoreKit 2 (`iosApp/iosApp/StoreKitBridge.swift`) and passed into
   `MainViewController(storeKitBridge:)`. StoreKit 2 is Swift-only, so that half can't live in Kotlin.
+
+Beside the full plans, each `PremiumPack` (Stickers, Fonts, Backgrounds, Frames, Templates) has a
+weekly plan of its own (`SubscriptionPlan.of(pack)`, `*_pack_weekly`) that unlocks only that
+category: `AppSettings.unlockedPacks`, read through `settings.hasUnlocked(pack)` in ViewModels and
+`unlockedFor(pack, isPremium)` in the tools. A pack never sets `isPremium` and never replaces a
+full plan (on iOS each pack needs its own subscription group). It is offered by the pack sheet
+(`ui/premium/PremiumPackSheet.kt`), shown over the whole app by `PremiumPackSheetHost` in
+`AppNavDisplay` from the `PremiumPackOffers` singleton, when a non-subscriber leaves a paywall that a
+premium item sent them to without subscribing: the Shop's Premium tab (for another tab, or out of
+the Shop: `ShopViewModel.offerPack`), or a `Destination.Premium(pack = …)` (the template and frame
+editors' Done, both the Templates pack: Home's frames are templates, `PremiumPack.Frames` is the borders; `PremiumPackOfferOnLeave` makes the offer as that entry is cleared).
 
 There is no server-side receipt verification yet.
 

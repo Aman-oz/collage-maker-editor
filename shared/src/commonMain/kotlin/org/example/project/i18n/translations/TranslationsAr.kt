@@ -248,6 +248,14 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "ريترو",
     "Vintage" to
         "عتيق",
+    "B&W" to
+        "أبيض وأسود",
+    "Smooth" to
+        "ناعم",
+    "Cold" to
+        "بارد",
+    "Legacy" to
+        "كلاسيكي",
     "Fade" to
         "باهت",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "خصم",
     "BEST VALUE" to
         "أفضل قيمة",
-    "Annual Plan" to
-        "الخطة السنوية",
-    "per year" to
-        "سنوياً",
+    "per month" to
+        "شهريًا",
     "Price unavailable" to
         "السعر غير متاح",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "إغلاق العرض",
     "Weekly" to
         "أسبوعي",
-    "Annual" to
-        "سنوي",
+    "Monthly" to
+        "شهري",
     "High-Quality Exports" to
         "تصدير بجودة عالية",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "ابدأ التجربة المجانية",
     "Restore" to
         "استعادة",
+    "Get Premium" to
+        "احصل على بريميوم",
+    "Unlock Unlimited Power" to
+        "أطلق القوة غير المحدودة",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "احصل على كل الأدوات الاحترافية والخطوط والملصقات والخلفيات والفلاتر والعناصر بدون علامة مائية",
     "Loading price…" to
         "جارٍ تحميل السعر…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "لا توجد نتائج",
     "Search fonts, styles…" to
         "ابحث عن الخطوط والأنماط…",
+    "Unlock {0} Pack" to
+        "افتح حزمة {0}",
+    "Best Value" to
+        "أفضل قيمة",
+    "Daily Plan" to
+        "خطة يومية",
+    "Weekly Plan" to
+        "خطة أسبوعية",
+    "Monthly Plan" to
+        "خطة شهرية",
+    "Yearly Plan" to
+        "خطة سنوية",
+    "Try for {0}" to
+        "جرّب مقابل {0}",
+    "1000+ Stickers" to
+        "+1000 ملصق",
+    "5000+ Stickers Pack" to
+        "حزمة +5000 ملصق",
+    "1000+ Fonts" to
+        "+1000 خط",
+    "1000+ Background" to
+        "+1000 خلفية",
+    "1000+ Templates" to
+        "+1000 قالب",
+    "5000+ Frames" to
+        "+5000 إطار",
+    "Exclusive Designs" to
+        "تصاميم حصرية",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "أنشئ صور كولاج مذهلة وإطارات جميلة مع أدوات تصميم مميزة غير محدودة",
+    "Then {0}/{1} will be charged." to
+        "ثم سيتم خصم {0}/{1}.",
+    "2000+ Layouts" to
+        "أكثر من 2000 تخطيط",
+    "No Watermark" to
+        "بدون علامة مائية",
+    "100+ Filters" to
+        "أكثر من 100 فلتر",
+    "500+ Stickers" to
+        "أكثر من 500 ملصق",
+    "200+ Backgrounds" to
+        "أكثر من 200 خلفية",
+    "100+ Overlays" to
+        "أكثر من 100 تراكب",
+    "2000+ Fonts" to
+        "أكثر من 2000 خط",
 )

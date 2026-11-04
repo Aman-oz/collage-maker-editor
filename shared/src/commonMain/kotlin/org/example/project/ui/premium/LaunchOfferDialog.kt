@@ -85,14 +85,14 @@ private val LaunchOfferWideWidth = 640.dp
 private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 /**
- * The launch-flow limited-time offer over the paywall: the Annual plan, with its countdown to
+ * The launch-flow limited-time offer over the paywall: the Monthly plan, with its countdown to
  * [endsAt]. Shown while [endsAt] is set; when the clock runs out it closes like its close button.
  */
 @Composable
 internal fun LaunchOfferHost(
     endsAt: Long?,
     liquidState: LiquidState,
-    yearly: SubscriptionProduct?,
+    monthly: SubscriptionProduct?,
     weekly: SubscriptionProduct?,
     busy: Boolean,
     onTryNow: () -> Unit,
@@ -125,7 +125,7 @@ internal fun LaunchOfferHost(
     ) {
         if (endsAt != null) {
             LaunchOfferContent(
-                yearly = yearly,
+                monthly = monthly,
                 weekly = weekly,
                 remainingMillis = endsAt - now,
                 busy = busy,
@@ -138,7 +138,7 @@ internal fun LaunchOfferHost(
 
 @Composable
 private fun LaunchOfferContent(
-    yearly: SubscriptionProduct?,
+    monthly: SubscriptionProduct?,
     weekly: SubscriptionProduct?,
     remainingMillis: Long,
     busy: Boolean,
@@ -146,11 +146,11 @@ private fun LaunchOfferContent(
     wide: Boolean = false,
 ) {
     val onSurface = MaterialTheme.colorScheme.onSurface
-    // The discount is the Annual plan against a year of Weekly, from the store's own prices; the
-    // struck-through price is that year of Weekly, so the two always agree.
-    val savings = annualSavingsPercent(weekly, yearly)
+    // The discount is the Monthly plan against a month of Weekly, from the store's own prices; the
+    // struck-through price is that month of Weekly (52 weeks ÷ 12), so the two always agree.
+    val savings = savingsOverWeeklyPercent(weekly, monthly)
     val regularPrice = if (savings != null && weekly != null) {
-        formatPriceLike(weekly.formattedPrice, weekly.priceMicros * 52)
+        formatPriceLike(weekly.formattedPrice, weekly.priceMicros * 52 / 12)
     } else {
         null
     }
@@ -188,22 +188,22 @@ private fun LaunchOfferContent(
                 Row(verticalAlignment = Alignment.Bottom) {
                     // No price until the store answers (offline, or products not set up yet).
                     Text(
-                        text = yearly?.formattedPrice ?: tr("Annual Plan"),
+                        text = monthly?.formattedPrice ?: tr("Monthly Plan"),
                         color = onSurface,
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                     )
-                    if (yearly != null) {
+                    if (monthly != null) {
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = tr("per year"),
+                            text = tr("per month"),
                             modifier = Modifier.padding(bottom = 4.dp),
                             color = onSurface.copy(alpha = 0.75f),
                             fontSize = 14.sp,
                         )
                     }
                 }
-                if (yearly == null) {
+                if (monthly == null) {
                     Text(tr("Price unavailable"), color = onSurface.copy(alpha = 0.55f), fontSize = 14.sp)
                 }
                 if (regularPrice != null) {
@@ -406,11 +406,11 @@ private fun OfferCloseButton(onClose: () -> Unit) {
 @Composable
 private fun LaunchOfferPreview() {
     val weekly = SubscriptionProduct(SubscriptionPlan.Weekly, "PKR 900.00", 900_000_000, "PKR", BillingPeriod(1, PeriodUnit.Week))
-    val yearly = SubscriptionProduct(SubscriptionPlan.Yearly, "PKR 9,360.00", 9_360_000_000, "PKR", BillingPeriod(1, PeriodUnit.Year))
+    val monthly = SubscriptionProduct(SubscriptionPlan.Monthly, "PKR 2,730.00", 2_730_000_000, "PKR", BillingPeriod(1, PeriodUnit.Month))
     ThemePreviews {
         Box(Modifier.background(MaterialTheme.colorScheme.surface)) {
             LaunchOfferContent(
-                yearly = yearly,
+                monthly = monthly,
                 weekly = weekly,
                 remainingMillis = (56 * 60 + 28) * 1_000L,
                 busy = false,

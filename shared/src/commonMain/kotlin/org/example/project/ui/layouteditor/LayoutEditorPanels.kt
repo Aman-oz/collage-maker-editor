@@ -154,6 +154,7 @@ internal fun LayoutOptionPanel(
     onDone: () -> Unit,
 ) {
     val photo = selectedPhotoSlot?.let { edit.photos[it] }
+    val sideBySide = LocalTextPanelSideBySide.current
     when (option) {
         LayoutOption.Canvas -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
             AspectRatioStrip(
@@ -163,15 +164,32 @@ internal fun LayoutOptionPanel(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             )
         }
-        LayoutOption.Layout -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
-            Box(modifier = Modifier.fillMaxWidth().height(LayoutPickerHeight), contentAlignment = Alignment.Center) {
-                LayoutPickerPanel(
-                    templates = templates,
-                    premiumLayouts = premiumLayouts,
-                    selectedId = edit.template.id,
-                    chrome = chrome,
-                    onSelected = actions::selectTemplate,
-                )
+        // Beside the canvas the column is tall: the layouts fill it in rows scrolling down, and the
+        // emoji grid grows to its foot, rather than leaving it empty above a short strip.
+        LayoutOption.Layout -> if (sideBySide) {
+            TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Fill) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    LayoutPickerPanel(
+                        templates = templates,
+                        premiumLayouts = premiumLayouts,
+                        selectedId = edit.template.id,
+                        chrome = chrome,
+                        onSelected = actions::selectTemplate,
+                        vertical = true,
+                    )
+                }
+            }
+        } else {
+            TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+                Box(modifier = Modifier.fillMaxWidth().height(LayoutPickerHeight), contentAlignment = Alignment.Center) {
+                    LayoutPickerPanel(
+                        templates = templates,
+                        premiumLayouts = premiumLayouts,
+                        selectedId = edit.template.id,
+                        chrome = chrome,
+                        onSelected = actions::selectTemplate,
+                    )
+                }
             }
         }
         LayoutOption.Margin -> MarginPanel(edit, chrome, actions, onClose, onDone)
@@ -233,9 +251,21 @@ internal fun LayoutOptionPanel(
             )
         }
         LayoutOption.Background -> BackgroundPanel(edit, backgroundLoad, chrome, actions, onClose, onDone)
-        LayoutOption.Emoji -> TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
-            Box(modifier = Modifier.fillMaxWidth().height(EmojiPanelHeight)) {
-                StickersPanel(chrome = freestyleChrome(), onStickerTapped = onStickerTapped, showHeader = false)
+        LayoutOption.Emoji -> if (sideBySide) {
+            TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone, placement = TextPanelPlacement.Fill) {
+                StickersPanel(
+                    chrome = freestyleChrome(),
+                    onStickerTapped = onStickerTapped,
+                    showHeader = false,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    fillHeight = true,
+                )
+            }
+        } else {
+            TextPanelColumn(title = option.label, onClose = onClose, onDone = onDone) {
+                Box(modifier = Modifier.fillMaxWidth().height(EmojiPanelHeight)) {
+                    StickersPanel(chrome = freestyleChrome(), onStickerTapped = onStickerTapped, showHeader = false)
+                }
             }
         }
         // These open over the screen instead of a panel.
@@ -266,7 +296,7 @@ private val LayoutPickerHeight = LayoutThumbnailSize * 2 + LayoutThumbnailSpacin
 
 private val EmojiPanelHeight = 150.dp
 
-/** Every layout, two rows scrolling sideways. */
+/** Every layout, two rows scrolling sideways, or with [vertical] rows as wide as fit, scrolling down. */
 @Composable
 private fun LayoutPickerPanel(
     templates: List<TemplateItem>,
@@ -274,9 +304,26 @@ private fun LayoutPickerPanel(
     selectedId: String,
     chrome: LayoutChrome,
     onSelected: (TemplateItem) -> Unit,
+    vertical: Boolean = false,
 ) {
     if (templates.isEmpty()) {
         CircularProgressIndicator(color = chrome.accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+        return
+    }
+    if (vertical) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(LayoutThumbnailSize),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = LayoutPickerPadding),
+            horizontalArrangement = Arrangement.spacedBy(LayoutThumbnailSpacing),
+            verticalArrangement = Arrangement.spacedBy(LayoutThumbnailSpacing),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(templates, key = { it.id }) { template ->
+                Box(contentAlignment = Alignment.Center) {
+                    LayoutThumbnail(template = template, premium = template.title in premiumLayouts, selected = template.id == selectedId, chrome = chrome, onClick = { onSelected(template) })
+                }
+            }
+        }
         return
     }
     LazyHorizontalGrid(

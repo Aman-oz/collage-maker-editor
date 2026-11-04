@@ -248,6 +248,14 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Retro",
     "Vintage" to
         "Vintage",
+    "B&W" to
+        "B/N",
+    "Smooth" to
+        "Suave",
+    "Cold" to
+        "Frío",
+    "Legacy" to
+        "Clásico",
     "Fade" to
         "Desvanecido",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "DE DESCUENTO",
     "BEST VALUE" to
         "MEJOR PRECIO",
-    "Annual Plan" to
-        "Plan anual",
-    "per year" to
-        "al año",
+    "per month" to
+        "al mes",
     "Price unavailable" to
         "Precio no disponible",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Cerrar oferta",
     "Weekly" to
         "Semanal",
-    "Annual" to
-        "Anual",
+    "Monthly" to
+        "Mensual",
     "High-Quality Exports" to
         "Exportaciones de alta calidad",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Iniciar prueba gratis",
     "Restore" to
         "Restaurar",
+    "Get Premium" to
+        "Obtener Premium",
+    "Unlock Unlimited Power" to
+        "Desbloquea poder ilimitado",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "Accede a todas las herramientas pro, fuentes, stickers, fondos, filtros y recursos sin marca de agua",
     "Loading price…" to
         "Cargando precio…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsEs: Map<String, String> = mapOf(
         "Sin resultados",
     "Search fonts, styles…" to
         "Buscar fuentes, estilos…",
+    "Unlock {0} Pack" to
+        "Desbloquea el paquete {0}",
+    "Best Value" to
+        "Mejor valor",
+    "Daily Plan" to
+        "Plan diario",
+    "Weekly Plan" to
+        "Plan semanal",
+    "Monthly Plan" to
+        "Plan mensual",
+    "Yearly Plan" to
+        "Plan anual",
+    "Try for {0}" to
+        "Prueba por {0}",
+    "1000+ Stickers" to
+        "Más de 1000 stickers",
+    "5000+ Stickers Pack" to
+        "Paquete de más de 5000 stickers",
+    "1000+ Fonts" to
+        "Más de 1000 fuentes",
+    "1000+ Background" to
+        "Más de 1000 fondos",
+    "1000+ Templates" to
+        "Más de 1000 plantillas",
+    "5000+ Frames" to
+        "Más de 5000 marcos",
+    "Exclusive Designs" to
+        "Diseños exclusivos",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "Crea collages impresionantes y marcos preciosos con herramientas de diseño premium ilimitadas",
+    "Then {0}/{1} will be charged." to
+        "Después se cobrarán {0}/{1}.",
+    "2000+ Layouts" to
+        "Más de 2000 diseños",
+    "No Watermark" to
+        "Sin marca de agua",
+    "100+ Filters" to
+        "Más de 100 filtros",
+    "500+ Stickers" to
+        "Más de 500 stickers",
+    "200+ Backgrounds" to
+        "Más de 200 fondos",
+    "100+ Overlays" to
+        "Más de 100 superposiciones",
+    "2000+ Fonts" to
+        "Más de 2000 fuentes",
 )

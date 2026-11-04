@@ -7,19 +7,24 @@ import org.example.project.data.billing.SubscriptionProduct
 import org.example.project.i18n.tr
 
 /**
- * How much cheaper [yearly] is than a year of [weekly], as a whole percentage — the "SAVE 80%" on
- * the Annual plan. It is worked out from the store's own prices rather than hard-coded, so the badge
- * can never promise a discount the store isn't giving. Returns null when either price is missing,
- * the currencies differ, either period isn't the expected one, or there is no saving.
+ * How much cheaper [longer] (a one-month or one-year plan) is than the same time on [weekly], as a
+ * whole percentage — the "SAVE 30%" on the Monthly plan, and the launch offer's yearly discount.
+ * It is worked out from the store's own prices rather than hard-coded, so the badge can never
+ * promise a discount the store isn't giving. Returns null when either price is missing, the
+ * currencies differ, either period isn't one of those, or there is no saving.
  */
-internal fun annualSavingsPercent(weekly: SubscriptionProduct?, yearly: SubscriptionProduct?): Int? {
-    if (weekly == null || yearly == null) return null
-    if (weekly.currencyCode != yearly.currencyCode) return null
+internal fun savingsOverWeeklyPercent(weekly: SubscriptionProduct?, longer: SubscriptionProduct?): Int? {
+    if (weekly == null || longer == null) return null
+    if (weekly.currencyCode != longer.currencyCode) return null
     if (weekly.billingPeriod != BillingPeriod(1, PeriodUnit.Week)) return null
-    if (yearly.billingPeriod != BillingPeriod(1, PeriodUnit.Year)) return null
-    val weeklyPerYear = weekly.priceMicros.toDouble() * WeeksPerYear
-    if (weeklyPerYear <= 0.0) return null
-    val percent = ((1.0 - yearly.priceMicros / weeklyPerYear) * 100).roundToInt()
+    val weeks = when (longer.billingPeriod) {
+        BillingPeriod(1, PeriodUnit.Month) -> WeeksPerYear / 12.0
+        BillingPeriod(1, PeriodUnit.Year) -> WeeksPerYear.toDouble()
+        else -> return null
+    }
+    val weeklyOverPeriod = weekly.priceMicros.toDouble() * weeks
+    if (weeklyOverPeriod <= 0.0) return null
+    val percent = ((1.0 - longer.priceMicros / weeklyOverPeriod) * 100).roundToInt()
     return percent.takeIf { it > 0 }
 }
 

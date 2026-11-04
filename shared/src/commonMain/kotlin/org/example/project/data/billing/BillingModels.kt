@@ -49,8 +49,8 @@ data class BillingState(
     val products: Map<SubscriptionPlan, SubscriptionProduct> = emptyMap(),
     val activePlans: Set<SubscriptionPlan> = emptySet(),
 ) {
-    /** The plan the user is on; if the store reports several, the longest one. */
-    val activePlan: SubscriptionPlan? get() = SubscriptionPlan.entries.lastOrNull { it in activePlans }
+    /** The full plan the user is on; if the store reports several, the longest one. Packs don't count. */
+    val activePlan: SubscriptionPlan? get() = SubscriptionPlan.FullPlans.lastOrNull { it in activePlans }
 }
 
 /** A store call that failed (no connection, store error); [message] is safe to show the user. */

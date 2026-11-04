@@ -1,27 +1,19 @@
 package org.example.project.ui.overlay
 
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
+import org.example.project.ui.filter.mixFiltered
+import org.example.project.ui.filter.renderFilterSteps
 
 /**
- * Renders [source] with [preset] composited on top at [intensity] (0f..1f), using the exact same
- * [OverlayPreset.draw] lambda the live preview uses — so the baked result matches what was shown.
+ * [source] with [preset] blended over it at full strength, the texture cut to [textureMaxSide] (a
+ * thumbnail's). Off the main thread, like the filters, which share its engine.
  */
-internal fun bakeOverlay(source: ImageBitmap, preset: OverlayPreset, intensity: Float): ImageBitmap {
-    val output = ImageBitmap(source.width, source.height)
-    val canvas = Canvas(output)
-    canvas.drawImage(source, Offset.Zero, Paint())
+internal suspend fun renderOverlay(source: ImageBitmap, preset: OverlayPreset, textureMaxSide: Int? = null): ImageBitmap =
+    renderFilterSteps(source, preset.steps, textureMaxSide)
 
-    val size = Size(source.width.toFloat(), source.height.toFloat())
-    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, size) {
-        preset.draw(this, intensity, preset.naturalBlendMode)
-    }
-
-    return output
-}
+/**
+ * Renders [source] with [preset] at [intensity] (0f..1f), at its own size: the same render the
+ * live preview shows, mixed with the photo the way the preview's slider does, so they match.
+ */
+internal suspend fun bakeOverlay(source: ImageBitmap, preset: OverlayPreset, intensity: Float): ImageBitmap =
+    mixFiltered(source, renderOverlay(source, preset), intensity)

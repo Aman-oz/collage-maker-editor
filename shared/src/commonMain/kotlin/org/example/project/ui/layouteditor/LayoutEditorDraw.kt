@@ -3,11 +3,8 @@ package org.example.project.ui.layouteditor
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.drawscope.withTransform
-import org.example.project.ui.filter.PhotoFilters
-import org.example.project.ui.filter.toColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -103,7 +100,13 @@ internal const val FrameSettleZoom = 0.06f
  *
  * [emptySlot] fills a slot with no photo; the bake passes transparent, leaving the background.
  */
-internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, emptySlot: Color, art: LayoutArtImages = LayoutArtImages()) {
+internal fun DrawScope.drawLayout(
+    edit: LayoutEdit,
+    slots: List<SlotGeometry>,
+    emptySlot: Color,
+    art: LayoutArtImages = LayoutArtImages(),
+    filtered: Map<ImageBitmap, ImageBitmap> = emptyMap(),
+) {
     val unit = layoutUnitPx(size.width, size.height)
     val backgroundAlpha = edit.backgroundOpacity / LayoutBackgroundOpacityRange.endInclusive
     val canvasSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
@@ -119,14 +122,13 @@ internal fun DrawScope.drawLayout(edit: LayoutEdit, slots: List<SlotGeometry>, e
         for (g in slots) drawSlotShadow(g, edit.shadow / LayoutShadowRange.endInclusive, unit)
     }
 
-    val filter = edit.photoColorFilter()
-
     for (g in slots) {
         translate(g.leftPx, g.topPx) {
             clipPath(g.clipPath) {
                 val photo = edit.photos[g.item.index]
                 if (photo != null) {
-                    drawLayoutPhoto(photo, g.wPx, g.hPx, filter)
+                    // The filtered copy when it is ready; meanwhile (the preview only) the photo as it is.
+                    drawLayoutPhoto(photo, g.wPx, g.hPx, drawn = filtered[photo.image] ?: photo.image)
                 } else if (emptySlot.alpha > 0f) {
                     drawRect(emptySlot, size = Size(g.wPx, g.hPx))
                 }
@@ -185,18 +187,13 @@ private const val ShadowStepAlpha = 0.07f
 private const val ShadowMaxSpreadUnits = 14f
 private const val ShadowMaxDropUnits = 4f
 
-/** The layout's filter over every photo, or null with none (or None). */
-internal fun LayoutEdit.photoColorFilter(): ColorFilter? {
-    val label = filterLabel ?: return null
-    return PhotoFilters.firstOrNull { it.label == label }?.toColorFilter(filterIntensity)
-}
-
 /**
  * Draws [photo] in a slot-local [slotW] x [slotH] box: leant about the slot's centre (Transform),
- * then about its own (re-clamped) centre turned, mirrored and sized by [layoutPhotoSize], through
- * [colorFilter]. The caller clips to the slot.
+ * then about its own (re-clamped) centre turned, mirrored and sized by [layoutPhotoSize]. [drawn] is
+ * the picture drawn there: the photo, or its filtered copy, which may be smaller (the geometry stays
+ * the photo's). The caller clips to the slot.
  */
-internal fun DrawScope.drawLayoutPhoto(photo: LayoutPhoto, slotW: Float, slotH: Float, colorFilter: ColorFilter? = null) {
+internal fun DrawScope.drawLayoutPhoto(photo: LayoutPhoto, slotW: Float, slotH: Float, drawn: ImageBitmap = photo.image) {
     val image = photo.image
     val imageW = image.width.toFloat()
     val imageH = image.height.toFloat()
@@ -214,10 +211,9 @@ internal fun DrawScope.drawLayoutPhoto(photo: LayoutPhoto, slotW: Float, slotH: 
         scale(scaleX = if (photo.flipX) -1f else 1f, scaleY = if (photo.flipY) -1f else 1f, pivot = center)
     }) {
         drawImageScaled(
-            image = image,
+            image = drawn,
             dstOffset = IntOffset((center.x - drawnW / 2f).roundToInt(), (center.y - drawnH / 2f).roundToInt()),
             dstSize = IntSize(drawnW.roundToInt().coerceAtLeast(1), drawnH.roundToInt().coerceAtLeast(1)),
-            colorFilter = colorFilter,
         )
     }
 }

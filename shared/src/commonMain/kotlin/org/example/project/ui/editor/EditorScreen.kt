@@ -111,6 +111,9 @@ import org.example.project.ui.common.InlineToolHostState
 import org.example.project.ui.common.LocalInlineToolHost
 import org.example.project.ui.common.UndoRedoButton
 import org.example.project.ui.common.UndoRedoDoneWidth
+import org.example.project.ui.common.EditorToolStrip
+import org.example.project.ui.common.EditorToolStripGrid
+import org.example.project.ui.common.EditorToolStripItem
 import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.rememberDiscardChangesState
 import org.example.project.ui.common.rememberSpringBounce
@@ -179,6 +182,11 @@ internal enum class EditorTool(private val englishLabel: String, val icon: Drawa
 
     /** In the app's current language; read it where it is shown, never keep it. */
     val label: String get() = tr(englishLabel)
+
+    companion object {
+        /** Every tool, for the toolbar; read where it is shown, as the labels are translated. */
+        val stripItems: List<EditorToolStripItem> get() = entries.map { EditorToolStripItem(it.label, it.icon) }
+    }
 }
 
 /** Breathing room above and below the photo while no tool is open. */
@@ -417,7 +425,11 @@ private fun EditorContent(
                     )
                     EditorSideColumn(host = host) {
                         topBar(true)
-                        EditorToolGrid(chrome = chrome, onToolSelected = onToolSelected, modifier = Modifier.weight(1f))
+                        EditorToolStripGrid(
+                            items = EditorTool.stripItems,
+                            onItemSelected = { onToolSelected(EditorTool.entries[it]) },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             } else {
@@ -450,10 +462,10 @@ private fun EditorContent(
                     )
 
                     EditorBottomArea(host = host) {
-                        EditorToolbar(
-                            chrome = chrome,
-                            selectedTool = null,
-                            onToolSelected = onToolSelected,
+                        EditorToolStrip(
+                            items = EditorTool.stripItems,
+                            onItemSelected = { onToolSelected(EditorTool.entries[it]) },
+                            background = chrome.background,
                         )
                     }
                 }
@@ -588,28 +600,6 @@ private fun EditorSideColumn(host: InlineToolHostState<*>, content: @Composable 
             .graphicsLayer { alpha = 1f - host.editorBars.value },
         content = content,
     )
-}
-
-/**
- * Every tool at once, in rows, for the landscape column: the column is phone-width but has height
- * to spare, so the 15 tools fit in three rows with no scrolling (and no "more" arrows).
- */
-@Composable
-private fun EditorToolGrid(chrome: EditorChrome, onToolSelected: (EditorTool) -> Unit, modifier: Modifier = Modifier) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(68.dp),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        // Centred in the column's height when the rows don't fill it.
-        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        gridItems(EditorTool.entries) { tool ->
-            Box(contentAlignment = Alignment.Center) {
-                EditorToolItem(chrome = chrome, tool = tool, selected = false, onClick = { onToolSelected(tool) })
-            }
-        }
-    }
 }
 
 /**
@@ -765,174 +755,6 @@ private fun Modifier.insetBy(inset: Density.() -> IntOffset): Modifier = layout 
         constraints.constrainHeight(placeable.height + 2 * vertical),
     ) {
         placeable.place(horizontal, vertical)
-    }
-}
-
-@Composable
-private fun EditorToolbar(
-    chrome: EditorChrome,
-    selectedTool: EditorTool?,
-    onToolSelected: (EditorTool) -> Unit,
-) {
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    // One arrow, on the side there is more to see: at the right edge until the row is scrolled to
-    // its end, then at the left edge pointing back. None when every tool fits on screen.
-    val moreEdge by remember {
-        derivedStateOf {
-            when {
-                listState.canScrollForward -> Alignment.CenterEnd
-                listState.canScrollBackward -> Alignment.CenterStart
-                else -> null
-            }
-        }
-    }
-
-    Box {
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            // Centred when every tool fits (a wide tablet) rather than bunched at the left.
-            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(EditorTool.entries) { tool ->
-                EditorToolItem(
-                    chrome = chrome,
-                    tool = tool,
-                    selected = tool == selectedTool,
-                    onClick = { onToolSelected(tool) },
-                )
-            }
-        }
-
-        // matchParentSize, so the overlay follows the toolbar's height instead of setting it; the
-        // two arrow panels then fill that height at their own edge.
-        Box(modifier = Modifier.matchParentSize()) {
-            ToolbarMoreArrow(
-                chrome = chrome,
-                visible = moreEdge == Alignment.CenterEnd,
-                pointsToEnd = true,
-                onClick = { scope.launch { listState.animateScrollToItem(EditorTool.entries.lastIndex) } },
-                modifier = Modifier.align(Alignment.CenterEnd),
-            )
-            ToolbarMoreArrow(
-                chrome = chrome,
-                visible = moreEdge == Alignment.CenterStart,
-                pointsToEnd = false,
-                onClick = { scope.launch { listState.animateScrollToItem(0) } },
-                modifier = Modifier.align(Alignment.CenterStart),
-            )
-        }
-    }
-}
-
-/** The part of the panel that takes the tap and holds the chevron. */
-private val ToolbarArrowWidth = 40.dp
-
-/** The whole panel, fade included: the tools dissolve into the bar's colour across this width. */
-private val ToolbarArrowFadeWidth = 76.dp
-
-/** How far the chevron drifts toward the hidden tools and back, as a hint that the row scrolls. */
-private val ToolbarArrowNudge = 4.dp
-
-/**
- * The "there are more tools this way" panel at one edge of the toolbar, as tall as the bar: the
- * tools fade out into the bar's own colour (the same brush the language list fades out with at its
- * bottom edge), and a chevron on the solid end keeps nudging toward the hidden tools. A tap on the
- * chevron's strip scrolls the row to that end. The panel slides in from its edge when it appears
- * and back out when the row reaches that end.
- *
- * Only the chevron's strip takes touches; the fade lets them through, so a tool dissolving under
- * it is still tappable.
- */
-@Composable
-private fun ToolbarMoreArrow(
-    chrome: EditorChrome,
-    visible: Boolean,
-    pointsToEnd: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val direction = if (pointsToEnd) 1f else -1f
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = fadeIn() + slideInHorizontally { (it * direction).roundToInt() },
-        exit = fadeOut() + slideOutHorizontally { (it * direction).roundToInt() },
-    ) {
-        val nudge by rememberInfiniteTransition().animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(durationMillis = 750, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        )
-        // Clear on the tools' side, fully the bar's colour by the time it reaches the chevron.
-        val clear = chrome.background.copy(alpha = 0f)
-        val fade = if (pointsToEnd) {
-            Brush.horizontalGradient(0f to clear, 0.6f to chrome.background, 1f to chrome.background)
-        } else {
-            Brush.horizontalGradient(0f to chrome.background, 0.4f to chrome.background, 1f to clear)
-        }
-        Box(
-            modifier = Modifier.width(ToolbarArrowFadeWidth).fillMaxHeight().background(fade),
-            contentAlignment = if (pointsToEnd) Alignment.CenterEnd else Alignment.CenterStart,
-        ) {
-            Box(
-                modifier = Modifier.width(ToolbarArrowWidth).fillMaxHeight().clickable(onClick = onClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = if (pointsToEnd) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = tr("More tools"),
-                    tint = chrome.icon,
-                    // Moved in the layer, so the endless nudge never recomposes or re-lays-out the bar.
-                    modifier = Modifier.size(26.dp).graphicsLayer { translationX = ToolbarArrowNudge.toPx() * nudge * direction },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditorToolItem(chrome: EditorChrome, tool: EditorTool, selected: Boolean, onClick: () -> Unit) {
-    val bounce = rememberSpringBounce()
-    Column(
-        modifier = Modifier
-            .springBounce(bounce)
-            .width(60.dp)
-            .clickable(
-                interactionSource = bounce.interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-//                .clip(CircleShape)
-//                .background(if (selected) chrome.accent else chrome.control)
-            ,
-            contentAlignment = Alignment.Center,
-        ) {
-            // The vectors are 46dp with the glyph inset to a 33dp area, so draw them larger than
-            // the default 24dp icon size to keep the glyph at roughly Material icon scale.
-            Icon(
-                painter = painterResource(tool.icon),
-                contentDescription = tool.label,
-                modifier = Modifier.fillMaxSize(),
-                tint = if (selected) chrome.onAccent else chrome.icon,
-            )
-        }
-        Box(modifier = Modifier.height(6.dp))
-        Text(
-            text = tool.label,
-            style = MaterialTheme.typography.labelMedium,
-            fontSize = 12.sp,
-            color = if (selected) chrome.accent else chrome.label,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-        )
     }
 }
 

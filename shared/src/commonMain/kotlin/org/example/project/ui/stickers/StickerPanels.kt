@@ -50,7 +50,7 @@ import org.example.project.ui.crop.AspectRatioOptions
 import org.example.project.ui.crop.AspectRatioStrip
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
-import org.example.project.ui.filter.PhotoFilters
+import org.example.project.ui.filter.ColorMatrixFilters
 import org.example.project.ui.filter.toColorFilter
 import org.example.project.ui.text.GlassBarOption
 import org.example.project.ui.text.GlassOptionsBar
@@ -243,7 +243,7 @@ internal fun StickerEffectsPanel(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(PhotoFilters, key = { it.label }) { filter ->
+            items(ColorMatrixFilters, key = { it.label }) { filter ->
                 val selected = if (filter.matrix == null) filterLabel == null else filter.label == filterLabel
                 val bounce = rememberSpringBounce()
                 val shape = RoundedCornerShape(12.dp)

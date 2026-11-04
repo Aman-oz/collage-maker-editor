@@ -83,6 +83,36 @@ class AppBillingWrapperTest {
     }
 
     @Test
+    fun purchase_ofAPackUnlocksOnlyThatCategory() = runTest {
+        val settings = settings()
+        val billing = wrapper(FakeBillingClient(), settings)
+        advanceUntilIdle()
+
+        billing.purchase(SubscriptionPlan.of(PremiumPack.Stickers))
+
+        assertFalse(settings.isPremium.value)
+        assertEquals(setOf(PremiumPack.Stickers), settings.unlockedPacks.value)
+        assertTrue(settings.hasUnlocked(PremiumPack.Stickers))
+        assertFalse(settings.hasUnlocked(PremiumPack.Frames))
+        assertEquals(null, billing.state.value.activePlan)
+    }
+
+    @Test
+    fun purchase_ofAPackLeavesTheFullPlanInPlace() = runTest {
+        val store = FakeBillingClient(active = setOf(SubscriptionPlan.Weekly))
+        val settings = settings()
+        val billing = wrapper(store, settings)
+        advanceUntilIdle()
+
+        billing.purchase(SubscriptionPlan.of(PremiumPack.Backgrounds))
+
+        assertEquals(null, store.lastReplacedPlan)
+        assertTrue(settings.isPremium.value)
+        assertEquals(SubscriptionPlan.Weekly, billing.state.value.activePlan)
+        assertEquals(setOf(PremiumPack.Backgrounds), settings.unlockedPacks.value)
+    }
+
+    @Test
     fun purchase_cancelledLeavesPremiumLocked() = runTest {
         val settings = settings()
         val billing = wrapper(FakeBillingClient(purchaseResult = PurchaseResult.Cancelled), settings)
@@ -158,7 +188,8 @@ private class FakeBillingClient(
     override suspend fun purchase(plan: SubscriptionPlan, currentPlan: SubscriptionPlan?): PurchaseResult {
         lastReplacedPlan = currentPlan
         val result = purchaseResult ?: PurchaseResult.Purchased(plan)
-        if (result is PurchaseResult.Purchased) active = setOf(plan)
+        // Like the stores: a replaced plan goes, any other subscription (a pack) stays beside the new one.
+        if (result is PurchaseResult.Purchased) active = active - setOfNotNull(currentPlan) + plan
         return result
     }
 

@@ -61,7 +61,7 @@ class PremiumViewModel(
     /**
      * Claims the launch-flow limited-time offer when the paywall is closed: returns when it ends
      * (epoch millis), or null when there is none to show — premium already, or its two hours have
-     * run out. The first claim starts the clock. It doesn't wait on the Annual price: the offer still
+     * run out. The first claim starts the clock. It doesn't wait on the Monthly price: the offer still
      * shows (with the price left out) when the store hasn't answered, and Try Now reports why.
      */
     fun claimLaunchOffer(): Long? {

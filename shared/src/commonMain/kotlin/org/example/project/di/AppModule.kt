@@ -30,7 +30,9 @@ import org.example.project.ui.layouts.LayoutsRepository
 import org.example.project.ui.layouts.LayoutsViewModel
 import org.example.project.ui.layouteditor.LayoutArtLibrary
 import org.example.project.ui.shop.ArtShopSource
+import org.example.project.ui.shop.FilterShopSource
 import org.example.project.ui.shop.FontShopSource
+import org.example.project.ui.shop.OverlayShopSource
 import org.example.project.ui.shop.ShopPicks
 import org.example.project.ui.shop.ShopTab
 import org.example.project.ui.shop.ShopViewModel
@@ -43,6 +45,9 @@ import org.example.project.ui.pip.PipAssetLoader
 import org.example.project.ui.pip.PipEditorViewModel
 import org.example.project.ui.pip.PipViewModel
 import org.example.project.ui.premium.PremiumViewModel
+import org.example.project.ui.premium.PremiumPackOfferOnLeave
+import org.example.project.ui.premium.PremiumPackOffers
+import org.example.project.data.billing.PremiumPack
 import org.example.project.ui.projects.PreviewViewModel
 import org.example.project.ui.projects.ProjectsViewModel
 import org.example.project.ui.save.SaveImageViewModel
@@ -91,6 +96,7 @@ val coreModule: Module = module {
     single { StickersRepository(get()) }
     single { LayoutArtLibrary(get()) }
     single { ShopPicks() }
+    single { PremiumPackOffers(get()) }
     // The user's saved creations, listed on Home's Projects tab.
     single { ProjectsRepository() }
 
@@ -132,6 +138,7 @@ val viewModelModule: Module = module {
     viewModelOf(::HomeFeedViewModel)
     viewModelOf(::LayoutsViewModel)
     viewModelOf(::PremiumViewModel)
+    viewModel { (pack: PremiumPack) -> PremiumPackOfferOnLeave(pack, get()) }
     viewModel { (tab: ShopTab) ->
         ShopViewModel(
             initialTab = tab,
@@ -140,14 +147,17 @@ val viewModelModule: Module = module {
                 ShopTab.Fonts to FontShopSource(get()),
                 ShopTab.Backgrounds to ArtShopSource.backgrounds(get()),
                 ShopTab.Borders to ArtShopSource.borders(get()),
+                ShopTab.Filters to FilterShopSource(),
+                ShopTab.Overlays to OverlayShopSource(),
             ),
             assetCache = get(),
             picks = get(),
+            offers = get(),
             settings = get(),
         )
     }
     // The selected template comes from the navigation key, passed in as a runtime parameter.
-    viewModel { (frame: TemplateFrame) -> TemplatesEditorViewModel(frame, get(), get(), get()) }
+    viewModel { (frame: TemplateFrame, pack: PremiumPack) -> TemplatesEditorViewModel(frame, pack, get(), get(), get()) }
     viewModelOf(::PipViewModel)
     viewModel { (templateName: String, imagePaths: List<String>) -> PipEditorViewModel(templateName, imagePaths, get(), get(), get(), get()) }
 }

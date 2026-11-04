@@ -5,8 +5,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.fonts.FontEntry
 import org.example.project.i18n.tr
+import org.example.project.ui.filter.PhotoFilter
+import org.example.project.ui.overlay.OverlayPreset
 
 /** The Shop's tabs, left to right. Rides in `Destination.Shop`, so it is [Serializable]. */
 @Serializable
@@ -16,9 +19,29 @@ enum class ShopTab(private val englishLabel: String) {
     Fonts("Font"),
     Backgrounds("BG"),
     Borders("Border"),
+    Filters("Filter"),
+    Overlays("Overlay"),
     ;
 
     val label: String get() = tr(englishLabel)
+
+    /** The category a pack plan unlocks for this tab; none for the Premium tab itself. */
+    internal val premiumPack: PremiumPack?
+        get() = when (this) {
+            Premium -> null
+            Stickers -> PremiumPack.Stickers
+            Fonts -> PremiumPack.Fonts
+            Backgrounds -> PremiumPack.Backgrounds
+            Borders -> PremiumPack.Frames
+            // No pack plan of their own: a premium filter or overlay tab is the full plan's.
+            Filters, Overlays -> null
+        }
+
+    /**
+     * The filters and overlays are bundled with the app, not downloaded: a pack is used as it is, and
+     * a premium one shows Unlock until it is.
+     */
+    internal val isBundled: Boolean get() = this == Filters || this == Overlays
 }
 
 /**
@@ -34,7 +57,9 @@ internal data class ShopCategory(val id: String, val name: String)
 /**
  * One thing a pack lists. [fileUrl] is what using it downloads (the sticker's SVG, the picture, the
  * TTF), and the [org.example.project.data.cache.AssetCache] key the tools keep it under, so a pack the
- * Shop downloaded is read from the disk by the tool. [font] is set on the Fonts tab, to draw the name.
+ * Shop downloaded is read from the disk by the tool. [font] is set on the Fonts tab, to draw the name,
+ * and [filter] / [overlay] on the Filter / Overlay tab, whose items are bundled and drawn over a
+ * sample photo.
  */
 internal data class ShopItem(
     val id: String,
@@ -43,6 +68,8 @@ internal data class ShopItem(
     val fileUrl: String,
     val isPremium: Boolean,
     val font: FontEntry? = null,
+    val filter: PhotoFilter? = null,
+    val overlay: OverlayPreset? = null,
 )
 
 /** A sub-category of a [ShopCategory]: one titled row of the Shop, downloaded or used as a whole. */

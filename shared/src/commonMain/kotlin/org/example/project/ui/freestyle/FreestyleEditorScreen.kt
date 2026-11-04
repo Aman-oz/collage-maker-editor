@@ -1,5 +1,7 @@
 package org.example.project.ui.freestyle
 
+import org.example.project.data.billing.PremiumPack
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.ui.text.TextLayersOverlay
 import org.example.project.ui.text.TextToolOverlay
 import org.example.project.ui.stickers.PlacedSticker
@@ -247,7 +249,8 @@ fun FreestyleEditorScreen(
             onGestureEnd = viewModel::endGesture,
             onBackgroundChange = viewModel::updateBackground,
             backgroundLoad = backgroundLoad,
-            isSubscribed = isPremium,
+            // Only the background picture is gated here, which the Backgrounds pack unlocks too.
+            isSubscribed = unlockedFor(PremiumPack.Backgrounds, isPremium),
             onLoadBackgroundArt = viewModel::loadBackgroundArt,
             onBackgroundArtSelected = viewModel::toggleBackgroundArt,
             onPremium = onPremium,
@@ -420,7 +423,6 @@ private fun FreestyleEditorContent(
                     // smaller canvas would move every layer, which are placed in fractions of it.
                     ProFeatureBar(
                         visible = onPremiumBackground,
-                        onClick = onPremium,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
                     )
                 }

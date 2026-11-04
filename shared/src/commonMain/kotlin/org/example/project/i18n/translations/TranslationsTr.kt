@@ -248,6 +248,14 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Retro",
     "Vintage" to
         "Vintage",
+    "B&W" to
+        "S/B",
+    "Smooth" to
+        "Yumuşak",
+    "Cold" to
+        "Soğuk",
+    "Legacy" to
+        "Klasik",
     "Fade" to
         "Soluk",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "İNDİRİM",
     "BEST VALUE" to
         "EN İYİ FİYAT",
-    "Annual Plan" to
-        "Yıllık plan",
-    "per year" to
-        "yıllık",
+    "per month" to
+        "aylık",
     "Price unavailable" to
         "Fiyat alınamadı",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Teklifi kapat",
     "Weekly" to
         "Haftalık",
-    "Annual" to
-        "Yıllık",
+    "Monthly" to
+        "Aylık",
     "High-Quality Exports" to
         "Yüksek kaliteli dışa aktarma",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Ücretsiz denemeyi başlat",
     "Restore" to
         "Geri yükle",
+    "Get Premium" to
+        "Premium'u Al",
+    "Unlock Unlimited Power" to
+        "Sınırsız gücün kilidini aç",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "Tüm pro araçlara, yazı tiplerine, çıkartmalara, arka planlara, filtrelere ve öğelere filigransız erişin",
     "Loading price…" to
         "Fiyat yükleniyor…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Sonuç yok",
     "Search fonts, styles…" to
         "Yazı tipi, stil ara…",
+    "Unlock {0} Pack" to
+        "{0} Paketinin Kilidini Aç",
+    "Best Value" to
+        "En İyi Değer",
+    "Daily Plan" to
+        "Günlük Plan",
+    "Weekly Plan" to
+        "Haftalık Plan",
+    "Monthly Plan" to
+        "Aylık Plan",
+    "Yearly Plan" to
+        "Yıllık Plan",
+    "Try for {0}" to
+        "{0} karşılığında dene",
+    "1000+ Stickers" to
+        "1000+ Çıkartma",
+    "5000+ Stickers Pack" to
+        "5000+ Çıkartma Paketi",
+    "1000+ Fonts" to
+        "1000+ Yazı Tipi",
+    "1000+ Background" to
+        "1000+ Arka Plan",
+    "1000+ Templates" to
+        "1000+ Şablon",
+    "5000+ Frames" to
+        "5000+ Çerçeve",
+    "Exclusive Designs" to
+        "Özel Tasarımlar",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "Sınırsız premium tasarım araçlarıyla etkileyici kolajlar ve güzel çerçeveler oluşturun",
+    "Then {0}/{1} will be charged." to
+        "Ardından {0}/{1} ücretlendirilir.",
+    "2000+ Layouts" to
+        "2000+ Düzen",
+    "No Watermark" to
+        "Filigran Yok",
+    "100+ Filters" to
+        "100+ Filtre",
+    "500+ Stickers" to
+        "500+ Çıkartma",
+    "200+ Backgrounds" to
+        "200+ Arka Plan",
+    "100+ Overlays" to
+        "100+ Kaplama",
+    "2000+ Fonts" to
+        "2000+ Yazı Tipi",
 )

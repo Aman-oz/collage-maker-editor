@@ -83,6 +83,7 @@ import org.example.project.ui.common.templateFrameKey
 import org.example.project.ui.common.topBar
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import org.example.project.data.billing.PremiumPack
 
 @Composable
 fun TemplatesEditorScreen(
@@ -93,7 +94,9 @@ fun TemplatesEditorScreen(
     modifier: Modifier = Modifier,
     // The Frames flow reuses this editor under its own name.
     title: String = tr("Templates"),
-    viewModel: TemplatesEditorViewModel = koinViewModel { parametersOf(frame) },
+    // The category whose pack unlocks this frame without the full subscription.
+    premiumPack: PremiumPack = PremiumPack.Templates,
+    viewModel: TemplatesEditorViewModel = koinViewModel { parametersOf(frame, premiumPack) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
@@ -170,7 +173,7 @@ fun TemplatesEditorScreen(
     }
     // The PRO bar, the hint and the two buttons: under the frame, or at the foot of the side column.
     val controls = @Composable {
-        ProFeatureBar(visible = frame.isPremium && !isSubscribed, onClick = onPremium)
+        ProFeatureBar(visible = frame.isPremium && !isSubscribed, pack = premiumPack)
         PreventScreenCapture(enabled = frame.isPremium && !isSubscribed)
 
         Text(

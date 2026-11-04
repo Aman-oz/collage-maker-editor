@@ -8,7 +8,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
@@ -70,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +85,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.delay
+import org.example.project.data.billing.PremiumPack
 import org.example.project.i18n.tr
 import org.example.project.ui.collage.detectSlotTransformGestures
 import org.example.project.ui.collage.fitAspect
@@ -107,6 +111,7 @@ import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.freestyleChrome
 import org.example.project.ui.freestyle.onGestureEnd
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.ui.preview.ThemePreviews
 import org.example.project.ui.ratio.RatioTool
 import org.example.project.ui.text.TextLayers
@@ -135,8 +140,9 @@ import org.example.project.ui.common.settleSpec
 import org.example.project.ui.common.dropSpec
 import org.example.project.ui.common.ToolDropMillis
 import org.example.project.ui.text.LocalTextPanelSideBySide
-import org.example.project.ui.text.GlassOptionsBar
-import org.example.project.ui.text.GlassBarOption
+import org.example.project.ui.common.EditorToolStrip
+import org.example.project.ui.common.EditorToolStripGrid
+import org.example.project.ui.common.EditorToolStripItem
 import org.example.project.ui.filter.PhotoFilter
 import org.example.project.ui.filter.FilterPickerTool
 import androidx.compose.ui.draw.clipToBounds
@@ -169,16 +175,21 @@ private val LayoutPanelHeight = 340.dp
  * the rest open a panel in the bar's place. Transform, Mirror, Rotate and Ratio work on the selected
  * photo.
  */
-internal enum class LayoutOption(private val englishLabel: String, val icon: DrawableResource) {
-    Canvas("Canvas", Res.drawable.icon_canvas),
-    Layout("Layout", Res.drawable.icon_layout),
-    Margin("Margin", Res.drawable.icon_margin),
-    Border("Border", Res.drawable.icon_border),
-    Transform("Transform", Res.drawable.icon_transfom),
-    Mirror("Mirror", Res.drawable.icon_mirror),
-    Rotate("Rotate", Res.drawable.icon_rotate),
-    Frame("Frame", Res.drawable.icon_frame),
-    Background("Background", Res.drawable.ic_background),
+/**
+ * @param iconSize what the photo editor's toolbar draws the icon at: its own `ic_*_editor` vectors
+ * inset the glyph in a 46dp box and take the default; the `icon_*` ones fill more of theirs, so
+ * they are drawn smaller to keep the glyphs alike.
+ */
+internal enum class LayoutOption(private val englishLabel: String, val icon: DrawableResource, val iconSize: Dp = 42.dp) {
+    Canvas("Canvas", Res.drawable.icon_canvas, 34.dp),
+    Layout("Layout", Res.drawable.icon_layout, 34.dp),
+    Margin("Margin", Res.drawable.icon_margin, 34.dp),
+    Border("Border", Res.drawable.icon_border, 34.dp),
+    Transform("Transform", Res.drawable.icon_transfom, 34.dp),
+    Mirror("Mirror", Res.drawable.icon_mirror, 36.dp),
+    Rotate("Rotate", Res.drawable.icon_rotate, 34.dp),
+    Frame("Frame", Res.drawable.icon_frame, 34.dp),
+    Background("Background", Res.drawable.ic_background, 30.dp),
     Text("Text", Res.drawable.ic_text_editor),
     Filter("Filter", Res.drawable.ic_filter_editor),
     Emoji("Emoji", Res.drawable.ic_stickers_editor),
@@ -188,6 +199,11 @@ internal enum class LayoutOption(private val englishLabel: String, val icon: Dra
 
     /** In the app's current language; read it where it is shown, never keep it. */
     val label: String get() = tr(englishLabel)
+
+    companion object {
+        /** Every option, for the toolbar; read where it is shown, as the labels are translated. */
+        val stripItems: List<EditorToolStripItem> get() = entries.map { EditorToolStripItem(it.label, it.icon, it.iconSize) }
+    }
 }
 
 /**
@@ -285,6 +301,8 @@ internal fun LayoutEditorScreen(
             texts = texts,
             stickers = stickers,
             isSubscribed = isPremium,
+            framesUnlocked = unlockedFor(PremiumPack.Frames, isPremium),
+            backgroundsUnlocked = unlockedFor(PremiumPack.Backgrounds, isPremium),
             actions = viewModel,
             onBack = discard::requestBack,
             onPremium = onPremium,
@@ -362,6 +380,9 @@ private fun LayoutEditorContent(
     texts: TextLayers?,
     stickers: List<PlacedSticker>,
     isSubscribed: Boolean,
+    // Whether a premium frame / background picture is the user's: by premium, or by its own pack.
+    framesUnlocked: Boolean = isSubscribed,
+    backgroundsUnlocked: Boolean = isSubscribed,
     actions: LayoutEditorActions,
     onBack: () -> Unit,
     onPremium: () -> Unit,
@@ -380,8 +401,6 @@ private fun LayoutEditorContent(
     val edit = ready?.edit
     // The option whose panel is open in the glass bar's place, or null for the bar.
     var openOption by rememberSaveable { mutableStateOf<LayoutOption?>(null) }
-    // Once a panel has been open, the bar comes back through the two beats, not the screen's opening.
-    var panelChanged by remember { mutableStateOf(false) }
     val optionsListState = rememberLazyListState()
     var selectedSlot by remember { mutableStateOf<Int?>(null) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
@@ -400,7 +419,6 @@ private fun LayoutEditorContent(
 
     fun openPanel(option: LayoutOption) {
         actions.beginPanel()
-        panelChanged = true
         openOption = option
     }
 
@@ -436,27 +454,32 @@ private fun LayoutEditorContent(
         onBackCompleted = { closePanel(revert = true) },
     )
 
+    val topBar: @Composable () -> Unit = {
+        LayoutTopBar(
+            canUndo = ready?.canUndo == true,
+            canRedo = ready?.canRedo == true,
+            doneEnabled = edit != null && edit.photos.keys.any { slot -> edit.template.photoItemList.any { it.index == slot } },
+            onBack = onBack,
+            onUndo = actions::undo,
+            onRedo = actions::redo,
+            onDone = { onDone(previewSizePx) },
+        )
+    }
+
     // One observer for the whole screen: any finger lift ends the drag or slider step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(actions::endGesture)) {
         EditorPanelLayout(
             panelHeight = LayoutPanelHeight,
             panelFillsSideColumn = true,
+            // Beside the canvas the top bar goes with the tools, as in the photo editor: an option's
+            // panel, with its own ✕ / title / ✓, takes the whole column.
+            topBarInSidePanel = true,
             modifier = Modifier
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: the Text tool's slides up over the screen, which
                 // keeps its size under it (the canvas's size is what its stickers are placed against).
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
-            topBar = {
-                LayoutTopBar(
-                    canUndo = ready?.canUndo == true,
-                    canRedo = ready?.canRedo == true,
-                    doneEnabled = edit != null && edit.photos.keys.any { slot -> edit.template.photoItemList.any { it.index == slot } },
-                    onBack = onBack,
-                    onUndo = actions::undo,
-                    onRedo = actions::redo,
-                    onDone = { onDone(previewSizePx) },
-                )
-            },
+            topBar = topBar,
             stage = { stageModifier ->
                 Column(modifier = stageModifier) {
                     Box(
@@ -549,42 +572,59 @@ private fun LayoutEditorContent(
 
                     // A premium layout can be tried by anyone; for a non-subscriber this bar under the
                     // canvas says so and leads to the paywall, as Done does.
-                    val onPremiumLayout = edit?.template?.title in premiumLayouts || edit?.frameArt?.isPremium == true ||
-                        edit?.backgroundArt?.isPremium == true
-                    ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
-                    PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
+                    val onLockedPremium = (edit?.template?.title in premiumLayouts && !isSubscribed) ||
+                        (edit?.frameArt?.isPremium == true && !framesUnlocked) ||
+                        (edit?.backgroundArt?.isPremium == true && !backgroundsUnlocked)
+                    ProFeatureBar(visible = onLockedPremium)
+                    PreventScreenCapture(enabled = onLockedPremium)
                 }
             },
             panel = { sideBySide ->
                 if (edit != null) {
                     CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
-                        // The editor's two beats: the outgoing bar or panel drops away first, then the
-                        // incoming one rises.
+                        // The editor's two beats: the outgoing bar or panel drops away first (beside the
+                        // canvas, off the right edge), then the incoming one rises (slides in from it).
                         AnimatedContent(
                             targetState = openOption,
                             transitionSpec = {
-                                (slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it } +
-                                    fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
-                                    (slideOutVertically(dropSpec()) { it } + fadeOut(dropSpec()))
+                                val enter = if (sideBySide) {
+                                    slideInHorizontally(settleSpec(delayMillis = ToolDropMillis)) { it }
+                                } else {
+                                    slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it }
+                                }
+                                val exit = if (sideBySide) {
+                                    slideOutHorizontally(dropSpec()) { it }
+                                } else {
+                                    slideOutVertically(dropSpec()) { it }
+                                }
+                                (enter + fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
+                                    (exit + fadeOut(dropSpec()))
                             },
                             contentAlignment = Alignment.BottomCenter,
                             modifier = Modifier.fillMaxSize().clipToBounds(),
                             label = "layoutPanel",
                         ) { option ->
                             if (option == null) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = if (sideBySide) Alignment.Center else Alignment.BottomCenter,
-                                ) {
-                                    GlassOptionsBar(
-                                        options = LayoutOption.entries.map { GlassBarOption(it.label, it.icon) },
-                                        onOptionSelected = { onOptionSelected(LayoutOption.entries[it]) },
-                                        // The bar's ✕ leaves the editor, as its top bar's back does.
-                                        onClose = onBack,
-                                        listState = optionsListState,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                                        cascadeDelayMillis = if (panelChanged) ToolDropMillis else 0,
-                                    )
+                                // The photo editor's toolbar (its grid beside the canvas), so the two
+                                // editors' tools look alike.
+                                if (sideBySide) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        topBar()
+                                        EditorToolStripGrid(
+                                            items = LayoutOption.stripItems,
+                                            onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                } else {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                                        EditorToolStrip(
+                                            items = LayoutOption.stripItems,
+                                            onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
+                                            background = chrome.surface,
+                                            listState = optionsListState,
+                                        )
+                                    }
                                 }
                             } else {
                                 LayoutOptionPanel(
@@ -642,6 +682,7 @@ private fun LayoutStage(
     val currentOnSlotTap by rememberUpdatedState(onSlotTap)
     val currentOnSlotDoubleTap by rememberUpdatedState(onSlotDoubleTap)
     val currentOnOffSlotTap by rememberUpdatedState(onOffSlotTap)
+    val filteredPhotos = rememberFilteredLayoutPhotos(edit)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
         val density = LocalDensity.current
@@ -693,7 +734,7 @@ private fun LayoutStage(
                         frameProgress = frame.progress.value,
                     ),
                 )
-                drawLayout(edit, slots, emptySlot = chrome.emptySlot, art = art)
+                drawLayout(edit, slots, emptySlot = chrome.emptySlot, art = art, filtered = filteredPhotos)
                 drawLayoutGuides(slots, edit.photos.keys, selectedSlot, chrome.accent)
             }
 
@@ -906,7 +947,7 @@ private fun LayoutPhotoToolOverlay(
                         LayoutPhotoTool.Filter -> FilterPickerTool(
                             sourceImage = opened.image,
                             isPremium = isPremium,
-                            initialFilterLabel = opened.filterLabel,
+                            initialFilterId = opened.filterId,
                             initialIntensity = opened.filterIntensity,
                             onClose = close,
                             onApply = applyFilter,

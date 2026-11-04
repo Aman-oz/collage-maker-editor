@@ -248,6 +248,14 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "레트로",
     "Vintage" to
         "빈티지",
+    "B&W" to
+        "흑백",
+    "Smooth" to
+        "부드러움",
+    "Cold" to
+        "차가움",
+    "Legacy" to
+        "클래식",
     "Fade" to
         "페이드",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "할인",
     "BEST VALUE" to
         "최고의 혜택",
-    "Annual Plan" to
-        "연간 요금제",
-    "per year" to
-        "연간",
+    "per month" to
+        "월",
     "Price unavailable" to
         "가격을 불러올 수 없음",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "혜택 닫기",
     "Weekly" to
         "주간",
-    "Annual" to
-        "연간",
+    "Monthly" to
+        "월간",
     "High-Quality Exports" to
         "고화질 내보내기",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "무료 체험 시작",
     "Restore" to
         "복원",
+    "Get Premium" to
+        "프리미엄 받기",
+    "Unlock Unlimited Power" to
+        "무제한 파워 잠금 해제",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "모든 프로 도구, 글꼴, 스티커, 배경, 필터와 에셋을 워터마크 없이 이용하세요",
     "Loading price…" to
         "가격 불러오는 중…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "결과 없음",
     "Search fonts, styles…" to
         "글꼴, 스타일 검색…",
+    "Unlock {0} Pack" to
+        "{0} 팩 잠금 해제",
+    "Best Value" to
+        "최고의 가치",
+    "Daily Plan" to
+        "일간 플랜",
+    "Weekly Plan" to
+        "주간 플랜",
+    "Monthly Plan" to
+        "월간 플랜",
+    "Yearly Plan" to
+        "연간 플랜",
+    "Try for {0}" to
+        "{0}에 체험하기",
+    "1000+ Stickers" to
+        "1000개 이상의 스티커",
+    "5000+ Stickers Pack" to
+        "5000개 이상의 스티커 팩",
+    "1000+ Fonts" to
+        "1000개 이상의 글꼴",
+    "1000+ Background" to
+        "1000개 이상의 배경",
+    "1000+ Templates" to
+        "1000개 이상의 템플릿",
+    "5000+ Frames" to
+        "5000개 이상의 프레임",
+    "Exclusive Designs" to
+        "독점 디자인",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "무제한 프리미엄 디자인 도구로 멋진 콜라주와 아름다운 프레임을 만드세요",
+    "Then {0}/{1} will be charged." to
+        "이후 {0}/{1}이(가) 청구됩니다.",
+    "2000+ Layouts" to
+        "2000개 이상의 레이아웃",
+    "No Watermark" to
+        "워터마크 없음",
+    "100+ Filters" to
+        "100개 이상의 필터",
+    "500+ Stickers" to
+        "500개 이상의 스티커",
+    "200+ Backgrounds" to
+        "200개 이상의 배경",
+    "100+ Overlays" to
+        "100개 이상의 오버레이",
+    "2000+ Fonts" to
+        "2000개 이상의 글꼴",
 )

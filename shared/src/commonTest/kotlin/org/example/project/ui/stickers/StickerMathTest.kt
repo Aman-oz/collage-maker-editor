@@ -229,7 +229,7 @@ class StickerEditMathTest {
 
     @Test
     fun needsPremium_forAPremiumEffect() {
-        val premiumFilter = org.example.project.ui.filter.PhotoFilters.first { it.isPremium }
+        val premiumFilter = org.example.project.ui.filter.ColorMatrixFilters.first { it.isPremium }
         assertTrue(needsPremium(listOf(sticker().copy(filterLabel = premiumFilter.label))))
     }
 

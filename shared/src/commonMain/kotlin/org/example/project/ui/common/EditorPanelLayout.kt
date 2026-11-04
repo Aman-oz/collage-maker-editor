@@ -45,6 +45,8 @@ internal fun isSideBySideEditor(width: Dp, height: Dp): Boolean = width > height
  * rather than under the panel. Beside the picture the tabs are always at the bottom of the column.
  * @param panelFillsSideColumn beside the picture, give [panel] all the column's height between the
  * top bar and the tabs instead of [panelHeight], for a panel that can show more there.
+ * @param topBarInSidePanel beside the picture, leave [topBar] to [panel], which then fills the column
+ * from the top: for an editor whose panels take the top bar's place, as the photo editor's tools do.
  */
 @Composable
 internal fun EditorPanelLayout(
@@ -56,15 +58,16 @@ internal fun EditorPanelLayout(
     modifier: Modifier = Modifier,
     tabsAbovePanel: Boolean = false,
     panelFillsSideColumn: Boolean = false,
+    topBarInSidePanel: Boolean = false,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         if (isSideBySideEditor(maxWidth, maxHeight)) {
             Row(modifier = Modifier.fillMaxSize()) {
                 stage(Modifier.weight(1f).fillMaxHeight())
                 Column(modifier = Modifier.width(EditorSidePanelWidth).fillMaxHeight()) {
-                    topBar()
+                    if (!topBarInSidePanel) topBar()
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        if (panelFillsSideColumn) {
+                        if (panelFillsSideColumn || topBarInSidePanel) {
                             panel(true)
                         } else {
                             Box(modifier = Modifier.fillMaxWidth().height(panelHeight)) { panel(true) }

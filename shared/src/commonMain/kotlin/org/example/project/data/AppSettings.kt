@@ -3,6 +3,7 @@ package org.example.project.data
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.example.project.data.billing.PremiumPack
 import org.example.project.i18n.AppLocale
 import org.example.project.ui.language.SupportedLanguages
 import org.example.project.ui.language.deviceLanguageTag
@@ -40,6 +41,24 @@ class AppSettings(private val store: KeyValueStore) {
         store.putString(KeyPremium, premium.toString())
         _isPremium.value = premium
     }
+
+    private val _unlockedPacks = MutableStateFlow(
+        store.getString(KeyUnlockedPacks).orEmpty().split(',').mapNotNull { name -> PremiumPack.entries.firstOrNull { it.name == name } }.toSet(),
+    )
+
+    /**
+     * The categories unlocked on their own by a pack plan, beside [isPremium]; written, like it, only
+     * from the store's answer by `AppBillingWrapper`.
+     */
+    val unlockedPacks: StateFlow<Set<PremiumPack>> = _unlockedPacks.asStateFlow()
+
+    fun setUnlockedPacks(packs: Set<PremiumPack>) {
+        store.putString(KeyUnlockedPacks, packs.joinToString(",") { it.name })
+        _unlockedPacks.value = packs
+    }
+
+    /** Whether [pack]'s premium items are the user's: by the full subscription or by that pack's own. */
+    fun hasUnlocked(pack: PremiumPack): Boolean = isPremium.value || pack in unlockedPacks.value
 
     /**
      * Language code picked on the language screen, or `null` if the user never picked one. Setting
@@ -95,6 +114,7 @@ class AppSettings(private val store: KeyValueStore) {
         const val KeyThemeMode = "theme_mode"
         const val KeyLanguageCode = "language_code"
         const val KeyPremium = "is_premium"
+        const val KeyUnlockedPacks = "unlocked_packs"
         const val KeyOnboardingCompleted = "onboarding_completed"
         const val KeyLaunchOfferStartedAt = "launch_offer_started_at"
         const val KeySavedColors = "saved_colors"

@@ -5,7 +5,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.example.project.data.centraldata.CentralDataConfig
 import org.example.project.data.fonts.FontLibrary
+import org.example.project.ui.filter.FilterCategory
+import org.example.project.ui.filter.PhotoFiltersByCategory
 import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.overlay.OverlayCategory
+import org.example.project.ui.overlay.OverlayPresets
 import org.example.project.ui.stickers.StickerSubcategory
 import org.example.project.ui.stickers.StickersRepository
 
@@ -109,5 +113,54 @@ internal class FontShopSource(private val library: FontLibrary) : ShopSource {
             }
             .awaitAll()
             .filter { it.items.isNotEmpty() }
+    }
+}
+
+/**
+ * The Overlay tool's tabs, bundled with the app: a category and its one pack are an
+ * [OverlayCategory] (both keyed by its name, which the tool takes back from a [ShopPick]), its items
+ * that tab's overlays. The names are the English labels, translated where they are shown.
+ */
+internal class OverlayShopSource : ShopSource {
+
+    override suspend fun categories(): List<ShopCategory> =
+        OverlayCategory.entries.map { ShopCategory(it.name, it.englishLabel) }
+
+    override suspend fun packs(category: ShopCategory): List<ShopPack> {
+        val overlayCategory = OverlayCategory.entries.firstOrNull { it.name == category.id } ?: return emptyList()
+        return listOf(
+            ShopPack(
+                id = overlayCategory.name,
+                categoryId = overlayCategory.name,
+                name = overlayCategory.englishLabel,
+                items = OverlayPresets.filter { it.category == overlayCategory }.map {
+                    ShopItem(id = it.key, name = "${overlayCategory.englishLabel} ${it.number}", thumbnailUrl = "", fileUrl = "", isPremium = it.isPremium, overlay = it)
+                },
+            ),
+        )
+    }
+}
+
+/**
+ * The Filter tool's tabs, bundled with the app, as [OverlayShopSource] has the overlays: a category
+ * and its one pack are a [FilterCategory] (but All, which only repeats the others), keyed by its name.
+ */
+internal class FilterShopSource : ShopSource {
+
+    override suspend fun categories(): List<ShopCategory> =
+        PhotoFiltersByCategory.keys.map { ShopCategory(it.name, it.englishLabel) }
+
+    override suspend fun packs(category: ShopCategory): List<ShopPack> {
+        val filterCategory = PhotoFiltersByCategory.keys.firstOrNull { it.name == category.id } ?: return emptyList()
+        return listOf(
+            ShopPack(
+                id = filterCategory.name,
+                categoryId = filterCategory.name,
+                name = filterCategory.englishLabel,
+                items = PhotoFiltersByCategory.getValue(filterCategory).map {
+                    ShopItem(id = it.id, name = "${filterCategory.englishLabel} ${it.number}", thumbnailUrl = "", fileUrl = "", isPremium = it.isPremium, filter = it)
+                },
+            ),
+        )
     }
 }

@@ -20,8 +20,8 @@ import org.example.project.i18n.tr
  * entitlement check runs on every launch and store-side changes (renewals, expiries, a pending
  * payment clearing) are picked up while the app is open.
  *
- * Premium itself lives in [AppSettings.isPremium], which the rest of the app already reads: it is
- * only rewritten from a successful store answer, so a launch without connectivity keeps the last
+ * Premium itself lives in [AppSettings.isPremium], which the rest of the app already reads, and a
+ * pack plan's category in [AppSettings.unlockedPacks]: both are only rewritten from a successful store answer, so a launch without connectivity keeps the last
  * known state instead of locking a paying user out.
  */
 class AppBillingWrapper(
@@ -71,11 +71,14 @@ class AppBillingWrapper(
             _state.update { it.copy(status = BillingStatus.Unavailable) }
             return PurchaseResult.Failed(tr("Couldn't reach the store. Check your connection and try again."))
         }
-        val result = client.purchase(plan, currentPlan = _state.value.activePlan?.takeIf { it != plan })
+        // A pack is a subscription of its own beside any other, so only a full plan replaces one.
+        val replacing = if (plan.isFull) _state.value.activePlan?.takeIf { it != plan } else null
+        val result = client.purchase(plan, currentPlan = replacing)
         when (result) {
             // Unlock straight away (a plan switch replaces the old plan), then reconcile with the store.
             is PurchaseResult.Purchased -> {
-                applyActivePlans(setOf(result.plan))
+                val kept = if (result.plan.isFull) _state.value.activePlans.filterNot { it.isFull } else _state.value.activePlans
+                applyActivePlans(kept.toSet() + result.plan)
                 refresh()
             }
             PurchaseResult.AlreadyOwned -> refresh()
@@ -97,6 +100,7 @@ class AppBillingWrapper(
 
     private fun applyActivePlans(plans: Set<SubscriptionPlan>) {
         _state.update { it.copy(activePlans = plans) }
-        settings.setPremium(plans.isNotEmpty())
+        settings.setPremium(plans.any { it.isFull })
+        settings.setUnlockedPacks(plans.mapNotNullTo(mutableSetOf()) { it.pack })
     }
 }

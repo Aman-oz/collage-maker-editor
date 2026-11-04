@@ -248,6 +248,14 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "रेट्रो",
     "Vintage" to
         "विंटेज",
+    "B&W" to
+        "श्वेत-श्याम",
+    "Smooth" to
+        "स्मूथ",
+    "Cold" to
+        "ठंडा",
+    "Legacy" to
+        "क्लासिक",
     "Fade" to
         "फ़ेड",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "छूट",
     "BEST VALUE" to
         "सबसे अच्छा ऑफ़र",
-    "Annual Plan" to
-        "वार्षिक प्लान",
-    "per year" to
-        "प्रति वर्ष",
+    "per month" to
+        "प्रति माह",
     "Price unavailable" to
         "कीमत उपलब्ध नहीं",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "ऑफ़र बंद करें",
     "Weekly" to
         "साप्ताहिक",
-    "Annual" to
-        "वार्षिक",
+    "Monthly" to
+        "मासिक",
     "High-Quality Exports" to
         "हाई-क्वालिटी एक्सपोर्ट",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "फ़्री ट्रायल शुरू करें",
     "Restore" to
         "रीस्टोर करें",
+    "Get Premium" to
+        "प्रीमियम पाएं",
+    "Unlock Unlimited Power" to
+        "असीमित पावर अनलॉक करें",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "सभी प्रो टूल, फ़ॉन्ट, स्टिकर, बैकग्राउंड, फ़िल्टर और एसेट बिना वॉटरमार्क के पाएं",
     "Loading price…" to
         "कीमत लोड हो रही है…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsHi: Map<String, String> = mapOf(
         "कोई परिणाम नहीं",
     "Search fonts, styles…" to
         "फ़ॉन्ट, स्टाइल खोजें…",
+    "Unlock {0} Pack" to
+        "{0} पैक अनलॉक करें",
+    "Best Value" to
+        "सबसे अच्छी डील",
+    "Daily Plan" to
+        "दैनिक प्लान",
+    "Weekly Plan" to
+        "साप्ताहिक प्लान",
+    "Monthly Plan" to
+        "मासिक प्लान",
+    "Yearly Plan" to
+        "वार्षिक प्लान",
+    "Try for {0}" to
+        "{0} में आज़माएँ",
+    "1000+ Stickers" to
+        "1000+ स्टिकर",
+    "5000+ Stickers Pack" to
+        "5000+ स्टिकर पैक",
+    "1000+ Fonts" to
+        "1000+ फ़ॉन्ट",
+    "1000+ Background" to
+        "1000+ बैकग्राउंड",
+    "1000+ Templates" to
+        "1000+ टेम्पलेट",
+    "5000+ Frames" to
+        "5000+ फ़्रेम",
+    "Exclusive Designs" to
+        "एक्सक्लूसिव डिज़ाइन",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "असीमित प्रीमियम डिज़ाइन टूल्स के साथ शानदार कोलाज और सुंदर फ़्रेम बनाएं",
+    "Then {0}/{1} will be charged." to
+        "इसके बाद {0}/{1} का शुल्क लिया जाएगा।",
+    "2000+ Layouts" to
+        "2000+ लेआउट",
+    "No Watermark" to
+        "कोई वॉटरमार्क नहीं",
+    "100+ Filters" to
+        "100+ फ़िल्टर",
+    "500+ Stickers" to
+        "500+ स्टिकर",
+    "200+ Backgrounds" to
+        "200+ बैकग्राउंड",
+    "100+ Overlays" to
+        "100+ ओवरले",
+    "2000+ Fonts" to
+        "2000+ फ़ॉन्ट",
 )

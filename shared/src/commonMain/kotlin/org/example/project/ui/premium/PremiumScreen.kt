@@ -8,6 +8,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +17,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,8 +46,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.BrandingWatermark
+import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.SpaceDashboard
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +77,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -73,15 +87,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -110,6 +128,13 @@ import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.img_collage_premium
 import photocollagemaker.shared.generated.resources.img_freestyle_premium
+import photocollagemaker.shared.generated.resources.img_premium_scrolliing_card_filter
+import photocollagemaker.shared.generated.resources.img_premium_scrolliing_card_layout
+import photocollagemaker.shared.generated.resources.img_premium_scrolliing_card_sticker
+import photocollagemaker.shared.generated.resources.img_premium_scrolliing_card_watermark
+import photocollagemaker.shared.generated.resources.img_premium_scrolling_card_background
+import photocollagemaker.shared.generated.resources.img_premium_scrolling_card_overlay
+import photocollagemaker.shared.generated.resources.img_premium_scrolling_card_text
 import photocollagemaker.shared.generated.resources.img_template_premium
 
 /** Brand red: checkmarks, the PRO tab, the card outline and the Continue button. */
@@ -144,8 +169,8 @@ private const val HeroAspect = 1056f / 1206f
  */
 private const val HeroLoopPageCount = 3_000
 
-private const val HeroAutoAdvanceMillis = 3_000L
-private const val HeroSlideMillis = 750
+internal const val HeroAutoAdvanceMillis = 3_000L
+internal const val HeroSlideMillis = 750
 
 /** How far the parallax image lags behind its page, as a fraction of the page width. */
 private const val HeroParallax = 0.45f
@@ -167,7 +192,7 @@ internal enum class PremiumPlan(
     private val englishFallbackUnit: String,
 ) {
     Weekly(SubscriptionPlan.Weekly, "Weekly", "week"),
-    Annual(SubscriptionPlan.Yearly, "Annual", "year"),
+    Monthly(SubscriptionPlan.Monthly, "Monthly", "month"),
     ;
 
     // In the app's current language; read them where they are shown, never keep them.
@@ -188,20 +213,45 @@ private val PremiumFeatures = listOf(
     "Exclusive Fonts & Filters",
 )
 
+/** One card of the in-app paywall's carousel: a picture, with its icon and label drawn over it. */
+internal class FeatureCard(val image: DrawableResource, val icon: ImageVector, val englishLabel: String)
+
+/** Shown in place of [PremiumFeatures] when the paywall is opened from inside the app. */
+internal val FeatureCards = listOf(
+    FeatureCard(Res.drawable.img_premium_scrolliing_card_sticker, Icons.Outlined.EmojiEmotions, "500+ Stickers"),
+    FeatureCard(Res.drawable.img_premium_scrolliing_card_layout, Icons.Outlined.SpaceDashboard, "2000+ Layouts"),
+    FeatureCard(Res.drawable.img_premium_scrolliing_card_filter, Icons.Outlined.FilterAlt, "100+ Filters"),
+    FeatureCard(Res.drawable.img_premium_scrolling_card_text, Icons.Outlined.TextFields, "2000+ Fonts"),
+    FeatureCard(Res.drawable.img_premium_scrolling_card_overlay, Icons.Outlined.Layers, "100+ Overlays"),
+    FeatureCard(Res.drawable.img_premium_scrolling_card_background, Icons.Outlined.Wallpaper, "200+ Backgrounds"),
+    FeatureCard(Res.drawable.img_premium_scrolliing_card_watermark, Icons.Outlined.BrandingWatermark, "No Watermark"),
+)
+
+/** Width ÷ height of the 607 × 573 card pictures. */
+internal const val FeatureCardAspect = 607f / 573f
+
+/** The centred card's width, as a fraction of the content's width; the neighbours peek in beside it. */
+internal const val FeatureCardWidthFraction = 0.58f
+
+/** How small the neighbouring cards are drawn, beside the centred one. */
+internal const val FeatureCardSideScale = 0.86f
+
+/** The pictures' own corner rounding (≈ 40 px of their 573 px height), so the shadow follows it. */
+private val FeatureCardShape = RoundedCornerShape(percent = 7)
+
+/** Room above and below the cards for their shadow, which the pager would otherwise clip. */
+internal val FeatureCardShadowRoom = 10.dp
+
 /**
  * @param fromSplash the paywall is part of the launch flow: closing it the first time offers the
  *   limited-time launch deal ([LaunchOfferDialog]) while its two hours last. Opened from inside the
  *   app, it just closes.
- * @param embedded the paywall is a tab of another screen (the Shop's Premium tab), under that
- *   screen's own top bar: no close button and no back handling of its own, and [onClose] is only
- *   called once a purchase unlocks premium.
  */
 @Composable
 fun PremiumScreen(
     fromSplash: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    embedded: Boolean = false,
     viewModel: PremiumViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -236,7 +286,6 @@ fun PremiumScreen(
     // paywall (alone on the stack) would close the app.
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = !embedded,
         onBackCompleted = requestClose,
     )
 
@@ -253,10 +302,11 @@ fun PremiumScreen(
     PremiumContent(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
-        onClose = requestClose.takeUnless { embedded },
+        onClose = requestClose,
+        featureCards = !fromSplash,
         onStart = { plan -> viewModel.purchase(plan.plan) },
         offerEndsAt = offerEndsAt,
-        onOfferTryNow = { viewModel.purchase(SubscriptionPlan.Yearly) },
+        onOfferTryNow = { viewModel.purchase(SubscriptionPlan.Monthly) },
         // Leaving the offer (its close, or the clock running out) leaves the paywall too.
         onOfferClose = onClose,
         onRestore = viewModel::restore,
@@ -277,6 +327,7 @@ private fun PremiumContent(
     onRestore: () -> Unit,
     onTermsAndPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
+    featureCards: Boolean = false,
     offerEndsAt: Long? = null,
     onOfferTryNow: () -> Unit = {},
     onOfferClose: () -> Unit = {},
@@ -291,7 +342,7 @@ private fun PremiumContent(
         if (activePlan != null) selectedName = activePlan.name
     }
     val products = uiState.billing.products
-    val savings = annualSavingsPercent(products[SubscriptionPlan.Weekly], products[SubscriptionPlan.Yearly])
+    val savings = savingsOverWeeklyPercent(products[SubscriptionPlan.Weekly], products[SubscriptionPlan.Monthly])
 
     val liquidState = rememberLiquidState()
     BoxWithConstraints(
@@ -312,7 +363,7 @@ private fun PremiumContent(
                         loading = uiState.billing.status == BillingStatus.Connecting,
                         badge = when {
                             plan == activePlan -> tr("CURRENT")
-                            plan == PremiumPlan.Annual && savings != null -> tr("SAVE {0}%", savings)
+                            plan == PremiumPlan.Monthly && savings != null -> tr("SAVE {0}%", savings)
                             else -> null
                         },
                         selected = plan == selected,
@@ -346,6 +397,7 @@ private fun PremiumContent(
                 PremiumSideHero(
                     onClose = onClose,
                     onRestore = onRestoreClick,
+                    featureCards = featureCards,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
                 Column(
@@ -382,7 +434,7 @@ private fun PremiumContent(
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    PremiumTop(onClose = onClose, onRestore = onRestoreClick)
+                    PremiumTop(onClose = onClose, onRestore = onRestoreClick, featureCards = featureCards)
                     Spacer(Modifier.height(14.dp))
                     Box(modifier = Modifier.readableWidth().padding(horizontal = 20.dp)) { plans() }
                     Spacer(Modifier.height(16.dp))
@@ -394,7 +446,7 @@ private fun PremiumContent(
         LaunchOfferHost(
             endsAt = offerEndsAt,
             liquidState = liquidState,
-            yearly = products[SubscriptionPlan.Yearly],
+            monthly = products[SubscriptionPlan.Monthly],
             weekly = products[SubscriptionPlan.Weekly],
             busy = uiState.busy,
             onTryNow = onOfferTryNow,
@@ -409,11 +461,14 @@ private fun PremiumContent(
     }
 }
 
-/** The looping hero pager, advancing on its own every [HeroAutoAdvanceMillis]. */
+/**
+ * The looping hero pager over [imageCount] images, advancing on its own every [HeroAutoAdvanceMillis].
+ * Its page modulo [imageCount] is the image on show.
+ */
 @Composable
-private fun rememberHeroPagerState(): PagerState {
+internal fun rememberHeroPagerState(imageCount: Int = HeroImages.size): PagerState {
     val pagerState = rememberPagerState(
-        initialPage = HeroLoopPageCount / 2 - (HeroLoopPageCount / 2) % HeroImages.size,
+        initialPage = HeroLoopPageCount / 2 - (HeroLoopPageCount / 2) % imageCount,
         pageCount = { HeroLoopPageCount },
     )
     // Keyed on the settled page, so a user swipe restarts the countdown instead of being followed
@@ -430,19 +485,40 @@ private fun rememberHeroPagerState(): PagerState {
     return pagerState
 }
 
-/** The swiping hero, with the features card riding up over its faded-out bottom edge. */
+/**
+ * The swiping hero, with the features card riding up over its faded-out bottom edge, or with
+ * [featureCards] the carousel of [FeatureCards] in its place. Then the hero doesn't swipe: two
+ * things sliding by at once read as clutter, so the header is the centred card's blurred colours
+ * (as in the Shop's Premium tab) under the title, and only the cards move.
+ */
 @Composable
-private fun PremiumTop(onClose: (() -> Unit)?, onRestore: () -> Unit) {
-    val pagerState = rememberHeroPagerState()
+private fun PremiumTop(onClose: (() -> Unit)?, onRestore: () -> Unit, featureCards: Boolean) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // Full width, but no taller than the hero is at the content's capped width: on a tablet the
         // width-derived height would push the plans and the button below the fold.
         val heroHeight = minOf(maxWidth, ReadableContentMaxWidth) * HeroAspect
-        HeroPager(pagerState, Modifier.fillMaxWidth().height(heroHeight))
-        HeroIndicator(
-            pagerState = pagerState,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = heroHeight - CardOverlap - 18.dp),
-        )
+        val cardsPagerState = if (featureCards) rememberHeroPagerState(FeatureCards.size) else null
+        if (cardsPagerState != null) {
+            CardBackdrop(
+                backdrops = rememberBlurredBackdrops(FeatureCards),
+                current = cardsPagerState.currentPage % FeatureCards.size,
+                modifier = Modifier.fillMaxWidth().height(heroHeight).clipToBounds(),
+            )
+            // Centred in the part of the header the cards leave clear.
+            Box(
+                modifier = Modifier.fillMaxWidth().height(heroHeight - CardOverlap),
+                contentAlignment = Alignment.Center,
+            ) {
+                GetPremiumHeading(compact = false)
+            }
+        } else {
+            val pagerState = rememberHeroPagerState()
+            HeroPager(pagerState, Modifier.fillMaxWidth().height(heroHeight))
+            HeroIndicator(
+                pagerState = pagerState,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = heroHeight - CardOverlap - 18.dp),
+            )
+        }
         // Top-left, below the status bar, where the design places it (≈ 8.7% across, 21.6% down the hero).
         if (onClose != null) CloseButton(
             onClose = onClose,
@@ -454,12 +530,20 @@ private fun PremiumTop(onClose: (() -> Unit)?, onRestore: () -> Unit) {
                 .align(Alignment.TopEnd)
                 .offset(x = (-16).dp, y = heroHeight * 0.216f - 16.dp),
         )
-        FeaturesCard(
-            modifier = Modifier
-                .padding(top = heroHeight - CardOverlap)
-                .readableWidth()
-                .padding(horizontal = 20.dp),
-        )
+        if (cardsPagerState != null) {
+            FeatureCarousel(
+                pagerState = cardsPagerState,
+                cardWidth = minOf(maxWidth, ReadableContentMaxWidth) * FeatureCardWidthFraction,
+                modifier = Modifier.padding(top = heroHeight - CardOverlap - FeatureCardShadowRoom),
+            )
+        } else {
+            FeaturesCard(
+                modifier = Modifier
+                    .padding(top = heroHeight - CardOverlap)
+                    .readableWidth()
+                    .padding(horizontal = 20.dp),
+            )
+        }
     }
 }
 
@@ -469,10 +553,19 @@ private fun PremiumTop(onClose: (() -> Unit)?, onRestore: () -> Unit) {
  * close and Restore in its top corners.
  */
 @Composable
-private fun PremiumSideHero(onClose: (() -> Unit)?, onRestore: () -> Unit, modifier: Modifier = Modifier) {
-    val pagerState = rememberHeroPagerState()
+private fun PremiumSideHero(
+    onClose: (() -> Unit)?,
+    onRestore: () -> Unit,
+    featureCards: Boolean,
+    modifier: Modifier = Modifier,
+) {
     // The photo runs under the notch; what sits on it keeps clear of it.
     val insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start)
+    if (featureCards) {
+        FeatureCardsSideHero(onClose = onClose, onRestore = onRestore, insets = insets, modifier = modifier)
+        return
+    }
+    val pagerState = rememberHeroPagerState()
     Box(modifier = modifier) {
         HeroPager(pagerState, Modifier.fillMaxSize())
         if (onClose != null) CloseButton(
@@ -487,13 +580,101 @@ private fun PremiumSideHero(onClose: (() -> Unit)?, onRestore: () -> Unit, modif
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(insets)
-                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                .padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HeroIndicator(pagerState = pagerState)
             Spacer(Modifier.height(12.dp))
-            FeaturesCard(compact = true)
+            // Small enough that the photo still shows above it.
+            FeaturesCard(modifier = Modifier.padding(horizontal = 20.dp), compact = true)
         }
+    }
+}
+
+/**
+ * [PremiumSideHero] opened from inside the app: the centred card's blurred colours at full height,
+ * the title in the middle of what the cards leave clear, and the cards at the foot.
+ */
+@Composable
+private fun FeatureCardsSideHero(
+    onClose: (() -> Unit)?,
+    onRestore: () -> Unit,
+    insets: WindowInsets,
+    modifier: Modifier = Modifier,
+) {
+    val pagerState = rememberHeroPagerState(FeatureCards.size)
+    Box(modifier = modifier.clipToBounds()) {
+        CardBackdrop(
+            backdrops = rememberBlurredBackdrops(FeatureCards),
+            current = pagerState.currentPage % FeatureCards.size,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Column(
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(insets).padding(bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                GetPremiumHeading(compact = true)
+            }
+            FeatureCarousel(pagerState = pagerState, cardWidth = 170.dp)
+        }
+        if (onClose != null) CloseButton(
+            onClose = onClose,
+            modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(insets).padding(16.dp),
+        )
+        RestoreChip(
+            onClick = onRestore,
+            modifier = Modifier.align(Alignment.TopEnd).windowInsetsPadding(insets).padding(top = 20.dp, end = 16.dp),
+        )
+    }
+}
+
+/**
+ * The in-app paywall's header: an "Unlock Unlimited Power" chip, the title and a line on what it
+ * unlocks. Fixed colours: it always sits on the blurred card. [compact] beside the plans, where the
+ * cards leave it less room.
+ */
+@Composable
+private fun GetPremiumHeading(compact: Boolean) {
+    val textShadow = Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 2f), blurRadius = 8f)
+    Column(
+        modifier = Modifier.padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(PillShape)
+                .background(Color.White.copy(alpha = 0.16f))
+                .border(1.dp, Color.White.copy(alpha = 0.3f), PillShape)
+                .padding(horizontal = 12.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color(0xFFFFC15E), modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = tr("Unlock Unlimited Power").uppercase(),
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+            )
+        }
+        Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
+        Text(
+            text = tr("Get Premium"),
+            style = TextStyle(color = Color.White, shadow = textShadow),
+            fontSize = if (compact) 28.sp else 34.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(if (compact) 4.dp else 6.dp))
+        Text(
+            text = tr("Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark"),
+            style = TextStyle(color = Color.White.copy(alpha = 0.85f), shadow = textShadow),
+            fontSize = if (compact) 12.sp else 14.sp,
+            lineHeight = if (compact) 16.sp else 19.sp,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -548,7 +729,7 @@ private fun HeroIndicator(pagerState: PagerState, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
+internal fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
     // The close button only shows up a while after the paywall opens, so the offer gets seen first.
     var closeDelayElapsed by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -583,7 +764,7 @@ private fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
 
 /** Restore Purchase: both stores require a way to restore from the paywall itself. */
 @Composable
-private fun RestoreChip(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun RestoreChip(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Text(
         text = tr("Restore"),
         modifier = modifier
@@ -640,8 +821,103 @@ private fun FeaturesCard(modifier: Modifier = Modifier, compact: Boolean = false
     }
 }
 
+/**
+ * The in-app paywall's cards, [cardWidth] wide and centred, sliding on by themselves like the hero
+ * (and looping the same way, through [pagerState] from [rememberHeroPagerState]), with the
+ * neighbours shrunk a little and peeking in at the sides.
+ */
 @Composable
-private fun PlanPill(
+private fun FeatureCarousel(pagerState: PagerState, cardWidth: Dp, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = ((maxWidth - cardWidth) / 2).coerceAtLeast(0.dp)),
+            modifier = Modifier.fillMaxWidth(),
+        ) { page ->
+            FeatureCardItem(
+                card = FeatureCards[page % FeatureCards.size],
+                cardWidth = cardWidth,
+                modifier = Modifier
+                    .padding(vertical = FeatureCardShadowRoom)
+                    .graphicsLayer {
+                        // 0 centred … 1 a whole page to either side.
+                        val offset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                            .absoluteValue
+                            .coerceAtMost(1f)
+                        val scale = lerp(1f, FeatureCardSideScale, offset)
+                        scaleX = scale
+                        scaleY = scale
+                    },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun FeatureCardItem(card: FeatureCard, cardWidth: Dp, modifier: Modifier = Modifier) {
+    // Everything on the card is sized from its width, so the side-by-side carousel's smaller cards
+    // look the same.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(FeatureCardAspect)
+            .shadow(elevation = 8.dp, shape = FeatureCardShape, spotColor = Color.Black.copy(alpha = 0.4f))
+            .clip(FeatureCardShape),
+    ) {
+        Image(
+            painter = painterResource(card.image),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds,
+        )
+        // Darkens the foot of the picture, so the white label reads on the lighter ones.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.45f)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.4f)))),
+        )
+        // Fixed colours: they always sit on the card's picture, whatever the theme.
+        Box(
+            modifier = Modifier
+                .padding(cardWidth * 0.06f)
+                .size(cardWidth * 0.17f)
+                .clip(RoundedCornerShape(percent = 30))
+                .background(Color.White.copy(alpha = 0.28f))
+                .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(percent = 30)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(card.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(cardWidth * 0.1f))
+        }
+        // Shrinks to fit on one line: at the full size "200+ Backgrounds" (and longer translations)
+        // would wrap, and one line shows only the first word.
+        BasicText(
+            text = tr(card.englishLabel),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = cardWidth * 0.05f)
+                .padding(bottom = cardWidth * 0.07f),
+            style = TextStyle(
+                color = Color.White,
+                shadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), blurRadius = 6f),
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center,
+            ),
+            maxLines = 1,
+            softWrap = false,
+            autoSize = TextAutoSize.StepBased(
+                minFontSize = (cardWidth.value * 0.05f).sp,
+                maxFontSize = (cardWidth.value * 0.105f).sp,
+                stepSize = 0.5.sp,
+            ),
+        )
+    }
+}
+
+@Composable
+internal fun PlanPill(
     plan: PremiumPlan,
     product: SubscriptionProduct?,
     loading: Boolean,
@@ -728,30 +1004,14 @@ private fun PlanPill(
 }
 
 @Composable
-private fun PremiumFooter(
+internal fun PremiumFooter(
     startLabel: String,
     startEnabled: Boolean,
     busy: Boolean,
     onStart: () -> Unit,
     onTermsAndPrivacy: () -> Unit,
 ) {
-    val linkColor = PremiumText
-    // Both stores require the auto-renewal terms beside the purchase button.
-    // Keyed on the language too: the translated text is built inside the remembered value.
-    val terms = remember(linkColor, onTermsAndPrivacy, AppLocale.code) {
-        buildAnnotatedString {
-            append(tr("By continuing you agree to our "))
-            withLink(
-                LinkAnnotation.Clickable(
-                    tag = "terms",
-                    styles = TextLinkStyles(SpanStyle(color = linkColor, fontWeight = FontWeight.SemiBold)),
-                ) { onTermsAndPrivacy() },
-            ) {
-                append(tr("Terms & Privacy policies"))
-            }
-            append(tr(". Subscription will auto-renew. Cancel anytime."))
-        }
-    }
+    val terms = rememberPremiumTerms(onTermsAndPrivacy)
     Column(
         modifier = Modifier.readableWidth().padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -768,6 +1028,30 @@ private fun PremiumFooter(
         Spacer(Modifier.height(8.dp))
         Text(tr("Auto Renewable. Cancel Anytime"), color = PremiumSubtext, fontSize = 11.sp)
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * "By continuing you agree to our Terms & Privacy policies. Subscription will auto-renew…", with the
+ * policies as a link. Both stores require the auto-renewal terms beside the purchase button.
+ */
+@Composable
+internal fun rememberPremiumTerms(onTermsAndPrivacy: () -> Unit): AnnotatedString {
+    val linkColor = PremiumText
+    // Keyed on the language too: the translated text is built inside the remembered value.
+    return remember(linkColor, onTermsAndPrivacy, AppLocale.code) {
+        buildAnnotatedString {
+            append(tr("By continuing you agree to our "))
+            withLink(
+                LinkAnnotation.Clickable(
+                    tag = "terms",
+                    styles = TextLinkStyles(SpanStyle(color = linkColor, fontWeight = FontWeight.SemiBold)),
+                ) { onTermsAndPrivacy() },
+            ) {
+                append(tr("Terms & Privacy policies"))
+            }
+            append(tr(". Subscription will auto-renew. Cancel anytime."))
+        }
     }
 }
 
@@ -816,6 +1100,22 @@ private fun PremiumScreenPreview() {
             onStart = {},
             onRestore = {},
             onTermsAndPrivacy = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PremiumScreenInAppPreview() {
+    ThemePreviews {
+        PremiumContent(
+            uiState = PremiumUiState(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onClose = {},
+            onStart = {},
+            onRestore = {},
+            onTermsAndPrivacy = {},
+            featureCards = true,
         )
     }
 }

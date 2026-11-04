@@ -6,12 +6,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.isSpecified
+import org.example.project.data.billing.PremiumPack
 import org.example.project.ui.layouteditor.ArtLibraryBody
 import org.example.project.ui.layouteditor.LayoutArt
 import org.example.project.ui.layouteditor.LayoutArtLoad
 import org.example.project.ui.layouteditor.layoutChrome
 import org.example.project.ui.layouteditor.rememberArtTransition
 import org.example.project.ui.layouteditor.rememberLayoutArtImage
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.ui.shop.ShopTab
 import org.example.project.ui.text.LocalTextPanelSideBySide
 import org.example.project.ui.text.PanelSegmentedTabs
@@ -246,6 +248,7 @@ fun CollageEditorScreen(
             uiState = uiState,
             pickerState = pickerState,
             isSubscribed = isSubscribed,
+            backgroundsUnlocked = unlockedFor(PremiumPack.Backgrounds, isSubscribed),
             stickers = stickers,
             onClose = discard::requestBack,
             onPremium = onPremium,
@@ -305,6 +308,8 @@ private fun CollageEditorContent(
     uiState: CollageEditorUiState,
     pickerState: CollagePickerState,
     isSubscribed: Boolean,
+    // Whether a premium background picture is the user's: by premium, or by the Backgrounds pack.
+    backgroundsUnlocked: Boolean = isSubscribed,
     stickers: List<PlacedSticker>,
     onClose: () -> Unit,
     onPremium: () -> Unit,
@@ -423,9 +428,10 @@ private fun CollageEditorContent(
                 // A premium layout can be tried by anyone; for a non-subscriber this bar under the photo
                 // says so and leads to the paywall, as Done does.
                 val readyCollage = (uiState as? CollageEditorUiState.Ready)?.collage
-                val onPremiumLayout = readyCollage?.template?.isPremium == true || readyCollage?.backgroundArt?.isPremium == true
-                ProFeatureBar(visible = onPremiumLayout && !isSubscribed, onClick = onPremium)
-                PreventScreenCapture(enabled = onPremiumLayout && !isSubscribed)
+                val onLockedPremium = (readyCollage?.template?.isPremium == true && !isSubscribed) ||
+                    (readyCollage?.backgroundArt?.isPremium == true && !backgroundsUnlocked)
+                ProFeatureBar(visible = onLockedPremium)
+                PreventScreenCapture(enabled = onLockedPremium)
             }
         },
         tabs = {

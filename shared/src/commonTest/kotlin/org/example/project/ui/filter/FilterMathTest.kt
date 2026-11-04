@@ -76,10 +76,10 @@ class FilterMathTest {
     }
 
     @Test
-    fun photoFilters_onlyTheFivePremiumOnesAreMarkedPremium() {
+    fun colorMatrixFilters_onlyTheFivePremiumOnesAreMarkedPremium() {
         assertEquals(
             listOf("Cinema", "Lush", "Cool", "Lomo", "Sepia"),
-            PhotoFilters.filter { it.isPremium }.map { it.label },
+            ColorMatrixFilters.filter { it.isPremium }.map { it.label },
         )
     }
 }

@@ -248,6 +248,14 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Ретро",
     "Vintage" to
         "Винтаж",
+    "B&W" to
+        "Ч/Б",
+    "Smooth" to
+        "Мягкий",
+    "Cold" to
+        "Холодный",
+    "Legacy" to
+        "Классика",
     "Fade" to
         "Выцветший",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "СКИДКА",
     "BEST VALUE" to
         "ЛУЧШАЯ ЦЕНА",
-    "Annual Plan" to
-        "Годовой план",
-    "per year" to
-        "в год",
+    "per month" to
+        "в месяц",
     "Price unavailable" to
         "Цена недоступна",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Закрыть предложение",
     "Weekly" to
         "Еженедельно",
-    "Annual" to
-        "Ежегодно",
+    "Monthly" to
+        "Ежемесячно",
     "High-Quality Exports" to
         "Экспорт в высоком качестве",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Начать бесплатный период",
     "Restore" to
         "Восстановить",
+    "Get Premium" to
+        "Получить Премиум",
+    "Unlock Unlimited Power" to
+        "Откройте безграничные возможности",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "Все профессиональные инструменты, шрифты, стикеры, фоны, фильтры и материалы без водяного знака",
     "Loading price…" to
         "Загрузка цены…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Ничего не найдено",
     "Search fonts, styles…" to
         "Поиск шрифтов, стилей…",
+    "Unlock {0} Pack" to
+        "Откройте пакет {0}",
+    "Best Value" to
+        "Лучшая цена",
+    "Daily Plan" to
+        "Дневной план",
+    "Weekly Plan" to
+        "Недельный план",
+    "Monthly Plan" to
+        "Месячный план",
+    "Yearly Plan" to
+        "Годовой план",
+    "Try for {0}" to
+        "Попробуйте за {0}",
+    "1000+ Stickers" to
+        "1000+ стикеров",
+    "5000+ Stickers Pack" to
+        "Набор из 5000+ стикеров",
+    "1000+ Fonts" to
+        "1000+ шрифтов",
+    "1000+ Background" to
+        "1000+ фонов",
+    "1000+ Templates" to
+        "1000+ шаблонов",
+    "5000+ Frames" to
+        "5000+ рамок",
+    "Exclusive Designs" to
+        "Эксклюзивные дизайны",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "Создавайте потрясающие коллажи и красивые рамки с безлимитными премиум-инструментами дизайна",
+    "Then {0}/{1} will be charged." to
+        "Затем будет списываться {0}/{1}.",
+    "2000+ Layouts" to
+        "Более 2000 макетов",
+    "No Watermark" to
+        "Без водяного знака",
+    "100+ Filters" to
+        "Более 100 фильтров",
+    "500+ Stickers" to
+        "Более 500 стикеров",
+    "200+ Backgrounds" to
+        "Более 200 фонов",
+    "100+ Overlays" to
+        "Более 100 наложений",
+    "2000+ Fonts" to
+        "Более 2000 шрифтов",
 )

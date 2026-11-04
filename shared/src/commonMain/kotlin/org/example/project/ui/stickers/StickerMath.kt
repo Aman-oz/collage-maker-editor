@@ -17,7 +17,7 @@ import org.example.project.ui.adjust.contrastMatrix
 import org.example.project.ui.adjust.multiplyColorMatrices
 import org.example.project.ui.adjust.saturationAdjustMatrix
 import org.example.project.ui.adjust.toColorMatrix
-import org.example.project.ui.filter.PhotoFilters
+import org.example.project.ui.filter.ColorMatrixFilters
 import org.example.project.ui.filter.blendWithIdentity
 import org.example.project.ui.text.TextLayerMove
 import org.example.project.ui.text.TextPhotoAlign
@@ -67,7 +67,7 @@ internal data class PlacedSticker(
      */
     val cornerOffsets: List<Float> = emptyList(),
     val eraseStrokes: List<StickerStroke> = emptyList(),
-    /** A [PhotoFilters] label (the Effects option), and how strongly it applies, 0–1. */
+    /** A [ColorMatrixFilters] label (the Effects option), and how strongly it applies, 0–1. */
     val filterLabel: String? = null,
     val filterIntensity: Float = 1f,
     val adjust: StickerAdjust = StickerAdjust(),
@@ -305,7 +305,7 @@ internal fun alignSticker(sticker: PlacedSticker, align: TextPhotoAlign, halfWid
 
 /** Whether Done needs a subscription: a premium sticker, or a premium effect on one. */
 internal fun needsPremium(stickers: List<PlacedSticker>): Boolean = stickers.any { sticker ->
-    sticker.isPremium || PhotoFilters.firstOrNull { it.label == sticker.filterLabel }?.isPremium == true
+    sticker.isPremium || ColorMatrixFilters.firstOrNull { it.label == sticker.filterLabel }?.isPremium == true
 }
 
 // --- Size and tilt, as the panels' 0–100 sliders show them --------------------------------
@@ -786,7 +786,7 @@ internal fun stickerColorMatrix(sticker: PlacedSticker): FloatArray? {
     fun then(next: FloatArray) {
         matrix = matrix?.let { multiplyColorMatrices(next, it) } ?: next
     }
-    PhotoFilters.firstOrNull { it.label == sticker.filterLabel }?.matrix?.let { filter ->
+    ColorMatrixFilters.firstOrNull { it.label == sticker.filterLabel }?.matrix?.let { filter ->
         if (sticker.filterIntensity > 0f) then(blendWithIdentity(filter, sticker.filterIntensity))
     }
     val adjust = sticker.adjust

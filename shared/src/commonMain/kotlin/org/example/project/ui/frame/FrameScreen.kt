@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import org.example.project.data.billing.PremiumPack
 import org.example.project.i18n.tr
 import org.example.project.ui.common.CenterFillSlider
 import org.example.project.ui.common.ColorPickerFill
@@ -47,6 +48,7 @@ import org.example.project.ui.common.wholeNumberLabel
 import org.example.project.ui.common.SelectableSwatch
 import org.example.project.ui.common.SwatchInnerCorner
 import org.example.project.ui.common.ToolScaffold
+import org.example.project.ui.premium.unlockedFor
 import org.example.project.ui.preview.ThemePreviews
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
@@ -113,6 +115,7 @@ internal fun FrameTool(
     val library: LayoutArtLibrary = koinInject()
     val loader: NetworkImageLoader = koinInject()
     val scope = rememberCoroutineScope()
+    val unlocked = unlockedFor(PremiumPack.Frames, isPremium)
     var frameLoad by remember { mutableStateOf<LayoutArtLoad>(LayoutArtLoad.Loading) }
     var loadAttempt by remember { mutableIntStateOf(0) }
     var libraryWanted by remember { mutableStateOf(false) }
@@ -131,25 +134,25 @@ internal fun FrameTool(
 
     FrameContent(
         sourceImage = sourceImage,
-        isSubscribed = isPremium,
+        isSubscribed = unlocked,
         frameLoad = frameLoad,
         onFrameLibraryShown = { libraryWanted = true },
         onRetryFrames = { loadAttempt++ },
         onFrameArtPicked = { art ->
             // A premium frame a non-subscriber is only trying out isn't kept on the disk.
-            if (!art.isPremium || isPremium) scope.launch { loader.loadAsset(art.imageUrl, keep = true) }
+            if (!art.isPremium || unlocked) scope.launch { loader.loadAsset(art.imageUrl, keep = true) }
         },
         onBack = onClose,
         onOpenPremium = onOpenPremium,
         onApply = { color, width, cornerRadius, art, canvasWidthPx ->
             when {
-                art?.isPremium == true && !isPremium -> onOpenPremium()
+                art?.isPremium == true && !unlocked -> onOpenPremium()
                 baking -> Unit
                 else -> {
                     baking = true
                     scope.launch {
                         val artImage = art?.let { frame ->
-                            loader.loadAsset(frame.imageUrl, keep = !frame.isPremium || isPremium)
+                            loader.loadAsset(frame.imageUrl, keep = !frame.isPremium || unlocked)
                                 ?.let { withContext(Dispatchers.Default) { trimFrameArt(copyBitmap(it)) } }
                         }
                         val baked = withContext(Dispatchers.Default) {
@@ -252,7 +255,7 @@ private fun FrameContent(
                 }
             }
             // Under the photo while a non-subscriber tries a premium frame; Done leads to the paywall too.
-            ProFeatureBar(visible = onPremiumFrame, onClick = onOpenPremium)
+            ProFeatureBar(visible = onPremiumFrame)
             PreventScreenCapture(enabled = onPremiumFrame)
         }
 

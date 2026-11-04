@@ -47,10 +47,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -61,26 +66,37 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.example.project.i18n.tr
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.shimmer
 import org.example.project.ui.common.springBounce
+import org.example.project.ui.filter.FilterThumbnailLongSide
+import org.example.project.ui.filter.FilterThumbnails
+import org.example.project.ui.filter.rememberFilterThumbnails
+import org.example.project.ui.filter.renderFilter
+import org.example.project.ui.filter.thumbnail
+import org.example.project.ui.overlay.renderOverlay
 import org.example.project.ui.preview.ThemePreviews
-import org.example.project.ui.premium.PremiumScreen
 import org.example.project.ui.stickers.PremiumBadge
+import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_premium_icon
+import photocollagemaker.shared.generated.resources.img_remove_bg_image
 
 /**
- * The Shop: the server's stickers, fonts, backgrounds and frames (Border) as titled packs, plus the
- * paywall as its first tab. Opened by the tools' search buttons on their own tab ([initialTab]).
+ * The Shop: the server's stickers, fonts, backgrounds and frames (Border) and the bundled filters and overlays as
+ * titled packs, plus the paywall as its first tab. Opened by the tools' search buttons on their own tab ([initialTab]).
  * The items only show what a pack holds: a pack is downloaded whole (a premium one is a subscriber's,
  * so for anyone else Download turns to the Premium tab), which keeps it on the disk for its tool,
  * and then "Use" goes back to the tool, which opens on that pack ([ShopPicks]).
@@ -106,11 +122,9 @@ fun ShopScreen(
         },
         onRetry = viewModel::retry,
         premiumTab = {
-            PremiumScreen(
-                fromSplash = false,
-                // Unlocked: back to the library the Shop was opened for, now all of it downloadable.
-                onClose = { viewModel.selectTab(initialTab.takeUnless { it == ShopTab.Premium } ?: ShopTab.Stickers) },
-                embedded = true,
+            ShopPremiumTab(
+                // Unlocked: back to the library the user came from, now all of it downloadable.
+                onUnlocked = viewModel::closePremium,
                 modifier = Modifier.fillMaxSize(),
             )
         },
@@ -150,6 +164,7 @@ private fun ShopContent(
                     state = tabState,
                     downloading = uiState.downloading,
                     downloaded = uiState.downloaded,
+                    unlocked = uiState.hasUnlocked(uiState.tab),
                     onQueryChange = onQueryChange,
                     onPillSelected = onPillSelected,
                     onDownload = onDownload,
@@ -240,6 +255,7 @@ private fun LibraryTab(
     state: ShopTabState,
     downloading: Map<String, Float>,
     downloaded: Set<String>,
+    unlocked: Boolean,
     onQueryChange: (String) -> Unit,
     onPillSelected: (String) -> Unit,
     onDownload: (ShopPack) -> Unit,
@@ -251,6 +267,9 @@ private fun LibraryTab(
         return
     }
     val scheme = MaterialTheme.colorScheme
+    // The filters and overlays have no pictures of their own: each cell renders its own over a sample photo.
+    val sample = if (tab.isBundled) rememberSamplePhoto() else null
+    val sampleThumbnails = rememberFilterThumbnails(sample)
     Column(modifier = Modifier.fillMaxSize()) {
         SearchField(
             query = state.query,
@@ -261,7 +280,7 @@ private fun LibraryTab(
         val categories = (state.categories as? ShopLoad.Ready)?.value
         // A search runs over every category, so the pills step aside while there is one.
         if (categories != null && state.query.isBlank()) {
-            PillRow(categories = categories, selectedId = state.selectedPillId, onSelected = onPillSelected)
+            PillRow(tab = tab, categories = categories, selectedId = state.selectedPillId, onSelected = onPillSelected)
         }
         BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
             // Four cells and a sliver of the fifth across the screen, so a longer pack shows it scrolls.
@@ -292,8 +311,11 @@ private fun LibraryTab(
                                 cellWidth = cellWidth,
                                 progress = downloading[pack.id],
                                 downloaded = pack.id in downloaded,
+                                unlocked = unlocked,
                                 onDownload = { onDownload(pack) },
                                 onUse = { onUse(pack) },
+                                sampleThumbnails = sampleThumbnails,
+                                sample = sample,
                             )
                         }
                         item { Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars).height(16.dp)) }
@@ -365,19 +387,26 @@ internal fun SearchField(query: String, onQueryChange: (String) -> Unit, placeho
     }
 }
 
-/** New (with a flame), then the categories; server names pass through untranslated. */
+/**
+ * New (with a flame), then the categories; server names pass through untranslated. On the Filter
+ * and Overlay tabs, whose packs are bundled and never new, the first pill is All.
+ */
 @Composable
-private fun PillRow(categories: List<ShopCategory>, selectedId: String?, onSelected: (String) -> Unit) {
+private fun PillRow(tab: ShopTab, categories: List<ShopCategory>, selectedId: String?, onSelected: (String) -> Unit) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = SidePadding, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item(key = NewPillId) {
-            Pill(label = "🔥 " + tr("New"), selected = selectedId == NewPillId, onClick = { onSelected(NewPillId) })
+            Pill(
+                label = if (tab.isBundled) tr("All") else "🔥 " + tr("New"),
+                selected = selectedId == NewPillId,
+                onClick = { onSelected(NewPillId) },
+            )
         }
         items(categories, key = { it.id }) { category ->
-            Pill(label = category.name, selected = category.id == selectedId, onClick = { onSelected(category.id) })
+            Pill(label = tab.shownName(category.name), selected = category.id == selectedId, onClick = { onSelected(category.id) })
         }
     }
 }
@@ -406,7 +435,10 @@ private fun Pill(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** A pack: its name (crowned if premium) and Download / Use, over a row of its items. */
+/**
+ * A pack: its name (crowned if premium) and Download / Use, over a row of its items. A bundled pack
+ * (the Filter and Overlay tabs') has nothing to download: Use, or Unlock while it is premium and locked.
+ */
 @Composable
 private fun PackSection(
     tab: ShopTab,
@@ -414,8 +446,11 @@ private fun PackSection(
     cellWidth: Dp,
     progress: Float?,
     downloaded: Boolean,
+    unlocked: Boolean,
     onDownload: () -> Unit,
     onUse: () -> Unit,
+    sampleThumbnails: FilterThumbnails,
+    sample: ImageBitmap?,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
@@ -423,20 +458,25 @@ private fun PackSection(
             modifier = Modifier.fillMaxWidth().padding(horizontal = SidePadding).height(36.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = pack.name,
-                color = scheme.onSurface,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            if (pack.isPremium) {
-                Spacer(modifier = Modifier.width(6.dp))
-                PremiumBadge(size = 20.dp)
+            // Name and crown take all the free width, so the button always sits at the end. (A weighted
+            // name beside a weighted spacer would split that width between them, and a short name
+            // would leave the button half way across.)
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = tab.shownName(pack.name),
+                    color = scheme.onSurface,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (pack.isPremium) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    PremiumBadge(size = 20.dp)
+                }
             }
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(12.dp))
             when {
                 progress != null -> CircularProgressIndicator(
                     progress = { progress },
@@ -445,7 +485,9 @@ private fun PackSection(
                     strokeWidth = 2.5.dp,
                     modifier = Modifier.size(28.dp),
                 )
-                downloaded -> UseButton(onClick = onUse)
+                // Download sends a locked premium pack to the Premium tab.
+                tab.isBundled && pack.isPremium && !unlocked -> UnlockButton(onClick = onDownload)
+                downloaded || tab.isBundled -> UseButton(onClick = onUse)
                 else -> DownloadButton(onClick = onDownload)
             }
         }
@@ -455,7 +497,7 @@ private fun PackSection(
             horizontalArrangement = Arrangement.spacedBy(CellSpacing),
         ) {
             itemsIndexed(pack.items, key = { _, item -> item.id }) { _, item ->
-                ItemCell(tab = tab, item = item, width = cellWidth)
+                ItemCell(tab = tab, item = item, width = cellWidth, sampleThumbnails = sampleThumbnails, sample = sample)
             }
         }
     }
@@ -479,6 +521,28 @@ private fun DownloadButton(onClick: () -> Unit) {
     }
 }
 
+/** In Download's place on a locked premium pack that has nothing to download: a crown and Unlock. */
+@Composable
+private fun UnlockButton(onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val bounce = rememberSpringBounce()
+    Row(
+        modifier = Modifier
+            .springBounce(bounce)
+            .height(28.dp)
+            .clip(RoundedCornerShape(50))
+            .background(scheme.primary.copy(alpha = 0.12f))
+            .border(1.dp, scheme.primary, RoundedCornerShape(50))
+            .clickable(interactionSource = bounce.interactionSource, indication = LocalIndication.current, onClick = onClick)
+            .padding(start = 10.dp, end = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(painter = painterResource(Res.drawable.ic_premium_icon), contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = tr("Unlock"), color = scheme.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
 @Composable
 private fun UseButton(onClick: () -> Unit) {
     val bounce = rememberSpringBounce()
@@ -497,11 +561,12 @@ private fun UseButton(onClick: () -> Unit) {
 }
 
 /**
- * One item of a pack: a sticker fitted in a grey tile, a background filling it, or a frame fitted on
- * white (frames are transparent in the middle). The Fonts tab has its own cards ([FontsLibraryTab]).
+ * One item of a pack: a sticker fitted in a grey tile, a background filling it, a frame fitted on
+ * white (frames are transparent in the middle), or a filter or overlay rendered over [sample]. The
+ * Fonts tab has its own cards ([FontsLibraryTab]).
  */
 @Composable
-private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp) {
+private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp, sampleThumbnails: FilterThumbnails, sample: ImageBitmap?) {
     val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
@@ -516,16 +581,61 @@ private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        NetworkImage(
-            url = item.thumbnailUrl,
-            contentDescription = item.name,
-            contentScale = if (tab == ShopTab.Backgrounds) ContentScale.Crop else ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (tab == ShopTab.Backgrounds) 0.dp else 6.dp),
-        )
+        val filter = item.filter
+        val overlay = item.overlay
+        if (filter != null || overlay != null) {
+            // Filter ids ("Cold/3") and overlay keys ("Effect/3") name different tabs, so they never meet.
+            val thumbnail = when {
+                filter != null -> sampleThumbnails.thumbnail(filter.id, sample) { renderFilter(it, filter, FilterThumbnailLongSide) }
+                else -> sampleThumbnails.thumbnail(overlay!!.key, sample) { renderOverlay(it, overlay, FilterThumbnailLongSide) }
+            }
+            if (thumbnail != null) {
+                Image(bitmap = thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(modifier = Modifier.fillMaxSize().shimmer(CellShape))
+            }
+        } else {
+            NetworkImage(
+                url = item.thumbnailUrl,
+                contentDescription = item.name,
+                contentScale = if (tab == ShopTab.Backgrounds) ContentScale.Crop else ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(if (tab == ShopTab.Backgrounds) 0.dp else 6.dp),
+            )
+        }
         if (item.isPremium) PremiumBadge(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp), size = 18.dp)
     }
+}
+
+/** A category or pack name as shown: the Filter and Overlay tabs' are the app's own English labels, translated here. */
+private fun ShopTab.shownName(name: String): String = if (isBundled) tr(name) else name
+
+/**
+ * The photo the Filter and Overlay tabs render their items over: the untouched half of the background
+ * remover's before / after picture, clear of its rounded corner, at thumbnail size.
+ */
+@Composable
+private fun rememberSamplePhoto(): ImageBitmap? {
+    val picture = imageResource(Res.drawable.img_remove_bg_image)
+    return produceState<ImageBitmap?>(null, picture) {
+        value = withContext(Dispatchers.Default) {
+            val left = (picture.width * 0.04f).toInt()
+            val srcSize = IntSize((picture.width * 0.49f).toInt() - left, (picture.height * 0.92f).toInt())
+            val scale = FilterThumbnailLongSide.toFloat() / maxOf(srcSize.width, srcSize.height)
+            val dstSize = IntSize((srcSize.width * scale).toInt(), (srcSize.height * scale).toInt())
+            ImageBitmap(dstSize.width, dstSize.height).also {
+                Canvas(it).drawImageRect(
+                    image = picture,
+                    srcOffset = IntOffset(left, 0),
+                    srcSize = srcSize,
+                    dstOffset = IntOffset.Zero,
+                    dstSize = dstSize,
+                    paint = Paint().apply { filterQuality = FilterQuality.High },
+                )
+            }
+        }
+    }.value
 }
 
 /** Shimmering sections where the packs will be. */

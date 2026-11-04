@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
+import org.example.project.data.billing.PremiumPack
 import org.example.project.data.cache.AssetCache
+import org.example.project.ui.premium.PremiumPackOffers
 
 /** Something on its way from the server. */
 internal sealed interface ShopLoad<out T> {
@@ -58,14 +60,20 @@ internal data class ShopTabState(
 
 internal data class ShopUiState(
     val tab: ShopTab,
-    val tabs: Map<ShopTab, ShopTabState> = ShopTab.entries.filter { it != ShopTab.Premium }.associateWith { ShopTabState() },
+    // The Filter and Overlay tabs open on every category's pack at once (their New pill, shown as All).
+    val tabs: Map<ShopTab, ShopTabState> = ShopTab.entries.filter { it != ShopTab.Premium }
+        .associateWith { ShopTabState(selectedId = if (it.isBundled) NewPillId else null) },
     /** Packs being downloaded, and how far (0-1). */
     val downloading: Map<String, Float> = emptyMap(),
     /** Packs every item of which is kept on the disk. */
     val downloaded: Set<String> = emptySet(),
     val isSubscribed: Boolean = false,
+    /** Categories bought on their own (a pack plan): their premium packs download as for a subscriber. */
+    val unlockedPacks: Set<PremiumPack> = emptySet(),
 ) {
     val current: ShopTabState? get() = tabs[tab]
+
+    fun hasUnlocked(tab: ShopTab): Boolean = isSubscribed || tab.premiumPack in unlockedPacks
 }
 
 /**
@@ -73,14 +81,16 @@ internal data class ShopUiState(
  * are read when it is picked; a search reads every category of the tab.
  *
  * Download keeps every item of a pack in [AssetCache] under the key its tool reads it by, so the tool
- * then has it without the network. A premium pack is a subscriber's to download: for anyone else
- * the Shop turns to its Premium tab instead.
+ * then has it without the network. A premium pack is a subscriber's (or the buyer of that tab's
+ * pack plan's) to download: for anyone else the Shop turns to its Premium tab instead, and if they
+ * leave it without subscribing, for another tab or out of the Shop, [offers] that tab's pack alone.
  */
 class ShopViewModel internal constructor(
     initialTab: ShopTab,
     private val sources: Map<ShopTab, ShopSource>,
     private val assetCache: AssetCache,
     private val picks: ShopPicks,
+    private val offers: PremiumPackOffers,
     settings: AppSettings,
 ) : ViewModel() {
 
@@ -90,15 +100,39 @@ class ShopViewModel internal constructor(
     // Tabs whose categories are being read; a tab's state reads Loading before its first read too.
     private val loading = mutableSetOf<ShopTab>()
 
+    // The tab whose premium pack sent the user to the Premium tab, until they leave it.
+    private var sentToPremiumFrom: ShopTab? = null
+
+    private val fallbackTab = initialTab.takeUnless { it == ShopTab.Premium } ?: ShopTab.Stickers
+
     init {
         viewModelScope.launch { settings.isPremium.collect { premium -> _uiState.update { it.copy(isSubscribed = premium) } } }
+        viewModelScope.launch { settings.unlockedPacks.collect { packs -> _uiState.update { it.copy(unlockedPacks = packs) } } }
         selectTab(initialTab)
     }
 
     internal fun selectTab(tab: ShopTab) {
+        if (tab != ShopTab.Premium) offerPack()
         _uiState.update { it.copy(tab = tab) }
         val state = _uiState.value.tabs[tab] ?: return
         if (state.categories == ShopLoad.Failed || (state.categories == ShopLoad.Loading && tab !in loading)) loadCategories(tab)
+    }
+
+    /** The embedded paywall closed (it only does once premium is unlocked): back to the library it was opened from. */
+    internal fun closePremium() {
+        selectTab(sentToPremiumFrom ?: fallbackTab)
+    }
+
+    /** Leaving the Premium tab a premium pack sent the user to: offers that tab's pack on its own. */
+    private fun offerPack() {
+        val from = sentToPremiumFrom ?: return
+        sentToPremiumFrom = null
+        from.premiumPack?.let(offers::show)
+    }
+
+    // The Shop closed (✕ or back): the offer shows on the screen it was opened from.
+    override fun onCleared() {
+        if (_uiState.value.tab == ShopTab.Premium) offerPack()
     }
 
     private fun loadCategories(tab: ShopTab) {
@@ -172,10 +206,13 @@ class ShopViewModel internal constructor(
     internal fun download(pack: ShopPack) {
         val state = _uiState.value
         if (pack.id in state.downloading || pack.id in state.downloaded) return
-        if (pack.isPremium && !state.isSubscribed) {
+        if (pack.isPremium && !state.hasUnlocked(state.tab)) {
+            sentToPremiumFrom = state.tab
             selectTab(ShopTab.Premium)
             return
         }
+        // Bundled with the app: nothing to download (the Shop shows Use instead).
+        if (state.tab.isBundled) return
         _uiState.update { it.copy(downloading = it.downloading + (pack.id to 0f)) }
         viewModelScope.launch {
             var done = 0

@@ -248,6 +248,14 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Retro",
     "Vintage" to
         "Cổ điển",
+    "B&W" to
+        "Đen trắng",
+    "Smooth" to
+        "Mịn",
+    "Cold" to
+        "Lạnh",
+    "Legacy" to
+        "Cổ điển",
     "Fade" to
         "Phai màu",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "GIẢM",
     "BEST VALUE" to
         "GIÁ TỐT NHẤT",
-    "Annual Plan" to
-        "Gói năm",
-    "per year" to
-        "mỗi năm",
+    "per month" to
+        "mỗi tháng",
     "Price unavailable" to
         "Không có giá",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Đóng ưu đãi",
     "Weekly" to
         "Hằng tuần",
-    "Annual" to
-        "Hằng năm",
+    "Monthly" to
+        "Hằng tháng",
     "High-Quality Exports" to
         "Xuất ảnh chất lượng cao",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Bắt đầu dùng thử miễn phí",
     "Restore" to
         "Khôi phục",
+    "Get Premium" to
+        "Nhận Premium",
+    "Unlock Unlimited Power" to
+        "Mở khóa sức mạnh không giới hạn",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "Truy cập mọi công cụ pro, phông chữ, nhãn dán, hình nền, bộ lọc và tài nguyên không có hình mờ",
     "Loading price…" to
         "Đang tải giá…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Không có kết quả",
     "Search fonts, styles…" to
         "Tìm phông chữ, kiểu…",
+    "Unlock {0} Pack" to
+        "Mở khóa gói {0}",
+    "Best Value" to
+        "Giá trị nhất",
+    "Daily Plan" to
+        "Gói hằng ngày",
+    "Weekly Plan" to
+        "Gói hằng tuần",
+    "Monthly Plan" to
+        "Gói hằng tháng",
+    "Yearly Plan" to
+        "Gói hằng năm",
+    "Try for {0}" to
+        "Dùng thử với {0}",
+    "1000+ Stickers" to
+        "1000+ nhãn dán",
+    "5000+ Stickers Pack" to
+        "Gói 5000+ nhãn dán",
+    "1000+ Fonts" to
+        "1000+ phông chữ",
+    "1000+ Background" to
+        "1000+ hình nền",
+    "1000+ Templates" to
+        "1000+ mẫu",
+    "5000+ Frames" to
+        "5000+ khung",
+    "Exclusive Designs" to
+        "Thiết kế độc quyền",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "Tạo ảnh ghép tuyệt đẹp và khung ảnh xinh xắn với công cụ thiết kế cao cấp không giới hạn",
+    "Then {0}/{1} will be charged." to
+        "Sau đó sẽ bị tính phí {0}/{1}.",
+    "2000+ Layouts" to
+        "Hơn 2000 bố cục",
+    "No Watermark" to
+        "Không có hình mờ",
+    "100+ Filters" to
+        "Hơn 100 bộ lọc",
+    "500+ Stickers" to
+        "Hơn 500 nhãn dán",
+    "200+ Backgrounds" to
+        "Hơn 200 hình nền",
+    "100+ Overlays" to
+        "Hơn 100 lớp phủ",
+    "2000+ Fonts" to
+        "Hơn 2000 phông chữ",
 )

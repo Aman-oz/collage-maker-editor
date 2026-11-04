@@ -65,9 +65,23 @@ sealed interface Destination : NavKey {
      * @param fromSplash `true` in the launch flow (after [Onboarding] on the first run, straight from
      * [Splash] on later ones), where nothing is under it on the back stack: close (or back) replaces
      * it with [Home] instead of popping.
+     * @param pack set when opened for one category's premium item (a template, a frame): leaving
+     * without subscribing then offers that pack on its own (`PremiumPackSheetHost`).
      */
     @Serializable
-    data class Premium(val fromSplash: Boolean = false) : Destination
+    data class Premium(
+        val fromSplash: Boolean = false,
+        val pack: org.example.project.data.billing.PremiumPack? = null,
+    ) : Destination
+
+    /**
+     * The single-plan paywall ([org.example.project.ui.premium.ProOfferScreen]) opened by the
+     * "Try this Pro feature" banner a non-subscriber sees while trying a premium item.
+     *
+     * @param pack as in [Premium.pack]: leaving without subscribing offers that pack on its own.
+     */
+    @Serializable
+    data class ProOffer(val pack: org.example.project.data.billing.PremiumPack? = null) : Destination
 
     /**
      * In-app photo library picker, gated behind an explicit permission request.

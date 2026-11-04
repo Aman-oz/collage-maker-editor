@@ -248,6 +248,14 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "レトロ",
     "Vintage" to
         "ヴィンテージ",
+    "B&W" to
+        "モノクロ",
+    "Smooth" to
+        "スムース",
+    "Cold" to
+        "寒色",
+    "Legacy" to
+        "クラシック",
     "Fade" to
         "フェード",
     "Sepia" to
@@ -478,10 +486,8 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "オフ",
     "BEST VALUE" to
         "いちばんお得",
-    "Annual Plan" to
-        "年間プラン",
-    "per year" to
-        "年額",
+    "per month" to
+        "/月",
     "Price unavailable" to
         "価格を取得できません",
     "Try Now" to
@@ -490,8 +496,8 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "オファーを閉じる",
     "Weekly" to
         "週額",
-    "Annual" to
-        "年額",
+    "Monthly" to
+        "月間",
     "High-Quality Exports" to
         "高画質で書き出し",
     "Remove Ads" to
@@ -512,6 +518,12 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "無料トライアルを開始",
     "Restore" to
         "復元",
+    "Get Premium" to
+        "プレミアムを入手",
+    "Unlock Unlimited Power" to
+        "無制限のパワーを解放",
+    "Access all pro tools, fonts, stickers, backgrounds, filters and assets with no watermark" to
+        "すべてのプロツール、フォント、ステッカー、背景、フィルター、素材を透かしなしで利用",
     "Loading price…" to
         "価格を読み込み中…",
     "{0}, then every {1}" to
@@ -950,4 +962,50 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "結果がありません",
     "Search fonts, styles…" to
         "フォント・スタイルを検索…",
+    "Unlock {0} Pack" to
+        "{0}パックをアンロック",
+    "Best Value" to
+        "ベストバリュー",
+    "Daily Plan" to
+        "デイリープラン",
+    "Weekly Plan" to
+        "週間プラン",
+    "Monthly Plan" to
+        "月間プラン",
+    "Yearly Plan" to
+        "年間プラン",
+    "Try for {0}" to
+        "{0}でお試し",
+    "1000+ Stickers" to
+        "1000以上のステッカー",
+    "5000+ Stickers Pack" to
+        "5000以上のステッカーパック",
+    "1000+ Fonts" to
+        "1000以上のフォント",
+    "1000+ Background" to
+        "1000以上の背景",
+    "1000+ Templates" to
+        "1000以上のテンプレート",
+    "5000+ Frames" to
+        "5000以上のフレーム",
+    "Exclusive Designs" to
+        "限定デザイン",
+    "Create stunning collages, beautiful frames, with unlimited premium design tools" to
+        "無制限のプレミアムデザインツールで、素敵なコラージュや美しいフレームを作成",
+    "Then {0}/{1} will be charged." to
+        "その後、{0}/{1}が請求されます。",
+    "2000+ Layouts" to
+        "2000以上のレイアウト",
+    "No Watermark" to
+        "透かしなし",
+    "100+ Filters" to
+        "100以上のフィルター",
+    "500+ Stickers" to
+        "500以上のステッカー",
+    "200+ Backgrounds" to
+        "200以上の背景",
+    "100+ Overlays" to
+        "100以上のオーバーレイ",
+    "2000+ Fonts" to
+        "2000以上のフォント",
 )

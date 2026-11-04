@@ -20,31 +20,38 @@ class PremiumMathTest {
     private val weekly = product(SubscriptionPlan.Weekly, 900_000_000, BillingPeriod(1, PeriodUnit.Week))
 
     @Test
-    fun annualSavingsPercent_comparesAgainstAYearOfWeekly() {
+    fun savingsOverWeeklyPercent_comparesAgainstAYearOfWeekly() {
         // 900 × 52 = 46,800; 9,360 is 20% of that, so the saving is 80%.
         val yearly = product(SubscriptionPlan.Yearly, 9_360_000_000, BillingPeriod(1, PeriodUnit.Year))
-        assertEquals(80, annualSavingsPercent(weekly, yearly))
+        assertEquals(80, savingsOverWeeklyPercent(weekly, yearly))
     }
 
     @Test
-    fun annualSavingsPercent_nullWhenPriceMissingOrCurrenciesDiffer() {
+    fun savingsOverWeeklyPercent_comparesAgainstAMonthOfWeekly() {
+        // 900 × 52 / 12 = 3,900; 2,730 is 70% of that, so the saving is 30%.
+        val monthly = product(SubscriptionPlan.Monthly, 2_730_000_000, BillingPeriod(1, PeriodUnit.Month))
+        assertEquals(30, savingsOverWeeklyPercent(weekly, monthly))
+    }
+
+    @Test
+    fun savingsOverWeeklyPercent_nullWhenPriceMissingOrCurrenciesDiffer() {
         val yearly = product(SubscriptionPlan.Yearly, 1_200_000_000, BillingPeriod(1, PeriodUnit.Year), "USD")
-        assertNull(annualSavingsPercent(null, yearly))
-        assertNull(annualSavingsPercent(weekly, null))
-        assertNull(annualSavingsPercent(weekly, yearly))
+        assertNull(savingsOverWeeklyPercent(null, yearly))
+        assertNull(savingsOverWeeklyPercent(weekly, null))
+        assertNull(savingsOverWeeklyPercent(weekly, yearly))
     }
 
     @Test
-    fun annualSavingsPercent_nullWhenThereIsNoSaving() {
+    fun savingsOverWeeklyPercent_nullWhenThereIsNoSaving() {
         val yearly = product(SubscriptionPlan.Yearly, 50_000_000_000, BillingPeriod(1, PeriodUnit.Year))
-        assertNull(annualSavingsPercent(weekly, yearly))
+        assertNull(savingsOverWeeklyPercent(weekly, yearly))
     }
 
     @Test
-    fun annualSavingsPercent_nullForUnexpectedPeriods() {
+    fun savingsOverWeeklyPercent_nullForUnexpectedPeriods() {
         val twoWeeks = weekly.copy(billingPeriod = BillingPeriod(2, PeriodUnit.Week))
         val yearly = product(SubscriptionPlan.Yearly, 9_360_000_000, BillingPeriod(1, PeriodUnit.Year))
-        assertNull(annualSavingsPercent(twoWeeks, yearly))
+        assertNull(savingsOverWeeklyPercent(twoWeeks, yearly))
     }
 }
 
