@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1C0DE0000000000000000C1 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B1 /* GoogleMobileAds */; };
+		A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */; };
+		A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B3 /* FirebaseAnalytics */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		253494A8C22BA1D8517DFE66 /* Photo Collage Maker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Photo Collage Maker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +47,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C0DE0000000000000000C1 /* GoogleMobileAds in Frameworks */,
+				A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */,
+				A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +94,9 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				A1C0DE0000000000000000B1 /* GoogleMobileAds */,
+				A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */,
+				A1C0DE0000000000000000B3 /* FirebaseAnalytics */,
 			);
 			productName = iosApp;
 			productReference = 253494A8C22BA1D8517DFE66 /* Photo Collage Maker.app */;
@@ -114,6 +126,10 @@
 			);
 			mainGroup = 9DD70233D89149D07C810B5A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A1C0DE0000000000000000A1 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 382323829912E7916407A528 /* Products */;
 			projectDirPath = "";
@@ -192,6 +208,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -222,6 +242,10 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
 				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -374,6 +398,43 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1C0DE0000000000000000A1 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+		A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1C0DE0000000000000000B1 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000000A1 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseRemoteConfig;
+		};
+		A1C0DE0000000000000000B3 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 767E3DAE5A64410BADE34091 /* Project object */;
 }

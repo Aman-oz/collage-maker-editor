@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    // Reads google-services.json (Firebase Remote Config + Analytics used by ads-kmp).
+    alias(libs.plugins.googleServices)
 }
 
 kotlin {
@@ -26,7 +28,7 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.las.collage.maker"
+        applicationId = "com.piccollagemaker.photoeditor"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

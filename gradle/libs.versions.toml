@@ -1,8 +1,10 @@
 [versions]
+adsKmp = "1.0.9"
 agp = "9.0.1"
 androidsvg = "1.4"
 android-compileSdk = "36"
-android-minSdk = "24"
+# 26: required by ads-kmp (GMA Next-Gen SDK).
+android-minSdk = "26"
 android-targetSdk = "36"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.8.0"
@@ -16,6 +18,7 @@ composeMultiplatform = "1.11.1"
 composeMaterialIconsExtended = "1.7.3"
 compottie = "2.2.4"
 filekit = "0.15.0"
+googleServices = "4.4.2"
 junit = "4.13.2"
 koin = "4.2.2"
 kotlin = "2.4.10"
@@ -28,6 +31,7 @@ material3 = "1.11.0-alpha07"
 navigation3 = "1.1.1"
 
 [libraries]
+ads-kmp = { module = "com.ozi.admob.nextgen.compose:ads-kmp", version.ref = "adsKmp" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -79,4 +83,5 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

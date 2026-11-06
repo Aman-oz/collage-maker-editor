@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944745471295",
+    "project_id": "collage-maker-photoeditor",
+    "storage_bucket": "collage-maker-photoeditor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944745471295:android:3a0e9017128f5b6c7fc78a",
+        "android_client_info": {
+          "package_name": "com.piccollagemaker.photoeditor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6yMB601ioCwLVF3JZfYChuHs2cnSbhK0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

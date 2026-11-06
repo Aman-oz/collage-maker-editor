@@ -192,6 +192,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.ads.kmp)
 
             // Navigation 3
             implementation(libs.navigation3.ui)
