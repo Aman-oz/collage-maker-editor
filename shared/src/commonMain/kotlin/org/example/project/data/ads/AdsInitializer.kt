@@ -2,6 +2,7 @@ package org.example.project.data.ads
 
 import com.ozi.nextgen.compose.ads_kmp.OziAds
 import com.ozi.nextgen.compose.ads_kmp.OziAdsConfig
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.example.project.Platform
 import photocollagemaker.shared.generated.resources.Res
@@ -50,7 +51,13 @@ class AdsInitializer(private val platform: Platform) {
                     iosDefaultsJson = iosDefaults,
                 ),
             ) { fetched ->
-                println("Ads: initialized on ${OziAds.platformName} (${OziAds.activeConfigKey}), Remote Config fetched=$fetched")
+                val block = if (platform.isDebugBuild) "debug_ad_configuration" else "release_ad_configuration"
+                println("Ads: initialized on ${OziAds.platformName} (${OziAds.activeConfigKey} → $block), Remote Config fetched=$fetched")
+                // What the active block resolved to, to check a console change landed (relaunch after publishing).
+                val banner = AdPlacementKeys.INTERNAL_APP_BANNER
+                println("Ads: $banner enabled=${OziAds.isEnabled(banner, AdPoints.INTERNAL_APP_BANNER_EDITOR)} adId=${OziAds.adIdFor(banner).ifEmpty { "(empty)" }}")
+                // Warm the back-press interstitial, so the first back doesn't wait on a load.
+                if (!isPremium) OziAds.interstitial.loadForPlacement(AdPlacementKeys.INTERNAL_APP_INTERSTITIAL)
                 if (cont.isActive) cont.resume(fetched)
             }
         }

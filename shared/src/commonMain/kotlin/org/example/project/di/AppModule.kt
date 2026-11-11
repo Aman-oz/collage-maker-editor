@@ -65,12 +65,15 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import org.example.project.data.ads.BackInterstitial
 
 /** Platform independent singletons. */
 val coreModule: Module = module {
     single<Platform> { getPlatform() }
     // Consent + ads SDK + Firebase Remote Config start-up, run once from the splash.
     single { AdsInitializer(get()) }
+    // The back-press interstitial (see AppNavDisplay's goBack).
+    single { BackInterstitial(get()) }
     // Shared working copy of the photo being edited, so the editor and the screens around it (background
     // remover, save, ...) stay in sync without passing image data through navigation arguments.
     single { ImageEditSession() }

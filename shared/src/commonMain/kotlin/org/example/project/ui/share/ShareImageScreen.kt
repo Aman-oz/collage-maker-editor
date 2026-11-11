@@ -69,6 +69,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_home_outline
+import org.example.project.data.ads.AdPoints
+import org.example.project.ui.common.BottomNativeAd
 
 /**
  * What the primary button next to Home offers to start next. The caller picks it from the flow the
@@ -193,6 +195,10 @@ private fun ShareImageContent(
                         suggestion = suggestion,
                         onSuggestion = onSuggestion,
                         modifier = Modifier.readableWidth(),
+                    )
+                    BottomNativeAd(
+                        point = AdPoints.INTERNAL_APP_NATIVE_SHARE,
+                        modifier = Modifier.readableWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
                     )
                 }
             }

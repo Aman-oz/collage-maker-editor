@@ -73,8 +73,15 @@ import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
-import photocollagemaker.shared.generated.resources.app_icon
+import org.example.project.data.appicon.AppIcons
 import photocollagemaker.shared.generated.resources.ic_premium_icon
+import photocollagemaker.shared.generated.resources.ic_watch_ad
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import org.example.project.data.ads.AdPoints
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
+import com.ozi.nextgen.compose.ads_kmp.OziAds
+import org.example.project.ui.common.BottomNativeAd
 
 /** Fill of the premium "Remove watermark" button. */
 private val PremiumAccent = Color(0xFF8B5CF6)
@@ -99,16 +106,61 @@ fun SaveImageScreen(
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
-    val watermark = imageResource(Res.drawable.app_icon)
+    // The app icon the user sees on their home screen (see AppIcons).
+    val watermark = imageResource(remember { AppIcons.selectedArtwork() })
+
+    // A rewarded ad before "Save with watermark", preloaded so the tap usually shows it at once.
+    LaunchedEffect(isPremium) {
+        if (!isPremium) {
+            OziAds.rewarded.loadForPlacement(AdPlacementKeys.ON_ACTION_REWARDED_VIDEO, AdPoints.ON_ACTION_REWARDED_VIDEO_SAVE)
+        }
+    }
+    // The "watch an ad" icon only when the tap will really try to show one.
+    val rewardedEnabled = remember(isPremium) {
+        !isPremium && OziAds.isEnabled(AdPlacementKeys.ON_ACTION_REWARDED_VIDEO, AdPoints.ON_ACTION_REWARDED_VIDEO_SAVE)
+    }
+    // Ignores taps while the ad is loading/showing.
+    var rewardedInFlight by remember { mutableStateOf(false) }
 
     SaveImageContent(
         image = viewModel.image,
         // Premium images are saved clean, so there is no watermark to preview either.
         watermark = watermark.takeUnless { isPremium },
         isPremium = isPremium,
+        showAdIcon = rewardedEnabled,
         status = status,
         onBack = onBack,
-        onSaveWithWatermark = { viewModel.save(watermark) },
+        onSaveWithWatermark = {
+            if (!rewardedInFlight) {
+                rewardedInFlight = true
+                val save = {
+                    rewardedInFlight = false
+                    viewModel.save(watermark)
+                }
+                // The rewarded ad first. Once it has shown, the photo is saved however it ended
+                // (watched or closed early). When it couldn't show at all (failed or timed out,
+                // placement disabled or blocked in Remote Config), the internal_app_interstitial
+                // takes its place, and the photo is saved after that whether or not it showed.
+                // Both SDK calls always call back, so saving never gets stuck behind an ad.
+                var rewardedShown = false
+                OziAds.rewarded.loadAndShowForPlacement(
+                    placementKey = AdPlacementKeys.ON_ACTION_REWARDED_VIDEO,
+                    point = AdPoints.ON_ACTION_REWARDED_VIDEO_SAVE,
+                    onAdVisible = { rewardedShown = true },
+                    onRewardEarned = {
+                        if (rewardedShown) {
+                            save()
+                        } else {
+                            OziAds.interstitial.showAndLoadForPlacement(
+                                placementKey = AdPlacementKeys.INTERNAL_APP_INTERSTITIAL,
+                                point = AdPoints.INTERNAL_APP_INTERSTITIAL_SAVE,
+                                onComplete = { save() },
+                            )
+                        }
+                    },
+                )
+            }
+        },
         onSaveClean = { viewModel.save(watermark = null) },
         // Removing the watermark is a premium feature: free users are sent to the paywall.
         onRemoveWatermark = onOpenPremium,
@@ -123,6 +175,7 @@ private fun SaveImageContent(
     image: ImageBitmap?,
     watermark: ImageBitmap?,
     isPremium: Boolean,
+    showAdIcon: Boolean,
     status: SaveStatus,
     onBack: () -> Unit,
     onSaveWithWatermark: () -> Unit,
@@ -166,6 +219,7 @@ private fun SaveImageContent(
             val buttons: @Composable (Modifier) -> Unit = { buttonsModifier ->
                 SaveButtons(
                     isPremium = isPremium,
+                    showAdIcon = showAdIcon,
                     enabled = !saving && image != null,
                     onSaveWithWatermark = onSaveWithWatermark,
                     onSaveClean = onSaveClean,
@@ -191,7 +245,11 @@ private fun SaveImageContent(
                     SaveImageTopBar(onBack = onBack)
                     preview(Modifier.weight(1f).fillMaxWidth())
                     // Capped on a tablet, where full-width buttons would span the whole screen.
-                    buttons(Modifier.readableWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 40.dp))
+                    buttons(Modifier.readableWidth().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 20.dp))
+                    BottomNativeAd(
+                        point = AdPoints.INTERNAL_APP_NATIVE_SAVE,
+                        modifier = Modifier.readableWidth().padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+                    )
                 }
             }
         }
@@ -207,6 +265,7 @@ private fun SaveImageContent(
 @Composable
 private fun SaveButtons(
     isPremium: Boolean,
+    showAdIcon: Boolean,
     enabled: Boolean,
     onSaveWithWatermark: () -> Unit,
     onSaveClean: () -> Unit,
@@ -239,10 +298,19 @@ private fun SaveButtons(
                 enabled = enabled,
                 modifier = Modifier.springBounce(watermarkSaveBounce).weight(1f).height(52.dp),
                 shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                // Purple outline and text, matching the watch-ad icon.
+                border = BorderStroke(1.dp, PremiumAccent),
                 contentPadding = PaddingValues(horizontal = 12.dp),
             ) {
-                ButtonLabel(text = tr("Save with\nwatermark"), color = MaterialTheme.colorScheme.onSurface)
+                if (showAdIcon) {
+                    Image(
+                        painter = painterResource(Res.drawable.ic_watch_ad),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                ButtonLabel(text = tr("Save with\nwatermark"), color = PremiumAccent)
             }
             val removeBounce = rememberSpringBounce()
             Button(
@@ -419,6 +487,7 @@ private fun SaveImageContentPreview() {
             image = ImageBitmap(300, 400),
             watermark = ImageBitmap(64, 64),
             isPremium = false,
+            showAdIcon = true,
             status = SaveStatus.Idle,
             onBack = {},
             onSaveWithWatermark = {},

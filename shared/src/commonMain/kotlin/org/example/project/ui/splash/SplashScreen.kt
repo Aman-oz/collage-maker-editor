@@ -18,6 +18,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -35,7 +36,7 @@ import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
-import photocollagemaker.shared.generated.resources.app_icon
+import org.example.project.data.appicon.AppIcons
 
 /** Splash brand color; the title and the loading bar derive from it. */
 private val SplashPrimary = Color(0xFF8B5CF6)
@@ -74,7 +75,7 @@ private fun SplashContent(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Image(
-                painter = painterResource(Res.drawable.app_icon),
+                painter = painterResource(remember { AppIcons.selectedArtwork() }),
                 contentDescription = null,
                 modifier = Modifier
                     .size(96.dp)

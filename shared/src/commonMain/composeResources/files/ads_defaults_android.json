@@ -146,7 +146,7 @@
             ]
         },
         "internal_app_banner": {
-            "enable": true,
+            "enable": false,
             "adId": "ca-app-pub-3940256099942544/6300978111",
             "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
             "points": []

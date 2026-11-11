@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.project.data.AppSettings
 import org.example.project.data.ads.AdsInitializer
+import org.example.project.data.appicon.AppIcons
 
 /** Where the splash hands off to once its loading time is over. */
 enum class SplashNext {
@@ -41,6 +42,8 @@ class SplashViewModel(
             val adsReady = async { ads.start(isPremium = settings.isPremium.value) }
             delay(SPLASH_DURATION_MS)
             adsReady.await()
+            // Remote Config is in now, so this is where a console change of the icon lands.
+            AppIcons.applyFromRemoteConfig()
             _next.value = when {
                 !settings.hasCompletedOnboarding -> SplashNext.FirstRun
                 settings.isPremium.value -> SplashNext.Home

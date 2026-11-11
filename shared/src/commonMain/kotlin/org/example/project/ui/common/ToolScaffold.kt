@@ -24,6 +24,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -105,6 +106,12 @@ internal class InlineToolHostState<T : Any>(initial: T? = null) {
     /** Reported by [ToolScaffold], so the editor can clear exactly the room the panel takes. */
     var panelHeightPx by mutableIntStateOf(0)
 
+    /**
+     * Set by the editor: room it keeps at the top for content pinned above the tools (its banner
+     * ad), so a tool's stage starts below it instead of underneath it. 0 when there is none.
+     */
+    var topInsetPx by mutableIntStateOf(0)
+
     /** Reported by [ToolScaffold]: how far the tool's stage insets the photo. */
     var photoInset by mutableStateOf(ToolStageInset)
 
@@ -180,7 +187,8 @@ internal fun ToolScaffold(
         modifier = modifier
             .fillMaxSize()
             .then(if (host == null) Modifier.background(surface) else Modifier)
-            .windowInsetsPadding(insets),
+            .windowInsetsPadding(insets)
+            .then(if (host != null && host.topInsetPx > 0) Modifier.padding(top = with(LocalDensity.current) { host.topInsetPx.toDp() }) else Modifier),
     ) {
         val sideBySide = isSideBySideEditor(maxWidth, maxHeight)
         val scope = remember(host, surface, sideBySide) { ToolScaffoldScope(host, surface, sideBySide) }

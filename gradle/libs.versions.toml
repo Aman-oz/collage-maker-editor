@@ -1,5 +1,5 @@
 [versions]
-adsKmp = "1.0.9"
+adsKmp = "1.0.12"
 agp = "9.0.1"
 androidsvg = "1.4"
 android-compileSdk = "36"

@@ -792,13 +792,14 @@ private fun BackgroundPanel(
  * the Shop's BG tab; "Use" on a pack there brings the tab back open on it.
  */
 @Composable
-private fun BackgroundArtBody(
+internal fun BackgroundArtBody(
     chrome: FreestyleChrome,
     load: LayoutArtLoad,
     selected: LayoutArt?,
     onSelected: (LayoutArt) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    artSize: Dp = BackgroundArtSize,
 ) {
     when (load) {
         LayoutArtLoad.Loading -> Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -827,10 +828,11 @@ private fun BackgroundArtBody(
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(BackgroundSwatchSpacing),
-                    modifier = Modifier.fillMaxWidth().height(BackgroundArtSize),
+                    modifier = Modifier.fillMaxWidth().height(artSize),
                 ) {
                     items(subcategory?.items.orEmpty(), key = { it.id }) { art ->
                         BackgroundArtCell(
+                            size = artSize,
                             chrome = chrome,
                             art = art,
                             selected = art.id == selected?.id,
@@ -871,12 +873,12 @@ private val BackgroundArtSize = 76.dp
 
 /** One background picture's thumbnail, ringed while [selected], crowned if premium. */
 @Composable
-private fun BackgroundArtCell(chrome: FreestyleChrome, art: LayoutArt, selected: Boolean, onClick: () -> Unit) {
+private fun BackgroundArtCell(chrome: FreestyleChrome, art: LayoutArt, selected: Boolean, onClick: () -> Unit, size: Dp = BackgroundArtSize) {
     // The picture's download into the disk cache, started by a tap on a free one.
     val assetCache = koinInject<AssetCache>()
     val download by remember(art.imageUrl) { assetCache.progressOf(art.imageUrl) }.collectAsState(null)
     val kept by remember(art.imageUrl) { assetCache.keptOf(art.imageUrl) }.collectAsState(null)
-    BackgroundSwatch(chrome = chrome, selected = selected, onClick = onClick, width = BackgroundArtSize, height = BackgroundArtSize) {
+    BackgroundSwatch(chrome = chrome, selected = selected, onClick = onClick, width = size, height = size) {
         Box(modifier = it) {
             NetworkImage(
                 url = art.thumbnailUrl,

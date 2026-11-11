@@ -125,6 +125,9 @@ import org.example.project.ui.common.springBounce
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
 import org.koin.compose.viewmodel.koinViewModel
+import com.ozi.nextgen.compose.ads_kmp.OziAds
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
+import org.example.project.data.ads.AdPoints
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_before_after
 import photocollagemaker.shared.generated.resources.ic_eraser_ai
@@ -274,6 +277,8 @@ private fun BackgroundRemoverEditorContent(
     var isAdjustingBrush by remember { mutableStateOf(false) }
     var cursorPositionPx by remember { mutableStateOf(Offset.Zero) }
     var showAiPremiumDialog by remember { mutableStateOf(false) }
+    // Ignores "Unlock free" taps while its rewarded ad is loading or showing.
+    var rewardedInFlight by remember { mutableStateOf(false) }
 
     // A function rather than a val: the drag gesture's pointerInput block outlives recompositions,
     // so it must read brushSize/zoom state live instead of a value captured when it started.
@@ -671,17 +676,38 @@ private fun BackgroundRemoverEditorContent(
             },
         ) {
             AiMagicUnlockDialog(
-                // There is no rewarded-ad SDK yet, so "Unlock free" grants the removal straight away.
+                // "Unlock free" loads the rewarded ad on the tap (nothing is preloaded) and shows it
+                // behind the SDK's loading dialog. The removal runs when the reward is earned, or
+                // when no ad could be shown at all (placement off, load failed or timed out) so the
+                // user isn't locked out. Closing the ad early keeps the dialog up to try again.
                 onUnlockFree = {
-                    AppLog.d(ScreenTag, "Ai Magic unlocked free from the premium dialog")
-                    showAiPremiumDialog = false
-                    onAiMagic()
+                    if (!rewardedInFlight) {
+                        rewardedInFlight = true
+                        var adShown = false
+                        OziAds.rewarded.loadAndShowForPlacement(
+                            placementKey = AdPlacementKeys.ON_ACTION_REWARDED_VIDEO,
+                            point = AdPoints.ON_ACTION_REWARDED_VIDEO_AI_MAGIC,
+                            onAdVisible = { adShown = true },
+                            onRewardEarned = { earned ->
+                                rewardedInFlight = false
+                                AppLog.d(ScreenTag, "Ai Magic rewarded ad done (shown: $adShown, earned: $earned)")
+                                if (earned || !adShown) {
+                                    showAiPremiumDialog = false
+                                    onAiMagic()
+                                }
+                            },
+                        )
+                    }
                 },
                 onGetPro = {
                     showAiPremiumDialog = false
                     onOpenPremium()
                 },
                 wide = sideBySide,
+                // Only when "Unlock free" will really try to show the ad.
+                showAdIcon = remember {
+                    OziAds.isEnabled(AdPlacementKeys.ON_ACTION_REWARDED_VIDEO, AdPoints.ON_ACTION_REWARDED_VIDEO_AI_MAGIC)
+                },
             )
         }
     }

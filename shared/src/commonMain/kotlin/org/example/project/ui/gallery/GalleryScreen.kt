@@ -120,12 +120,12 @@ import org.example.project.ui.common.rememberBubbleClick
 import org.example.project.ui.common.topBar
 import org.example.project.ui.common.LiquidDropSpring
 import org.example.project.ui.common.LiquidSegmentedTabs
-import org.example.project.ui.common.clearLiquidGlass
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_camera
+import org.example.project.ui.common.calmGlassCircle
 
 /** The two sources offered by the segmented control at the top of the gallery. */
 internal enum class GalleryTab(private val englishLabel: String) {
@@ -560,7 +560,7 @@ private fun GlassCircleButton(
                         placeable.place((constraints.maxWidth - side) / 2, (constraints.maxHeight - side) / 2)
                     }
                 }
-                .clearLiquidGlass(liquidState, CircleShape, tint)
+                .calmGlassCircle(liquidState, tint)
                 .border(1.dp, Brush.verticalGradient(listOf(rim, rim.copy(alpha = 0.08f))), CircleShape)
                 .clickable(
                     interactionSource = bubble.interactionSource,

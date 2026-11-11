@@ -41,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,6 +88,13 @@ import org.example.project.ui.freestyle.FreestyleCanvas
 import org.example.project.ui.freestyle.FreestyleStickerBaseSizeSp
 import org.example.project.ui.freestyle.StickersPanel
 import org.example.project.ui.freestyle.freestyleChrome
+import org.example.project.ui.freestyle.BackgroundArtBody
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLoad
+import org.example.project.data.billing.PremiumPack
+import org.example.project.ui.premium.unlockedFor
+import org.example.project.ui.common.PreventScreenCapture
+import org.example.project.ui.common.ProFeatureBar
 import org.example.project.ui.freestyle.onGestureEnd
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.vectorResource
@@ -122,10 +130,11 @@ private val ToolPanelHeight = 190.dp
 /** The bottom tabs that open a panel under the photo; Text opens the Text tool instead. */
 private enum class SetBackgroundTool { Background, Stickers }
 
-/** The two pages of the Background panel. */
+/** The pages of the Background panel: colours, gradients, and the server's background pictures. */
 private enum class BackdropTab(private val englishLabel: String) {
     Colour("Colour"),
     Gradient("Gradient"),
+    Backgrounds("Backgrounds"),
     ;
 
     /** In the app's current language; read it where it is shown, never keep it. */
@@ -151,6 +160,11 @@ fun SetBackgroundScreen(
     val scope = rememberCoroutineScope()
     val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val photos by viewModel.photos.collectAsStateWithLifecycle()
+    val artLoad by viewModel.artCategories.collectAsStateWithLifecycle()
+    // A premium background can be tried by anyone, but not screenshotted, as in the freestyle editor.
+    val onPremiumArt = (uiState.edit.backdrop as? Backdrop.Art)?.art?.isPremium == true &&
+        !unlockedFor(PremiumPack.Backgrounds, isPremium)
+    PreventScreenCapture(enabled = onPremiumArt)
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val photoPicker = rememberFilePickerLauncher(type = FileKitType.Image) { file ->
@@ -164,12 +178,15 @@ fun SetBackgroundScreen(
             texts = texts,
             stickers = stickers,
             photos = photos,
+            artLoad = artLoad,
+            onPremiumArt = onPremiumArt,
             onBack = onBack,
             onDone = { previewSizePx ->
                 // A premium backdrop or stickers show a non-subscriber the paywall once, as an
                 // offer. The edit lives in the ViewModel, so it is still here when they come back, and
                 // the next Done goes through whether or not they subscribed.
-                if (viewModel.consumePremiumOffer()) {
+                // A premium server background is a hard gate instead: the paywall every time.
+                if (viewModel.needsPremium || viewModel.consumePremiumOffer()) {
                     onPremium()
                 } else {
                     scope.launch {
@@ -179,6 +196,8 @@ fun SetBackgroundScreen(
             },
             onAddPhoto = { photoPicker.launch() },
             onSelectBackdrop = viewModel::selectBackdrop,
+            onSelectArt = viewModel::selectArt,
+            onLoadArt = viewModel::loadArt,
             onAddSticker = viewModel::addSticker,
             onOpenTextTool = { previewSizePx, selectedTextId ->
                 viewModel.openTextTool(textMeasurer, previewSizePx.width.toFloat(), density.density, selectedTextId)
@@ -221,10 +240,14 @@ private fun SetBackgroundContent(
     texts: TextLayers?,
     stickers: List<PlacedSticker>,
     photos: List<ImageBitmap>,
+    artLoad: LayoutArtLoad,
+    onPremiumArt: Boolean,
     onBack: () -> Unit,
     onDone: (previewSizePx: IntSize) -> Unit,
     onAddPhoto: () -> Unit,
     onSelectBackdrop: (Backdrop) -> Unit,
+    onSelectArt: (LayoutArt) -> Unit,
+    onLoadArt: () -> Unit,
     onAddSticker: (String) -> Unit,
     onOpenTextTool: (previewSizePx: IntSize, selectedTextId: Long?) -> Unit,
     onOpenStickersTool: (previewSizePx: IntSize, selectedStickerId: Long?) -> Unit,
@@ -321,6 +344,13 @@ private fun SetBackgroundContent(
                     } else {
                         Text(tr("No image to edit"), color = chrome.content, style = MaterialTheme.typography.bodyLarge)
                     }
+                    // A premium background is free to try; for a non-subscriber this bar says so and
+                    // leads to the paywall, as Done does. Over the photo, so its size never changes.
+                    ProFeatureBar(
+                        visible = onPremiumArt,
+                        pack = PremiumPack.Backgrounds,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
                 }
             },
             panel = {
@@ -330,8 +360,11 @@ private fun SetBackgroundContent(
                         onTabSelected = { tab = it },
                         selected = edit.backdrop,
                         photos = photos,
+                        artLoad = artLoad,
                         onAddPhoto = onAddPhoto,
                         onSelected = onSelectBackdrop,
+                        onSelectArt = onSelectArt,
+                        onLoadArt = onLoadArt,
                     )
                     SetBackgroundTool.Stickers -> StickersPanel(
                         chrome = chrome,
@@ -382,16 +415,23 @@ private fun SetBackgroundContent(
     }
 }
 
-/** The Colour / Gradient switch over a grid led by the gallery tiles. */
+/**
+ * The Colour / Gradient / Backgrounds switch. Colour and Gradient are a grid led by the gallery
+ * tiles; Backgrounds is the freestyle editor's list of server pictures, read when the tab opens.
+ */
 @Composable
 private fun BackgroundPanel(
     tab: BackdropTab,
     onTabSelected: (BackdropTab) -> Unit,
     selected: Backdrop,
     photos: List<ImageBitmap>,
+    artLoad: LayoutArtLoad,
     onAddPhoto: () -> Unit,
     onSelected: (Backdrop) -> Unit,
+    onSelectArt: (LayoutArt) -> Unit,
+    onLoadArt: () -> Unit,
 ) {
+    LaunchedEffect(tab) { if (tab == BackdropTab.Backgrounds) onLoadArt() }
     val scheme = MaterialTheme.colorScheme
     val selectedColor = (selected as? Backdrop.Solid)?.color
     val pickCustomColor = rememberColorPickerLauncher(
@@ -407,6 +447,21 @@ private fun BackgroundPanel(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
+
+        if (tab == BackdropTab.Backgrounds) {
+            BackgroundArtBody(
+                chrome = freestyleChrome(),
+                load = artLoad,
+                selected = (selected as? Backdrop.Art)?.art,
+                onSelected = onSelectArt,
+                onRetry = onLoadArt,
+                modifier = Modifier.fillMaxWidth().height(TallTileHeight),
+                // Smaller than the freestyle editor's, so the pictures and the category pills
+                // under them fit the grid's height and the panel never resizes.
+                artSize = 68.dp,
+            )
+            return@Column
+        }
 
         LazyHorizontalGrid(
             rows = GridCells.Fixed(2),
@@ -470,6 +525,7 @@ private fun BackgroundPanel(
                         }
                     }
                 }
+                BackdropTab.Backgrounds -> Unit
                 BackdropTab.Gradient -> items(BackdropGradients) { colors ->
                     val backdrop = Backdrop.Gradient(colors)
                     BackdropTile(selected = backdrop == selected, onClick = { onSelected(backdrop) }) {
@@ -536,7 +592,7 @@ private fun BackdropTabSwitch(selected: BackdropTab, onSelected: (BackdropTab) -
     val scheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier
-            .width(240.dp)
+            .width(330.dp)
             .clip(CircleShape)
             .background(scheme.onSurface.copy(alpha = 0.06f))
             .padding(4.dp),
@@ -645,6 +701,10 @@ private fun SetBackgroundPreview() {
             onUndo = {},
             onRedo = {},
             onGestureEnd = {},
+            artLoad = LayoutArtLoad.Loading,
+            onPremiumArt = false,
+            onSelectArt = {},
+            onLoadArt = {},
         )
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alternate launcher icon "app_icon_4" (see AppIcons), made from collage-maker-assets/AppIcon/app_icon_4.png. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_app_icon_4_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_app_icon_4_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_app_icon_4_foreground" />
+</adaptive-icon>

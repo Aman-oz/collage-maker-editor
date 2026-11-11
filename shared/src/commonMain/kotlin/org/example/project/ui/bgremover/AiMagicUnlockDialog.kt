@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -42,6 +44,7 @@ import org.example.project.ui.common.springBounce
 import org.example.project.ui.preview.ThemePreviews
 import org.jetbrains.compose.resources.painterResource
 import photocollagemaker.shared.generated.resources.Res
+import photocollagemaker.shared.generated.resources.ic_watch_ad
 import photocollagemaker.shared.generated.resources.img_remove_bg_image
 
 /** Width / height of `img_remove_bg_image`, so the before/after banner is never cropped. */
@@ -85,13 +88,19 @@ internal val AiMagicWideDialogWidth = 600.dp
  * its side: stacked, the banner alone takes most of the screen's height and pushes the buttons off it.
  */
 @Composable
-internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit, wide: Boolean = false) {
+internal fun AiMagicUnlockDialog(
+    onUnlockFree: () -> Unit,
+    onGetPro: () -> Unit,
+    wide: Boolean = false,
+    showAdIcon: Boolean = true,
+) {
     if (wide) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // The host's glass panel clips its corners, so the banner runs edge to edge under them.
             AiMagicBanner(modifier = Modifier.weight(1f))
             AiMagicOffer(
                 onUnlockFree = onUnlockFree,
+                showAdIcon = showAdIcon,
                 onGetPro = onGetPro,
                 stackButtons = true,
                 modifier = Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 16.dp),
@@ -102,6 +111,7 @@ internal fun AiMagicUnlockDialog(onUnlockFree: () -> Unit, onGetPro: () -> Unit,
             AiMagicBanner(modifier = Modifier.fillMaxWidth())
             AiMagicOffer(
                 onUnlockFree = onUnlockFree,
+                showAdIcon = showAdIcon,
                 onGetPro = onGetPro,
                 stackButtons = false,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
@@ -124,6 +134,7 @@ private fun AiMagicBanner(modifier: Modifier = Modifier) {
 @Composable
 private fun AiMagicOffer(
     onUnlockFree: () -> Unit,
+    showAdIcon: Boolean,
     onGetPro: () -> Unit,
     stackButtons: Boolean,
     modifier: Modifier = Modifier,
@@ -151,9 +162,21 @@ private fun AiMagicOffer(
                 modifier = buttonModifier,
                 shape = CircleShape,
                 border = BorderStroke(1.dp, colors.onSurface.copy(alpha = 0.6f)),
+                contentPadding = PaddingValues(horizontal = 12.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
             ) {
-                Text(text = tr("Unlock free"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                // The icon keeps its own purple, the "watch an ad" cue.
+                if (showAdIcon) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_watch_ad),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                // One line beside the icon; the default 24 dp side padding left it too little room.
+                Text(text = tr("Unlock free"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
             }
         }
         val getPro: @Composable (Modifier) -> Unit = { buttonModifier ->

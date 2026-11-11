@@ -98,6 +98,8 @@ import photocollagemaker.shared.generated.resources.ic_padding
 import photocollagemaker.shared.generated.resources.ic_position
 import photocollagemaker.shared.generated.resources.ic_shadow
 import photocollagemaker.shared.generated.resources.ic_spacing
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.compositionLocalOf
 
 /**
  * The Text tool's customization options, in the order of the floating bar. [tinted] is false for the
@@ -511,6 +513,12 @@ internal enum class TextPanelPlacement {
  * bottom. Beside the photo ([LocalTextPanelSideBySide]) it fills a tall column: the bar goes to the
  * column's top, where the editor's own top bar was, and the controls go where [placement] says.
  */
+/**
+ * Set by an editor that sizes its panel slot to the open panel (the Layout editor): under the photo,
+ * [TextPanelColumn] reports the height its bar and controls take, without the room above them.
+ */
+internal val LocalPanelContentHeight = compositionLocalOf<((Int) -> Unit)?> { null }
+
 @Composable
 internal fun TextPanelColumn(
     title: String,
@@ -521,12 +529,25 @@ internal fun TextPanelColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sideBySide = LocalTextPanelSideBySide.current
+    val reportHeight = LocalPanelContentHeight.current
     Column(modifier = modifier.fillMaxSize()) {
-        if (!sideBySide) Spacer(modifier = Modifier.weight(1f))
-        ToolTopBar(title = title, onClose = onClose, onDone = onDone)
-        if (sideBySide && placement != TextPanelPlacement.Fill) Spacer(modifier = Modifier.weight(1f))
-        content()
-        if (sideBySide && placement == TextPanelPlacement.Center) Spacer(modifier = Modifier.weight(1f))
+        if (!sideBySide) {
+            Spacer(modifier = Modifier.weight(1f))
+            // The bar on top of the controls, measured together for an editor that fits its slot to them.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (reportHeight != null) Modifier.onSizeChanged { reportHeight(it.height) } else Modifier),
+            ) {
+                ToolTopBar(title = title, onClose = onClose, onDone = onDone)
+                content()
+            }
+        } else {
+            ToolTopBar(title = title, onClose = onClose, onDone = onDone)
+            if (placement != TextPanelPlacement.Fill) Spacer(modifier = Modifier.weight(1f))
+            content()
+            if (placement == TextPanelPlacement.Center) Spacer(modifier = Modifier.weight(1f))
+        }
     }
 }
 

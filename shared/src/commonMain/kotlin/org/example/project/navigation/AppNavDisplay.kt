@@ -60,6 +60,8 @@ import org.example.project.ui.splash.SplashNext
 import org.example.project.ui.splash.SplashScreen
 import org.example.project.ui.templates.TemplatesEditorScreen
 import org.example.project.ui.templates.TemplatesScreen
+import org.koin.compose.koinInject
+import org.example.project.data.ads.BackInterstitial
 
 /** How long a slide-up screen (gallery, save, paywall, ...) takes to slide up over / down off what is underneath. */
 private const val ToolScreenTransitionMillis = 320
@@ -100,6 +102,16 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
     // lambda down to every tool.
     val openShop: (ShopTab) -> Unit = remember(backStack) { { tab -> backStack.add(Destination.Shop(tab)) } }
     val openProOffer: (PremiumPack?) -> Unit = remember(backStack) { { pack -> backStack.add(Destination.ProOffer(pack)) } }
+    // Every back press (a screen's back / close button, or the system back) leaves through here:
+    // the internal_app_interstitial when its pacing allows, then the pop. The pop is skipped if the
+    // stack moved on meanwhile.
+    val backAds = koinInject<BackInterstitial>()
+    val goBack: () -> Unit = remember(backStack, backAds) {
+        {
+            val from = backStack.lastOrNull()
+            backAds.goBack(from as? Destination) { if (backStack.lastOrNull() === from) backStack.removeLastOrNull() }
+        }
+    }
 
     // One scope around the whole NavDisplay so an element can morph between two entries (the
     // Projects grid thumbnail into the full-screen Preview, a Templates grid cell into its editor).
@@ -108,7 +120,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
             NavDisplay(
                 backStack = backStack,
                 sharedTransitionScope = this,
-                onBack = { backStack.removeLastOrNull() },
+                onBack = goBack,
                 // `rememberViewModelStoreNavEntryDecorator` scopes ViewModels to their NavEntry, so each
                 // destination gets its own ViewModel that is cleared when the entry is popped.
                 entryDecorators = listOf(
@@ -134,7 +146,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Language> { key ->
                         LanguageScreen(
                             showBack = key.fromSettings,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onDone = {
                                 if (key.fromSettings) {
                                     backStack.removeLastOrNull()
@@ -179,7 +191,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             PreviewScreen(
                                 imagePath = key.imagePath,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 // The project's file is the editor's starting photo; the preview stays
                                 // underneath, so Back from the editor returns to it. Saving the edit
                                 // makes a new project and leaves this one as it was.
@@ -190,7 +202,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                     entry<Destination.Settings> {
                         SettingsScreen(
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onOpenLanguage = { backStack.add(Destination.Language(fromSettings = true)) },
                             onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
@@ -207,18 +219,18 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                     entry<Destination.ProOffer>(metadata = slideUpMetadata()) { key ->
                         key.pack?.let { pack -> koinViewModel<PremiumPackOfferOnLeave>(key = pack.name) { parametersOf(pack) } }
-                        ProOfferScreen(onClose = { backStack.removeLastOrNull() })
+                        ProOfferScreen(onClose = goBack)
                     }
 
                     entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
-                        ProEditorScreen(onBack = { backStack.removeLastOrNull() })
+                        ProEditorScreen(onBack = goBack)
                     }
 
                     entry<Destination.Templates>(metadata = slideUpMetadata()) { key ->
                         WithNavAnimatedScope {
                             TemplatesScreen(
                                 initialCategory = key.category,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 onOpenEditor = { frame -> backStack.add(Destination.TemplatesEditor(frame)) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
@@ -229,7 +241,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             TemplatesEditorScreen(
                                 frame = key.frame,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 // The baked template is already in the session; the template editor stays
                                 // underneath so Back from the editor returns to it for further tweaks.
                                 onDone = { backStack.add(Destination.Editor()) },
@@ -240,7 +252,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                     entry<Destination.Pip>(metadata = slideUpMetadata()) {
                         PipScreen(
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onTemplateSelected = { template ->
                                 backStack.add(Destination.Gallery(template.slots.size, GalleryTarget.Pip, template.name))
                             },
@@ -251,7 +263,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         PipEditorScreen(
                             templateName = key.templateName,
                             imagePaths = key.imagePaths,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             // Like Collage: the baked picture is in the session and the Pip editor stays
                             // underneath, so Back from the photo editor returns to it for further tweaks.
                             onApplied = { backStack.add(Destination.Editor()) },
@@ -263,7 +275,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             FramesScreen(
                                 initialCategory = key.category,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 onOpenEditor = { frame -> backStack.add(Destination.FramesEditor(frame)) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
@@ -278,7 +290,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                                 // Home's frames are photo templates too: the Templates pack (and its sheet) covers
                                 // them. PremiumPack.Frames is the decorative borders (the Shop's Border tab, Frame tool).
                                 premiumPack = PremiumPack.Templates,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 // Same as Templates: the baked frame is in the session and the frame editor
                                 // stays underneath, so Back from the editor returns to it.
                                 onDone = { backStack.add(Destination.Editor()) },
@@ -290,7 +302,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Gallery>(metadata = slideUpMetadata()) { key ->
                         GalleryScreen(
                             maxSelection = key.maxSelection,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onImagesSelected = { imagePaths ->
                                 when (key.target) {
                                     GalleryTarget.Editor -> backStack.add(Destination.Editor(imagePaths.first()))
@@ -311,7 +323,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
 
                     entry<Destination.Layouts>(metadata = slideUpMetadata()) {
                         LayoutsScreen(
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onOpenLayout = { layout -> backStack.add(Destination.LayoutEditor(layout.name)) },
                             onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
@@ -320,7 +332,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.LayoutEditor> { key ->
                         LayoutEditorScreen(
                             layoutName = key.layoutName,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             // Like Collage: the baked layout is in the session and this screen stays
                             // underneath, so Back from the photo editor returns to it for further tweaks.
                             onDone = { backStack.add(Destination.Editor()) },
@@ -332,7 +344,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         CollageEditorScreen(
                             imagePaths = key.imagePaths,
                             layoutName = key.layoutName,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             // The baked collage is already in the session; the collage stays underneath so
                             // Back from the editor returns to it for further layout tweaks.
                             onOpenEditor = { backStack.add(Destination.Editor()) },
@@ -343,7 +355,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.FreestyleEditor> { key ->
                         FreestyleEditorScreen(
                             imagePaths = key.imagePaths,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             // Same as Collage: the baked canvas is in the session, and the freestyle stays
                             // underneath so Back from the editor returns to it for further tweaks.
                             onOpenEditor = { backStack.add(Destination.Editor()) },
@@ -355,7 +367,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         EditorScreen(
                             imagePath = key.imagePath,
                             openFilterOnLoad = key.openFilter,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onDone = { backStack.add(Destination.SaveImage) },
                             onOpenPremium = { backStack.add(Destination.Premium()) },
                         )
@@ -364,7 +376,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.SaveImage>(metadata = slideUpMetadata()) {
                         WithNavAnimatedScope {
                             SaveImageScreen(
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
@@ -383,7 +395,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             ShareImageScreen(
                                 imagePath = key.imagePath,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 onHome = { backStack.popToHome() },
                                 suggestion = suggestion,
                                 onSuggestion = {
@@ -403,7 +415,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             BackgroundRemoverCropScreen(
                                 imagePath = key.imagePath,
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 // The crop stays underneath, so Back from the eraser returns to re-crop.
                                 onCropped = { backStack.add(Destination.BackgroundRemoverEditor) },
                             )
@@ -413,7 +425,7 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.BackgroundRemoverEditor> {
                         WithNavAnimatedScope {
                             BackgroundRemoverEditorScreen(
-                                onBack = { backStack.removeLastOrNull() },
+                                onBack = goBack,
                                 // The cut-out is in the session and the eraser stays underneath, so Back from
                                 // the background picker returns to it for further touch-ups.
                                 onApplied = { backStack.add(Destination.SetBackground) },
@@ -423,14 +435,14 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     }
 
                     entry<Destination.Shop>(metadata = slideUpMetadata()) { key ->
-                        ShopScreen(initialTab = key.tab, onBack = { backStack.removeLastOrNull() })
+                        ShopScreen(initialTab = key.tab, onBack = goBack)
                     }
 
                     entry<Destination.SetBackground> {
                         // Like Collage: the flattened photo is in the session and this screen stays
                         // underneath, so Back from the photo editor returns here to try another backdrop.
                         SetBackgroundScreen(
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = goBack,
                             onApplied = { backStack.add(Destination.Editor()) },
                             onPremium = { backStack.add(Destination.Premium()) },
                         )

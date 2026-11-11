@@ -18,6 +18,7 @@ import org.example.project.ui.common.drawImageCropped
 import org.example.project.ui.common.drawImageScaled
 import org.example.project.ui.freestyle.FreestyleLayer
 import org.example.project.ui.freestyle.drawFreestyleLayer
+import org.example.project.ui.layouteditor.LayoutArt
 
 /** What fills the transparent areas behind the cut-out. */
 sealed interface Backdrop {
@@ -27,6 +28,12 @@ sealed interface Backdrop {
 
     /** A photo the user picked, center-cropped to fill. Must be a bitmap this app created (`copyBitmap`). */
     data class Photo(val image: ImageBitmap) : Backdrop
+
+    /**
+     * A server background ([art], the freestyle editor's Backgrounds), center-cropped to fill like
+     * [Photo]. [image] is its full picture, downloaded and copied (`copyBitmap`) before it is picked.
+     */
+    data class Art(val art: LayoutArt, val image: ImageBitmap) : Backdrop
 }
 
 /**
@@ -44,6 +51,7 @@ internal fun DrawScope.drawBackdrop(backdrop: Backdrop) {
         is Backdrop.Solid -> drawRect(backdrop.color)
         is Backdrop.Gradient -> drawRect(Brush.linearGradient(backdrop.colors, start = Offset.Zero, end = Offset(size.width, size.height)))
         is Backdrop.Photo -> drawImageCropped(backdrop.image, IntOffset.Zero, size.toIntSize())
+        is Backdrop.Art -> drawImageCropped(backdrop.image, IntOffset.Zero, size.toIntSize())
     }
 }
 

@@ -31,6 +31,7 @@ import io.github.fletchmckee.liquid.liquid
 import io.github.fletchmckee.liquid.rememberLiquidState
 import kotlin.math.roundToInt
 import org.example.project.ui.theme.Brand
+import io.github.fletchmckee.liquid.LiquidState
 
 /** Height every screen's top bar uses, so the title and buttons sit at the same spot app-wide. */
 internal val TopBarHeight = 56.dp
@@ -54,6 +55,25 @@ internal val UndoRedoDoneWidth = TopBarButtonSize * 3 + 16.dp + 8.dp
 /** The standard top-bar frame: full width, [TopBarHeight] tall, [TopBarHorizontalPadding] sides. */
 internal fun Modifier.topBar(): Modifier =
     fillMaxWidth().height(TopBarHeight).padding(horizontal = TopBarHorizontalPadding)
+
+/**
+ * The Liquid Glass of the small circular buttons (back / close), tuned like the Home bar's
+ * selection bubble. A strong lens warps the backdrop near the rim into twisted grey swirls, frost
+ * blurs the transparent pixels outside the circle into the rim as a grey shadow, and dispersion
+ * and Liquid's own edge light add a grey fringe. So: a gentle lens, no frost, no dispersion and
+ * little edge light; the rim comes from the buttons' borders instead.
+ */
+internal fun Modifier.calmGlassCircle(liquidState: LiquidState, tint: Color): Modifier =
+    clip(CircleShape).liquid(liquidState) {
+        shape = CircleShape
+        frost = 0.dp
+        curve = 0.22f
+        refraction = 0.14f
+        edge = 0.2f
+        dispersion = 0f
+        saturation = 1.15f
+        this.tint = tint
+    }
 
 internal enum class GlassButtonStyle {
     /** Clear glass over a faint content-colored wash: back / close. */
@@ -96,13 +116,14 @@ internal fun GlassTopBarButton(
     }
     val liquidState = rememberLiquidState()
     val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    // Light mode needs a stronger wash: over a white screen the faint dark gradient that reads as
-    // glass in dark mode vanishes.
-    val backdrop = Brush.linearGradient(
+    // An almost even wash, so the disc reads as glass without a dark side: a diagonal gradient is what
+    // the lens twisted at the rim, and a strong top-to-bottom one still shades the lower half like a
+    // shadow. Light mode needs a little more: over a white screen a fainter wash vanishes.
+    val backdrop = Brush.verticalGradient(
         if (isLight) {
-            listOf(contentColor.copy(alpha = 0.05f), contentColor.copy(alpha = 0.16f))
+            listOf(contentColor.copy(alpha = 0.06f), contentColor.copy(alpha = 0.09f))
         } else {
-            listOf(contentColor.copy(alpha = 0.16f), contentColor.copy(alpha = 0.04f))
+            listOf(contentColor.copy(alpha = 0.12f), contentColor.copy(alpha = 0.09f))
         },
     )
     val glassTint = Color.White.copy(alpha = if (isLight) 0.1f else 0.08f)
@@ -138,17 +159,7 @@ internal fun GlassTopBarButton(
             modifier = Modifier
                 .fillMaxSize()
                 .then(glassSize)
-                .clip(CircleShape)
-                .liquid(liquidState) {
-                    shape = CircleShape
-                    frost = 2.dp
-                    curve = 0.45f
-                    refraction = 0.4f
-                    edge = 0.7f
-                    dispersion = 0.2f
-                    saturation = 1.25f
-                    tint = glassTint
-                }
+                .calmGlassCircle(liquidState, glassTint)
                 .clickable(
                     interactionSource = bubble.interactionSource,
                     indication = null,

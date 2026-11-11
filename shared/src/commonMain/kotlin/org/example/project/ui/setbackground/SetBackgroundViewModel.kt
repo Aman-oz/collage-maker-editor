@@ -13,7 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.example.project.data.AppSettings
+import org.example.project.data.billing.PremiumPack
+import org.example.project.data.centraldata.CentralDataConfig
+import org.example.project.ui.layouteditor.LayoutArt
+import org.example.project.ui.layouteditor.LayoutArtLibrary
+import org.example.project.ui.layouteditor.LayoutArtLoad
 import org.example.project.data.ImageEditSession
 import org.example.project.data.network.NetworkImageLoader
 import org.example.project.ui.common.copyBitmap
@@ -66,7 +73,53 @@ class SetBackgroundViewModel(
     private val session: ImageEditSession,
     private val settings: AppSettings,
     private val imageLoader: NetworkImageLoader,
+    private val artLibrary: LayoutArtLibrary,
 ) : ViewModel() {
+
+    private val _artCategories = MutableStateFlow<LayoutArtLoad>(LayoutArtLoad.Loading)
+
+    /** The server's backgrounds for the Backgrounds tab (the freestyle editor's); loaded when it first opens. */
+    internal val artCategories: StateFlow<LayoutArtLoad> = _artCategories.asStateFlow()
+
+    /** The background picture being downloaded for a pick; a later pick wins over an earlier one. */
+    private var pendingArtId: String? = null
+
+    /**
+     * Whether Done must open the paywall instead of applying: a non-subscriber with a premium server
+     * background on. Unlike [consumePremiumOffer] it asks every time, as in the freestyle editor.
+     */
+    val needsPremium: Boolean
+        get() = !settings.hasUnlocked(PremiumPack.Backgrounds) &&
+            (history.current.edit.backdrop as? Backdrop.Art)?.art?.isPremium == true
+
+    /** Reads the server's backgrounds, once; a failure can be retried. */
+    internal fun loadArt() {
+        if (_artCategories.value is LayoutArtLoad.Ready) return
+        _artCategories.value = LayoutArtLoad.Loading
+        viewModelScope.launch {
+            _artCategories.value = runCatching { artLibrary.getCategories(CentralDataConfig.BACKGROUNDS_SUPER_CATEGORY_ID) }
+                .fold({ LayoutArtLoad.Ready(it) }, { LayoutArtLoad.Failed })
+        }
+    }
+
+    /**
+     * Downloads [art]'s picture and makes it the backdrop once it is in (the cell shows the
+     * download). A free picture (or any, for a subscriber) is kept in the disk cache; a premium one
+     * only being tried out isn't, as in the freestyle editor.
+     */
+    internal fun selectArt(art: LayoutArt) {
+        if ((history.current.edit.backdrop as? Backdrop.Art)?.art?.id == art.id) return
+        pendingArtId = art.id
+        val keep = !art.isPremium || settings.hasUnlocked(PremiumPack.Backgrounds)
+        viewModelScope.launch {
+            val image = imageLoader.loadAsset(art.imageUrl, keep = keep)
+                ?.let { withContext(Dispatchers.Default) { copyBitmap(it) } }
+            if (image != null && pendingArtId == art.id) {
+                pendingArtId = null
+                selectBackdrop(Backdrop.Art(art, image))
+            }
+        }
+    }
 
     private var premiumOfferShown = false
 
@@ -128,7 +181,11 @@ class SetBackgroundViewModel(
     /** Photos the user picked as backgrounds, oldest first, so they can switch back to one. */
     val photos: StateFlow<List<ImageBitmap>> = _photos.asStateFlow()
 
-    fun selectBackdrop(backdrop: Backdrop) = update { it.copy(backdrop = backdrop) }
+    fun selectBackdrop(backdrop: Backdrop) {
+        // A colour, gradient or photo picked while a background downloads replaces it.
+        if (backdrop !is Backdrop.Art) pendingArtId = null
+        update { it.copy(backdrop = backdrop) }
+    }
 
     /** Loads the photo at [path] and makes it the backdrop straight away. */
     fun addPhoto(path: String) {

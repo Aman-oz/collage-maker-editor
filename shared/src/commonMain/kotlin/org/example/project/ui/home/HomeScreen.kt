@@ -80,6 +80,20 @@ import org.example.project.ui.projects.ProjectsViewModel
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.compose.koinInject
+import org.example.project.data.AppSettings
+import org.example.project.data.ads.AdPoints
+import org.example.project.ui.common.BottomBannerAd
+import org.example.project.ui.common.remoteBannerStyle
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
+import com.ozi.nextgen.compose.ads_kmp.OziAds
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_bg_remover_icon
 import photocollagemaker.shared.generated.resources.ic_collage_icon
@@ -135,6 +149,8 @@ fun HomeScreen(
     }
     val thumbnails by projectsViewModel.thumbnails.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val settings = koinInject<AppSettings>()
+    val isPremium by settings.isPremium.collectAsStateWithLifecycle()
     val openEditor = { onOpenGallery(1, GalleryTarget.Editor) }
     HomeContent(
         snackbarHostState = snackbarHostState,
@@ -170,6 +186,7 @@ fun HomeScreen(
         thumbnails = thumbnails,
         onRequestThumbnail = projectsViewModel::loadThumbnail,
         onOpenProject = onOpenProject,
+        showBanner = !isPremium,
         modifier = modifier,
     )
 }
@@ -198,6 +215,7 @@ private fun HomeContent(
     onOpenProject: (path: String) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: HomeTab = HomeTab.Home,
+    showBanner: Boolean = false,
 ) {
     // Saved by name: an enum is not saveable on every platform, a String is.
     var selectedTabName by rememberSaveable { mutableStateOf(initialTab.name) }
@@ -207,10 +225,18 @@ private fun HomeContent(
     // backdrop; the bar itself sits outside it as a sibling drawn on top.
     val liquidState = rememberLiquidState()
 
+    // The home_banner under the bottom bar; 0 while it takes no space (premium, off in Remote
+    // Config, or failed), when the bar keeps the system navigation bar's inset as before.
+    var bannerHeightPx by remember { mutableIntStateOf(0) }
+    val bannerHeight = with(LocalDensity.current) { bannerHeightPx.toDp() }
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // The content ends above the banner, so its last rows can still scroll clear of
+                // the bar; the bar itself keeps floating over the content.
+                .padding(bottom = bannerHeight)
                 .background(MaterialTheme.colorScheme.background)
                 .liquefiable(liquidState)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
@@ -252,7 +278,30 @@ private fun HomeContent(
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTabName = it.name },
                 onCreate = onCreateCollage,
+                // With the banner under it, the system navigation bar's inset moves below the banner.
+                modifier = if (bannerHeightPx > 0) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier,
             )
+            if (showBanner) {
+                // Its type is read once per visit, per platform: 0 adaptive, 1 collapsible, 2 large.
+                val style = remember { remoteBannerStyle("${HomeBannerTypeKeyPrefix}_${OziAds.platformName}") }
+                BottomBannerAd(
+                    point = AdPoints.HOME_BANNER_HOME,
+                    placementKey = AdPlacementKeys.HOME_BANNER,
+                    type = style.type,
+                    adSizeType = style.adSizeType,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.background)
+                        .onSizeChanged { bannerHeightPx = it.height },
+                )
+                if (bannerHeightPx > 0) {
+                    Spacer(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .windowInsetsBottomHeight(WindowInsets.navigationBars),
+                    )
+                }
+            }
         }
     }
 }
@@ -667,3 +716,9 @@ private fun HomeScreenPreview() {
 private fun HomeScreenProjectsPreview() {
     HomeContentPreview(HomeTab.Projects)
 }
+
+/**
+ * Remote Config number choosing Home's banner, one per platform: `home_banner_type_android` and
+ * `home_banner_type_ios`. 0 adaptive (default), 1 collapsible, 2 large.
+ */
+private const val HomeBannerTypeKeyPrefix = "home_banner_type"

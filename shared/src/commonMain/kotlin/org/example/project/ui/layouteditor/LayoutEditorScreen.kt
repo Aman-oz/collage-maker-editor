@@ -162,6 +162,13 @@ import photocollagemaker.shared.generated.resources.icon_canvas
 import photocollagemaker.shared.generated.resources.icon_frame
 import photocollagemaker.shared.generated.resources.icon_layout
 import photocollagemaker.shared.generated.resources.icon_margin
+import org.example.project.ui.common.isSideBySideEditor
+import org.example.project.data.ads.AdPoints
+import org.example.project.ui.common.BottomBannerAd
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.animation.core.animateFloatAsState
+import org.example.project.ui.text.LocalPanelContentHeight
 
 /**
  * Fixed height of the panel area under the canvas, which holds the glass options bar or an option's
@@ -405,6 +412,17 @@ private fun LayoutEditorContent(
     var selectedSlot by remember { mutableStateOf<Int?>(null) }
     var selectedLayerId by remember { mutableStateOf<Long?>(null) }
     var previewSizePx by remember { mutableStateOf(IntSize.Zero) }
+    // The tool strip's height, and how far the panel slot has grown from it towards the panel's:
+    // the canvas gets everything the slot doesn't, and moves up as a panel rises (as in the photo
+    // editor). Grows after the strip has dropped away, and shrinks after the panel has.
+    var stripHeightPx by remember { mutableIntStateOf(0) }
+    // The open panel's bar + controls, reported by its TextPanelColumn: the slot grows to just that.
+    var openPanelHeightPx by remember { mutableIntStateOf(0) }
+    val panelExpansion by animateFloatAsState(
+        targetValue = if (openOption != null) 1f else 0f,
+        animationSpec = settleSpec(delayMillis = ToolDropMillis),
+        label = "layoutPanelExpansion",
+    )
 
     // A slot no longer shown, or emptied (by undo, say), can't stay selected.
     val selectedPhotoSlot = selectedSlot?.takeIf { slot ->
@@ -468,187 +486,206 @@ private fun LayoutEditorContent(
 
     // One observer for the whole screen: any finger lift ends the drag or slider step in progress.
     Box(modifier = modifier.fillMaxSize().onGestureEnd(actions::endGesture)) {
-        EditorPanelLayout(
-            panelHeight = LayoutPanelHeight,
-            panelFillsSideColumn = true,
-            // Beside the canvas the top bar goes with the tools, as in the photo editor: an option's
-            // panel, with its own ✕ / title / ✓, takes the whole column.
-            topBarInSidePanel = true,
+        // The editor over the pinned bottom banner: the banner keeps its place while option panels
+        // open and close, and the canvas gives up its height.
+        BoxWithConstraints(
             modifier = Modifier
+                .fillMaxSize()
                 .background(chrome.surface)
                 // The keyboard is left out on purpose: the Text tool's slides up over the screen, which
                 // keeps its size under it (the canvas's size is what its stickers are placed against).
                 .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
-            topBar = topBar,
-            stage = { stageModifier ->
-                Column(modifier = stageModifier) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .background(chrome.stage)
-                            // Taps that reach here (off the canvas) deselect.
-                            .pointerInput(Unit) {
-                                detectTapGestures {
-                                    selectedSlot = null
-                                    selectedLayerId = null
+        ) {
+            // No banner beside the canvas (a phone on its side): there is no height to spare.
+            val showBanner = !isSubscribed && !isSideBySideEditor(maxWidth, maxHeight)
+            Column(modifier = Modifier.fillMaxSize()) {
+                EditorPanelLayout(
+                    panelHeight = LayoutPanelHeight,
+                    panelFillsSideColumn = true,
+                    // Beside the canvas the top bar goes with the tools, as in the photo editor: an option's
+                    // panel, with its own ✕ / title / ✓, takes the whole column.
+                    topBarInSidePanel = true,
+                    modifier = Modifier.weight(1f),
+                    collapsedPanelHeight = with(LocalDensity.current) { stripHeightPx.toDp() },
+                    panelExpansion = { panelExpansion },
+                    expandedPanelHeightPx = { openPanelHeightPx },
+                    topBar = topBar,
+                    stage = { stageModifier ->
+                        Column(modifier = stageModifier) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(chrome.stage)
+                                    // Taps that reach here (off the canvas) deselect.
+                                    .pointerInput(Unit) {
+                                        detectTapGestures {
+                                            selectedSlot = null
+                                            selectedLayerId = null
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                when (uiState) {
+                                    LayoutEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
+                                    is LayoutEditorUiState.Error -> Text(
+                                        text = uiState.message,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.error,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(24.dp),
+                                    )
+                                    is LayoutEditorUiState.Ready -> LayoutStage(
+                                        edit = uiState.edit,
+                                        texts = texts,
+                                        stickers = stickers,
+                                        chrome = chrome,
+                                        selectedSlot = selectedPhotoSlot,
+                                        selectedLayerId = selectedLayerId,
+                                        stickerFlights = stickerFlights,
+                                        actions = actions,
+                                        onSlotTap = { slot ->
+                                            selectedLayerId = null
+                                            if (slot in uiState.edit.photos) {
+                                                selectedSlot = if (selectedSlot == slot) null else slot
+                                            } else {
+                                                selectedSlot = null
+                                                onRequestPhoto(slot)
+                                            }
+                                        },
+                                        // Double tap replaces the photo.
+                                        onSlotDoubleTap = { slot ->
+                                            selectedSlot = null
+                                            onRequestPhoto(slot)
+                                        },
+                                        onOffSlotTap = {
+                                            selectedSlot = null
+                                            selectedLayerId = null
+                                        },
+                                        onLayerSelected = { id ->
+                                            selectedSlot = null
+                                            selectedLayerId = id
+                                            actions.bringToFront(id)
+                                        },
+                                        onLayerDeleted = { id ->
+                                            actions.removeLayer(id)
+                                            selectedLayerId = null
+                                        },
+                                        onTextTapped = { id ->
+                                            selectedLayerId = null
+                                            onOpenText(previewSizePx, id)
+                                        },
+                                        onStickerTapped = { id ->
+                                            selectedSlot = null
+                                            selectedLayerId = null
+                                            onOpenStickers(previewSizePx, id)
+                                        },
+                                        onPreviewSizeChanged = { previewSizePx = it },
+                                    )
                                 }
-                            },
-                        contentAlignment = Alignment.Center,
+
+                                val photoSlot = selectedPhotoSlot
+                                if (photoSlot != null) {
+                                    SelectedPhotoActions(
+                                        onReplace = {
+                                            selectedSlot = null
+                                            onRequestPhoto(photoSlot)
+                                        },
+                                        onRemove = {
+                                            selectedSlot = null
+                                            actions.removePhoto(photoSlot)
+                                        },
+                                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+                                    )
+                                }
+                            }
+
+                            // A premium layout can be tried by anyone; for a non-subscriber this bar under the
+                            // canvas says so and leads to the paywall, as Done does.
+                            val onLockedPremium = (edit?.template?.title in premiumLayouts && !isSubscribed) ||
+                                (edit?.frameArt?.isPremium == true && !framesUnlocked) ||
+                                (edit?.backgroundArt?.isPremium == true && !backgroundsUnlocked)
+                            ProFeatureBar(visible = onLockedPremium)
+                            PreventScreenCapture(enabled = onLockedPremium)
+                        }
+                    },
+                    panel = { sideBySide ->
+                        if (edit != null) {
+                            CompositionLocalProvider(
+                        LocalTextPanelSideBySide provides sideBySide,
+                        LocalPanelContentHeight provides { openPanelHeightPx = it },
                     ) {
-                        when (uiState) {
-                            LayoutEditorUiState.Loading -> CircularProgressIndicator(color = chrome.accent)
-                            is LayoutEditorUiState.Error -> Text(
-                                text = uiState.message,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(24.dp),
-                            )
-                            is LayoutEditorUiState.Ready -> LayoutStage(
-                                edit = uiState.edit,
-                                texts = texts,
-                                stickers = stickers,
-                                chrome = chrome,
-                                selectedSlot = selectedPhotoSlot,
-                                selectedLayerId = selectedLayerId,
-                                stickerFlights = stickerFlights,
-                                actions = actions,
-                                onSlotTap = { slot ->
-                                    selectedLayerId = null
-                                    if (slot in uiState.edit.photos) {
-                                        selectedSlot = if (selectedSlot == slot) null else slot
+                                // The editor's two beats: the outgoing bar or panel drops away first (beside the
+                                // canvas, off the right edge), then the incoming one rises (slides in from it).
+                                AnimatedContent(
+                                    targetState = openOption,
+                                    transitionSpec = {
+                                        val enter = if (sideBySide) {
+                                            slideInHorizontally(settleSpec(delayMillis = ToolDropMillis)) { it }
+                                        } else {
+                                            slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it }
+                                        }
+                                        val exit = if (sideBySide) {
+                                            slideOutHorizontally(dropSpec()) { it }
+                                        } else {
+                                            slideOutVertically(dropSpec()) { it }
+                                        }
+                                        (enter + fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
+                                            (exit + fadeOut(dropSpec()))
+                                    },
+                                    contentAlignment = Alignment.BottomCenter,
+                                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                                    label = "layoutPanel",
+                                ) { option ->
+                                    if (option == null) {
+                                        // The photo editor's toolbar (its grid beside the canvas), so the two
+                                        // editors' tools look alike.
+                                        if (sideBySide) {
+                                            Column(modifier = Modifier.fillMaxSize()) {
+                                                topBar()
+                                                EditorToolStripGrid(
+                                                    items = LayoutOption.stripItems,
+                                                    onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                            }
+                                        } else {
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                                                EditorToolStrip(
+                                                    items = LayoutOption.stripItems,
+                                                    onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
+                                                    background = chrome.surface,
+                                                    listState = optionsListState,
+                                                    modifier = Modifier.onSizeChanged { stripHeightPx = it.height },
+                                                )
+                                            }
+                                        }
                                     } else {
-                                        selectedSlot = null
-                                        onRequestPhoto(slot)
-                                    }
-                                },
-                                // Double tap replaces the photo.
-                                onSlotDoubleTap = { slot ->
-                                    selectedSlot = null
-                                    onRequestPhoto(slot)
-                                },
-                                onOffSlotTap = {
-                                    selectedSlot = null
-                                    selectedLayerId = null
-                                },
-                                onLayerSelected = { id ->
-                                    selectedSlot = null
-                                    selectedLayerId = id
-                                    actions.bringToFront(id)
-                                },
-                                onLayerDeleted = { id ->
-                                    actions.removeLayer(id)
-                                    selectedLayerId = null
-                                },
-                                onTextTapped = { id ->
-                                    selectedLayerId = null
-                                    onOpenText(previewSizePx, id)
-                                },
-                                onStickerTapped = { id ->
-                                    selectedSlot = null
-                                    selectedLayerId = null
-                                    onOpenStickers(previewSizePx, id)
-                                },
-                                onPreviewSizeChanged = { previewSizePx = it },
-                            )
-                        }
-
-                        val photoSlot = selectedPhotoSlot
-                        if (photoSlot != null) {
-                            SelectedPhotoActions(
-                                onReplace = {
-                                    selectedSlot = null
-                                    onRequestPhoto(photoSlot)
-                                },
-                                onRemove = {
-                                    selectedSlot = null
-                                    actions.removePhoto(photoSlot)
-                                },
-                                modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
-                            )
-                        }
-                    }
-
-                    // A premium layout can be tried by anyone; for a non-subscriber this bar under the
-                    // canvas says so and leads to the paywall, as Done does.
-                    val onLockedPremium = (edit?.template?.title in premiumLayouts && !isSubscribed) ||
-                        (edit?.frameArt?.isPremium == true && !framesUnlocked) ||
-                        (edit?.backgroundArt?.isPremium == true && !backgroundsUnlocked)
-                    ProFeatureBar(visible = onLockedPremium)
-                    PreventScreenCapture(enabled = onLockedPremium)
-                }
-            },
-            panel = { sideBySide ->
-                if (edit != null) {
-                    CompositionLocalProvider(LocalTextPanelSideBySide provides sideBySide) {
-                        // The editor's two beats: the outgoing bar or panel drops away first (beside the
-                        // canvas, off the right edge), then the incoming one rises (slides in from it).
-                        AnimatedContent(
-                            targetState = openOption,
-                            transitionSpec = {
-                                val enter = if (sideBySide) {
-                                    slideInHorizontally(settleSpec(delayMillis = ToolDropMillis)) { it }
-                                } else {
-                                    slideInVertically(settleSpec(delayMillis = ToolDropMillis)) { it }
-                                }
-                                val exit = if (sideBySide) {
-                                    slideOutHorizontally(dropSpec()) { it }
-                                } else {
-                                    slideOutVertically(dropSpec()) { it }
-                                }
-                                (enter + fadeIn(settleSpec(delayMillis = ToolDropMillis))) togetherWith
-                                    (exit + fadeOut(dropSpec()))
-                            },
-                            contentAlignment = Alignment.BottomCenter,
-                            modifier = Modifier.fillMaxSize().clipToBounds(),
-                            label = "layoutPanel",
-                        ) { option ->
-                            if (option == null) {
-                                // The photo editor's toolbar (its grid beside the canvas), so the two
-                                // editors' tools look alike.
-                                if (sideBySide) {
-                                    Column(modifier = Modifier.fillMaxSize()) {
-                                        topBar()
-                                        EditorToolStripGrid(
-                                            items = LayoutOption.stripItems,
-                                            onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                    }
-                                } else {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                                        EditorToolStrip(
-                                            items = LayoutOption.stripItems,
-                                            onItemSelected = { onOptionSelected(LayoutOption.entries[it]) },
-                                            background = chrome.surface,
-                                            listState = optionsListState,
+                                        LayoutOptionPanel(
+                                            option = option,
+                                            edit = edit,
+                                            templates = templates,
+                                            premiumLayouts = premiumLayouts,
+                                            frameLoad = frameLoad,
+                                            backgroundLoad = backgroundLoad,
+                                            chrome = chrome,
+                                            selectedPhotoSlot = selectedPhotoSlot,
+                                            actions = actions,
+                                            onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { actions.addSticker(emoji) } },
+                                            onClose = { closePanel(revert = true) },
+                                            onDone = { closePanel(revert = false) },
                                         )
                                     }
                                 }
-                            } else {
-                                LayoutOptionPanel(
-                                    option = option,
-                                    edit = edit,
-                                    templates = templates,
-                                    premiumLayouts = premiumLayouts,
-                                    frameLoad = frameLoad,
-                                    backgroundLoad = backgroundLoad,
-                                    chrome = chrome,
-                                    selectedPhotoSlot = selectedPhotoSlot,
-                                    actions = actions,
-                                    onStickerTapped = { emoji, from -> stickerFlights.launch(emoji, from) { actions.addSticker(emoji) } },
-                                    onClose = { closePanel(revert = true) },
-                                    onDone = { closePanel(revert = false) },
-                                )
                             }
                         }
-                    }
-                }
-            },
-            // The glass bar sits in the panel's place.
-            tabs = {},
-        )
+                    },
+                    // The glass bar sits in the panel's place.
+                    tabs = {},
+                )
+                if (showBanner) BottomBannerAd(point = AdPoints.INTERNAL_APP_BANNER_LAYOUT_EDITOR)
+            }
+        }
 
         StickerFlightOverlay(stickerFlights)
     }

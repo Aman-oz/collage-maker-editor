@@ -14,6 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.clipToBounds
 
 /** Width of the controls column when [EditorPanelLayout] puts it beside the picture. */
 internal val EditorSidePanelWidth = 380.dp
@@ -47,6 +50,14 @@ internal fun isSideBySideEditor(width: Dp, height: Dp): Boolean = width > height
  * top bar and the tabs instead of [panelHeight], for a panel that can show more there.
  * @param topBarInSidePanel beside the picture, leave [topBar] to [panel], which then fills the column
  * from the top: for an editor whose panels take the top bar's place, as the photo editor's tools do.
+ * @param collapsedPanelHeight with [panelExpansion], under the picture the panel's slot is only this
+ * tall (a tool strip's height) while nothing is open, and grows to [panelHeight] as [panelExpansion]
+ * goes 0 → 1, so the picture takes the room and moves up as a panel rises, as in the photo editor.
+ * [panel] is still laid out at [panelHeight], anchored to the bottom of the slot and clipped by it.
+ * @param panelExpansion read in the layout pass, so animating it relayouts without recomposing.
+ * @param expandedPanelHeightPx the open panel's own height, when it reports one: the slot grows to
+ * that instead of all of [panelHeight], so the picture keeps the room the panel doesn't use. 0 or
+ * more than [panelHeight] means [panelHeight].
  */
 @Composable
 internal fun EditorPanelLayout(
@@ -59,6 +70,9 @@ internal fun EditorPanelLayout(
     tabsAbovePanel: Boolean = false,
     panelFillsSideColumn: Boolean = false,
     topBarInSidePanel: Boolean = false,
+    collapsedPanelHeight: Dp? = null,
+    panelExpansion: (() -> Float)? = null,
+    expandedPanelHeightPx: (() -> Int)? = null,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         if (isSideBySideEditor(maxWidth, maxHeight)) {
@@ -81,7 +95,25 @@ internal fun EditorPanelLayout(
                 topBar()
                 stage(Modifier.fillMaxWidth().weight(1f))
                 if (tabsAbovePanel) tabs(false)
-                Box(modifier = Modifier.fillMaxWidth().height(panelHeight)) { panel(false) }
+                if (collapsedPanelHeight != null && panelExpansion != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clipToBounds()
+                            .layout { measurable, constraints ->
+                                val fullPx = panelHeight.roundToPx()
+                                val collapsedPx = collapsedPanelHeight.roundToPx().coerceAtMost(fullPx)
+                                val expandedPx = expandedPanelHeightPx?.invoke()?.takeIf { it in 1..fullPx } ?: fullPx
+                                val heightPx = lerp(collapsedPx, expandedPx, panelExpansion().coerceIn(0f, 1f))
+                                val placeable = measurable.measure(constraints.copy(minHeight = fullPx, maxHeight = fullPx))
+                                layout(placeable.width, heightPx) { placeable.place(0, heightPx - fullPx) }
+                            },
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth().height(panelHeight)) { panel(false) }
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxWidth().height(panelHeight)) { panel(false) }
+                }
                 if (!tabsAbovePanel) tabs(false)
             }
         }

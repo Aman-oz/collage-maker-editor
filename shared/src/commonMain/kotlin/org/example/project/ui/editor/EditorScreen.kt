@@ -160,6 +160,18 @@ import photocollagemaker.shared.generated.resources.ic_sticker_editor
 import photocollagemaker.shared.generated.resources.ic_stickers_editor
 import photocollagemaker.shared.generated.resources.ic_text_editor
 import photocollagemaker.shared.generated.resources.ic_undo
+import org.example.project.data.ads.AdPoints
+import org.example.project.ui.common.shimmer
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
+import com.ozi.nextgen.compose.ads_manager.ads.type.BannerAdSizeType
+import com.ozi.nextgen.compose.ads_kmp.BannerAd
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.layout.onSizeChanged
 
 internal enum class EditorTool(private val englishLabel: String, val icon: DrawableResource) {
     Auto("Auto", Res.drawable.ic_auto_editor),
@@ -401,6 +413,11 @@ private fun EditorContent(
         }
     }
 
+    // The portrait top bar's natural height, and the banner's height including its divider (0 while
+    // there is no banner): the banner is pinned right under the top bar's place, over everything.
+    var topBarHeightPx by remember { mutableIntStateOf(0) }
+    var bannerHeightPx by remember { mutableIntStateOf(0) }
+
     Box(modifier = modifier.fillMaxSize()) {
         BoxWithConstraints(
             modifier = Modifier
@@ -445,8 +462,14 @@ private fun EditorContent(
                             }
                             .graphicsLayer { alpha = 1f - host.editorBars.value },
                     ) {
-                        topBar(false)
+                        Box(modifier = Modifier.onSizeChanged { topBarHeightPx = it.height }) {
+                            topBar(false)
+                        }
                     }
+                    // Room for the banner (EditorBannerOverlay), which rides up with the top bar as
+                    // it folds away but stays visible; the tool's stage keeps the same room on top
+                    // (InlineToolHostState.topInsetPx), so the photo never passes under it.
+                    Spacer(modifier = Modifier.height(with(LocalDensity.current) { bannerHeightPx.toDp() }))
 
                     EditorCanvas(
                         chrome = chrome,
@@ -503,6 +526,70 @@ private fun EditorContent(
                         },
                     )
                 }
+            }
+        }
+
+        // Last, so it stays above the open tool too.
+        if (!isPremium) {
+            EditorBannerOverlay(
+                host = host,
+                topBarHeightPx = topBarHeightPx,
+                background = chrome.background,
+                onHeightChanged = {
+                    bannerHeightPx = it
+                    host.topInsetPx = it
+                },
+            )
+        }
+    }
+}
+
+/**
+ * The editor's adaptive banner, always visible in portrait, right under the top bar. When a tool
+ * opens the top bar folds away and the banner rides up into its place on the same
+ * [InlineToolHostState.layout] value, so it moves in step with the photo below; it never fades.
+ * A thin divider closes it off while it shows. Draws nothing (and reports 0) when the placement is
+ * disabled or blocked in Remote Config, the load fails, or the phone is on its side.
+ */
+@Composable
+private fun EditorBannerOverlay(
+    host: InlineToolHostState<*>,
+    topBarHeightPx: Int,
+    background: Color,
+    onHeightChanged: (Int) -> Unit,
+) {
+    DisposableEffect(Unit) { onDispose { onHeightChanged(0) } }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+        if (isSideBySideEditor(maxWidth, maxHeight)) {
+            SideEffect { onHeightChanged(0) }
+            return@BoxWithConstraints
+        }
+        var adHeightPx by remember { mutableIntStateOf(0) }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Read in the layout pass, like the top bar's collapse, so both move frame for frame.
+                .offset { IntOffset(0, (topBarHeightPx * (1f - host.layout.value)).roundToInt()) }
+                .background(background)
+                .onSizeChanged { onHeightChanged(it.height) },
+        ) {
+            BannerAd(
+                placementKey = AdPlacementKeys.INTERNAL_APP_BANNER,
+                point = AdPoints.INTERNAL_APP_BANNER_EDITOR,
+                adSizeType = BannerAdSizeType.ANCHORED_ADAPTIVE,
+                modifier = Modifier.fillMaxWidth().onSizeChanged { adHeightPx = it.height },
+                // Fills the space the SDK holds while the banner loads; gone once it loads or fails.
+                placeholder = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .shimmer(),
+                    )
+                },
+            )
+            if (adHeightPx > 0) {
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }
