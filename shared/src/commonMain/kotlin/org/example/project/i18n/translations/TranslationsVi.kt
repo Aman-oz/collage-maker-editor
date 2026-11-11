@@ -634,10 +634,10 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "{0} sắp ra mắt",
     "Thanks for your feedback!" to
         "Cảm ơn phản hồi của bạn!",
-    "Sharing is coming soon" to
-        "Tính năng chia sẻ sắp ra mắt",
     "About Us" to
         "Về chúng tôi",
+    "More Apps" to
+        "Ứng dụng khác",
     "Privacy Policy" to
         "Chính sách quyền riêng tư",
     "Terms of Use" to

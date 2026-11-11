@@ -634,10 +634,10 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "{0} جلد آ رہا ہے",
     "Thanks for your feedback!" to
         "آپ کے فیڈبیک کا شکریہ!",
-    "Sharing is coming soon" to
-        "شیئرنگ جلد آ رہی ہے",
     "About Us" to
         "ہمارے بارے میں",
+    "More Apps" to
+        "مزید ایپس",
     "Privacy Policy" to
         "رازداری کی پالیسی",
     "Terms of Use" to

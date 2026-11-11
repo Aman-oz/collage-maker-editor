@@ -634,10 +634,10 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "{0}は近日公開です",
     "Thanks for your feedback!" to
         "フィードバックありがとうございます！",
-    "Sharing is coming soon" to
-        "共有機能は近日公開です",
     "About Us" to
         "私たちについて",
+    "More Apps" to
+        "その他のアプリ",
     "Privacy Policy" to
         "プライバシーポリシー",
     "Terms of Use" to

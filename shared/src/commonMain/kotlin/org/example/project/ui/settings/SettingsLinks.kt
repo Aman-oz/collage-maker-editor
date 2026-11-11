@@ -8,13 +8,21 @@ import org.example.project.i18n.tr
  */
 internal object SettingsLinks {
     /**
-     * Numeric Apple id of the app (the `id…` in its App Store URL), known once it is published.
-     * Android needs nothing here: its store links are built from the package name.
+     * Numeric Apple id of the app (the `id…` in its App Store URL). Optional: when blank, iOS looks
+     * it up by bundle id once the app is live (`StoreLinks.ios.kt`). Android needs nothing here:
+     * its store links are built from the package name.
      */
     const val AppStoreId = ""
-    const val AboutUsUrl = ""
-    const val PrivacyPolicyUrl = ""
-    const val TermsOfUseUrl = ""
+    const val PrivacyPolicyUrl = "http://deltagamesstudio.com/privacypolicy.html"
+
+    /** There is no separate terms page: the privacy policy covers both. */
+    const val TermsOfUseUrl = PrivacyPolicyUrl
+
+    /** There is no separate about page either: About Us opens the privacy policy too. */
+    const val AboutUsUrl = PrivacyPolicyUrl
+
+    /** The developer's App Store page, opened by More Apps on both platforms. */
+    const val MoreAppsUrl = "https://apps.apple.com/us/developer/ozi-gamemax-entertainment/id1781183024"
 }
 
 /** Ratings at or above this go to the store rating page; lower ones just get a thank-you. */

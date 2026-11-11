@@ -81,6 +81,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_about_us
 import photocollagemaker.shared.generated.resources.ic_language
+import photocollagemaker.shared.generated.resources.ic_more_apps
 import photocollagemaker.shared.generated.resources.ic_privacy_policy
 import photocollagemaker.shared.generated.resources.ic_rate_us
 import photocollagemaker.shared.generated.resources.ic_share_app
@@ -137,13 +138,13 @@ fun SettingsScreen(
         onOpenLanguage = onOpenLanguage,
         onApplyTheme = viewModel::setThemeMode,
         onRate = { rating ->
-            if (rating >= StoreRatingThreshold) openStoreRating() else showMessage(tr("Thanks for your feedback!"))
+            if (rating >= StoreRatingThreshold) scope.launch { openStoreRating() } else showMessage(tr("Thanks for your feedback!"))
         },
         onShareApp = {
-            val storeUrl = appStoreUrl()
-            if (storeUrl == null) showMessage(tr("Sharing is coming soon")) else shareText(shareAppMessage(storeUrl))
+            scope.launch { shareText(shareAppMessage(appStoreUrl())) }
         },
         onAboutUs = { openLink(SettingsLinks.AboutUsUrl, tr("About Us")) },
+        onMoreApps = { openLink(SettingsLinks.MoreAppsUrl, tr("More Apps")) },
         onPrivacyPolicy = { openLink(SettingsLinks.PrivacyPolicyUrl, tr("Privacy Policy")) },
         onTermsOfUse = { openLink(SettingsLinks.TermsOfUseUrl, tr("Terms of Use")) },
         modifier = modifier,
@@ -161,6 +162,7 @@ private fun SettingsContent(
     onRate: (rating: Int) -> Unit,
     onShareApp: () -> Unit,
     onAboutUs: () -> Unit,
+    onMoreApps: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onTermsOfUse: () -> Unit,
     modifier: Modifier = Modifier,
@@ -192,6 +194,7 @@ private fun SettingsContent(
             SectionHeader(tr("About"))
             SettingsRow(Res.drawable.ic_rate_us, tr("Rate Us")) { dialogName = SettingsDialog.RateUs.name }
             SettingsRow(Res.drawable.ic_share_app, tr("Share App"), onShareApp)
+            SettingsRow(Res.drawable.ic_more_apps, tr("More Apps"), onMoreApps)
             SettingsRow(Res.drawable.ic_about_us, tr("About Us"), onAboutUs)
 
             SectionHeader(tr("Legal"))
@@ -465,6 +468,7 @@ private fun SettingsScreenPreview() {
             onRate = {},
             onShareApp = {},
             onAboutUs = {},
+            onMoreApps = {},
             onPrivacyPolicy = {},
             onTermsOfUse = {},
         )

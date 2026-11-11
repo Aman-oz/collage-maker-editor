@@ -634,10 +634,10 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "{0} segera hadir",
     "Thanks for your feedback!" to
         "Terima kasih atas masukan Anda!",
-    "Sharing is coming soon" to
-        "Fitur berbagi segera hadir",
     "About Us" to
         "Tentang kami",
+    "More Apps" to
+        "Aplikasi Lainnya",
     "Privacy Policy" to
         "Kebijakan Privasi",
     "Terms of Use" to

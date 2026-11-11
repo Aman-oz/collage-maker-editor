@@ -634,10 +634,10 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "{0} скоро появится",
     "Thanks for your feedback!" to
         "Спасибо за отзыв!",
-    "Sharing is coming soon" to
-        "Функция «Поделиться» скоро появится",
     "About Us" to
         "О нас",
+    "More Apps" to
+        "Другие приложения",
     "Privacy Policy" to
         "Политика конфиденциальности",
     "Terms of Use" to

@@ -634,10 +634,10 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "{0}은(는) 곧 제공됩니다",
     "Thanks for your feedback!" to
         "소중한 의견 감사합니다!",
-    "Sharing is coming soon" to
-        "공유 기능은 곧 제공됩니다",
     "About Us" to
         "회사 소개",
+    "More Apps" to
+        "더 많은 앱",
     "Privacy Policy" to
         "개인정보 처리방침",
     "Terms of Use" to

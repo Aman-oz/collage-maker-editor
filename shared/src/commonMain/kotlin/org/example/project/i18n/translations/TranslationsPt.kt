@@ -634,10 +634,10 @@ internal val TranslationsPt: Map<String, String> = mapOf(
         "{0} em breve",
     "Thanks for your feedback!" to
         "Obrigado pelo seu feedback!",
-    "Sharing is coming soon" to
-        "Compartilhamento em breve",
     "About Us" to
         "Sobre nós",
+    "More Apps" to
+        "Mais apps",
     "Privacy Policy" to
         "Política de Privacidade",
     "Terms of Use" to

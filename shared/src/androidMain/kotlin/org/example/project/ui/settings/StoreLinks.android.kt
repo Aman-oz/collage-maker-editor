@@ -6,7 +6,7 @@ import android.net.Uri
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.context
 
-internal actual fun openStoreRating() {
+internal actual suspend fun openStoreRating() {
     val context = FileKit.context
     val packageName = context.packageName
     // market:// opens the Play Store app directly; without it (no Play Store) use the web listing.
@@ -17,7 +17,7 @@ internal actual fun openStoreRating() {
     }
 }
 
-internal actual fun appStoreUrl(): String? =
+internal actual suspend fun appStoreUrl(): String =
     "https://play.google.com/store/apps/details?id=${FileKit.context.packageName}"
 
 private fun view(url: String) =
