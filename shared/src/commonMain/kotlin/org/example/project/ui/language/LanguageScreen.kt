@@ -19,11 +19,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -79,6 +78,7 @@ fun LanguageScreen(
     modifier: Modifier = Modifier,
     showBack: Boolean = false,
     onBack: () -> Unit = {},
+    bottomAd: @Composable () -> Unit = {},
     viewModel: LanguageViewModel = koinViewModel(),
 ) {
     val selectedCode by viewModel.selectedCode.collectAsStateWithLifecycle()
@@ -93,6 +93,7 @@ fun LanguageScreen(
         },
         showBack = showBack,
         onBack = onBack,
+        bottomAd = bottomAd,
         modifier = modifier,
     )
 }
@@ -106,37 +107,52 @@ private fun LanguageContent(
     modifier: Modifier = Modifier,
     showBack: Boolean = false,
     onBack: () -> Unit = {},
+    bottomAd: @Composable () -> Unit = {},
 ) {
     val background = MaterialTheme.colorScheme.background
 
-    BoxWithConstraints(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(background)
             // Horizontal too: on its side, a phone's notch is at the left or right edge.
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
     ) {
-        val listPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 4.dp,
-            bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-        )
-        if (isSideBySideEditor(maxWidth, maxHeight)) {
-            // A phone on its side shows only a few rows at a time, so the languages go in two
-            // columns, and the header (with Done) stays put rather than scrolling away with them.
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val listPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp)
+            if (isSideBySideEditor(maxWidth, maxHeight)) {
+                // A phone on its side shows only a few rows at a time, so the languages go in two
+                // columns, and the header (with Done) stays put rather than scrolling away with them.
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth().weight(1f).selectableGroup(),
+                        contentPadding = listPadding,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        gridItems(languages, key = { it.code }) { language ->
+                            LanguageRow(
+                                language = language,
+                                selected = language.code == selectedCode,
+                                onClick = { onSelect(language.code) },
+                            )
+                        }
+                    }
                 }
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxWidth().weight(1f).selectableGroup(),
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().selectableGroup(),
                     contentPadding = listPadding,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    gridItems(languages, key = { it.code }) { language ->
+                    item(key = "header") {
+                        LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
+                    }
+                    items(languages, key = { it.code }) { language ->
                         LanguageRow(
                             language = language,
                             selected = language.code == selectedCode,
@@ -145,33 +161,19 @@ private fun LanguageContent(
                     }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().selectableGroup(),
-                contentPadding = listPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "header") {
-                    LanguageHeader(showBack = showBack, onBack = onBack, onDone = onDone)
-                }
-                items(languages, key = { it.code }) { language ->
-                    LanguageRow(
-                        language = language,
-                        selected = language.code == selectedCode,
-                        onClick = { onSelect(language.code) },
-                    )
-                }
-            }
-        }
 
-        // Fades the list out into the background at the bottom edge, as in the design.
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(72.dp)
-                .background(Brush.verticalGradient(listOf(background.copy(alpha = 0f), background))),
-        )
+            // Fades the list out into the background at the bottom edge, as in the design.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .background(Brush.verticalGradient(listOf(background.copy(alpha = 0f), background))),
+            )
+        }
+        // Under the list, not over it, so the last languages stay reachable; it pads itself above
+        // the navigation bar (nothing at all when no ad shows).
+        Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) { bottomAd() }
     }
 }
 

@@ -19,11 +19,25 @@ final class StoreKitBridgeImpl: NSObject, StoreKitBridge {
                 for product in try await Product.products(for: productIds) {
                     products[product.id] = product
                     guard let subscription = product.subscription else { continue }
-                    // The intro trial is offered once per subscription group, so check eligibility.
+                    // The intro offer (a free trial, or a paid intro price) is offered once per
+                    // subscription group, so check eligibility.
                     var trial: String?
-                    if let intro = subscription.introductoryOffer, intro.paymentMode == .freeTrial,
-                       await subscription.isEligibleForIntroOffer {
-                        trial = Self.isoPeriod(intro.period)
+                    var introPrice: String?
+                    var introMicros: Int64 = 0
+                    var introPeriod: String?
+                    var introCycles: Int32 = 1
+                    if let intro = subscription.introductoryOffer, await subscription.isEligibleForIntroOffer {
+                        switch intro.paymentMode {
+                        case .freeTrial:
+                            trial = Self.isoPeriod(intro.period)
+                        case .payAsYouGo, .payUpFront:
+                            introPrice = intro.displayPrice
+                            introMicros = NSDecimalNumber(decimal: intro.price * 1_000_000).int64Value
+                            introPeriod = Self.isoPeriod(intro.period)
+                            introCycles = Int32(max(intro.periodCount, 1))
+                        default:
+                            break
+                        }
                     }
                     result.append(
                         StoreKitProduct(
@@ -32,7 +46,11 @@ final class StoreKitBridgeImpl: NSObject, StoreKitBridge {
                             priceMicros: NSDecimalNumber(decimal: product.price * 1_000_000).int64Value,
                             currencyCode: product.priceFormatStyle.currencyCode,
                             billingPeriod: Self.isoPeriod(subscription.subscriptionPeriod),
-                            freeTrialPeriod: trial
+                            freeTrialPeriod: trial,
+                            introDisplayPrice: introPrice,
+                            introPriceMicros: introMicros,
+                            introPeriod: introPeriod,
+                            introCycles: introCycles
                         )
                     )
                 }

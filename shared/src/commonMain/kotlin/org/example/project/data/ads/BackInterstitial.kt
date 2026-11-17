@@ -58,7 +58,7 @@ class BackInterstitial(private val settings: AppSettings) {
 internal fun interstitialBackPoint(destination: Destination): String? {
     val screen = when (destination) {
         Destination.Splash, Destination.Onboarding, Destination.Home -> return null
-        is Destination.Premium, is Destination.ProOffer -> return null
+        is Destination.Premium, is Destination.ProOffer, Destination.LaunchOffer -> return null
         is Destination.Language -> "language"
         Destination.Settings -> "settings"
         is Destination.Gallery -> "gallery"

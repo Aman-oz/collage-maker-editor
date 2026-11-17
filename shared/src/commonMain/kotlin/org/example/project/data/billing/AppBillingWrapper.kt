@@ -1,6 +1,7 @@
 package org.example.project.data.billing
 
 import kotlinx.coroutines.CoroutineScope
+import org.example.project.ui.common.userMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -94,7 +95,7 @@ class AppBillingWrapper(
             applyActivePlans(plans)
             if (plans.isEmpty()) RestoreResult.NothingToRestore else RestoreResult.Restored(plans)
         } catch (e: BillingException) {
-            RestoreResult.Failed(e.message ?: tr("Couldn't restore purchases"))
+            RestoreResult.Failed(e.userMessage(tr("Couldn't restore purchases"), network = true))
         }
     }
 

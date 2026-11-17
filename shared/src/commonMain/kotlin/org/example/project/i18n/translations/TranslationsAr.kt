@@ -480,8 +480,6 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "خطوط حصرية",
     "All Filters & Stickers" to
         "كل الفلاتر والملصقات",
-    "LIMITED TIME OFFER!" to
-        "عرض لفترة محدودة!",
     "OFF" to
         "خصم",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "جرّب الآن",
     "Close offer" to
         "إغلاق العرض",
+    "Hours" to
+        "ساعات",
+    "Minutes" to
+        "دقائق",
+    "Seconds" to
+        "ثوانٍ",
+    "Congratulations!" to
+        "تهانينا!",
+    "You've been selected to claim this exclusive offer." to
+        "لقد تم اختيارك للحصول على هذا العرض الحصري.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "يتم تحصيل رسوم الاشتراك بعد انتهاء الفترة التجريبية وسيتجدد تلقائيًا.",
+    "Only {0} per month" to
+        "فقط {0} شهريًا",
+    "Only {0} for {1}" to
+        "فقط {0} لمدة {1}",
+    "Only {0}/{1} for {2}" to
+        "فقط {0}/{1} لمدة {2}",
+    "1 day" to
+        "يوم واحد",
+    "1 week" to
+        "أسبوع واحد",
+    "1 month" to
+        "شهر واحد",
+    "1 year" to
+        "سنة واحدة",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "ثم {0}/{1}. يتجدد تلقائيًا حتى تقوم بالإلغاء.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "ثم {0} لمدة {1}، ثم {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "يُدفع شهريًا. يتجدد تلقائيًا حتى تلغيه.",
     "Weekly" to
         "أسبوعي",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsAr: Map<String, String> = mapOf(
         "أكثر من 100 تراكب",
     "2000+ Fonts" to
         "أكثر من 2000 خط",
+    "Reminders" to
+        "التذكيرات",
+    "Your photos miss you 📸" to
+        "صورك تفتقدك 📸",
+    "Got a minute to create? ✨" to
+        "هل لديك دقيقة للإبداع؟ ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "حوّل لحظات اليوم إلى كولاج جميل في ثوانٍ.",
+    "Your next favourite collage is just a few taps away." to
+        "كولاجك المفضل التالي على بُعد بضع نقرات فقط.",
+    "You were so close! Come back and save your masterpiece." to
+        "كنت قريبًا جدًا! عد واحفظ تحفتك.",
+    "Pick up where you left off and save it in one tap." to
+        "تابع من حيث توقفت واحفظه بنقرة واحدة.",
+    "Finish what you started 💜" to
+        "أكمل ما بدأته 💜",
+    "Still thinking about it? 💭" to
+        "ما زلت تفكر في الأمر؟ 💭",
+    "Time for a new collage ✨" to
+        "حان وقت كولاج جديد ✨",
+    "Make a collage today 📸" to
+        "اصنع كولاجًا اليوم 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "اختر صورك المفضلة وسنرتّبها بشكل جميل.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "مئات التخطيطات بانتظار أحدث صورك.",
+    "Your collage isn't finished yet" to
+        "الكولاج الخاص بك لم يكتمل بعد",
+    "Your collage is still waiting. Finish it and save it today." to
+        "الكولاج الخاص بك ما زال بانتظارك. أكمله واحفظه اليوم.",
+    "Get creative 🎨" to
+        "أطلق إبداعك 🎨",
+    "Freestyle time ✂️" to
+        "وقت التصميم الحر ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "اسحب صورك وأدرها وكدّسها كما تشاء.",
+    "No rules, no grids: arrange your photos your way." to
+        "بلا قواعد ولا شبكات: رتّب صورك على طريقتك.",
+    "Your freestyle collage isn't finished yet" to
+        "الكولاج الحر الخاص بك لم يكتمل بعد",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "الكولاج الحر الخاص بك ما زال بانتظارك. أكمله واحفظه اليوم.",
+    "Fresh templates are waiting" to
+        "قوالب جديدة بانتظارك",
+    "Try a new template 🌟" to
+        "جرّب قالبًا جديدًا 🌟",
+    "Drop your photos into a ready-made design." to
+        "ضع صورك في تصميم جاهز.",
+    "Beautiful designs that only need your photos." to
+        "تصاميم جميلة لا تحتاج إلا إلى صورك.",
+    "Your template isn't finished yet" to
+        "القالب الخاص بك لم يكتمل بعد",
+    "Your template is still waiting. Finish it and save it today." to
+        "القالب الخاص بك ما زال بانتظارك. أكمله واحفظه اليوم.",
+    "Frame a memory 🖼️" to
+        "ضع ذكرى في إطار 🖼️",
+    "New frames to try" to
+        "إطارات جديدة لتجربتها",
+    "Give your best shot the frame it deserves." to
+        "امنح أفضل صورك الإطار الذي تستحقه.",
+    "Turn a favourite photo into a framed keepsake." to
+        "حوّل صورة مفضلة إلى تذكار مؤطّر.",
+    "Your framed photo isn't finished yet" to
+        "صورتك المؤطّرة لم تكتمل بعد",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "صورتك المؤطّرة ما زالت بانتظارك. أكملها واحفظها اليوم.",
+    "Try a picture-in-picture" to
+        "جرّب صورة داخل صورة",
+    "Make it pop with PIP ✨" to
+        "اجعلها لافتة مع PIP ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "ضع صورتك داخل تأثير PIP مذهل.",
+    "One photo, two layers, a striking new look." to
+        "صورة واحدة، طبقتان، مظهر جديد لافت.",
+    "Your PIP photo isn't finished yet" to
+        "صورة PIP الخاصة بك لم تكتمل بعد",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "صورة PIP الخاصة بك ما زالت بانتظارك. أكملها واحفظها اليوم.",
+    "Make your photo pop" to
+        "اجعل صورتك لافتة",
+    "Swap your background 🪄" to
+        "بدّل خلفيتك 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "أزل أي خلفية بنقرة واحدة واختر خلفية جديدة.",
+    "Cut yourself out and drop in a whole new scene." to
+        "اقتصّ نفسك وضعها في مشهد جديد كليًا.",
+    "Your cutout isn't finished yet" to
+        "القصّ الخاص بك لم يكتمل بعد",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "القصّ الخاص بك ما زال بانتظارك. أكمله واحفظه اليوم.",
+    "Your next edit awaits" to
+        "تعديلك التالي بانتظارك",
+    "Give a photo a glow-up ✨" to
+        "امنح صورة لمسة تألّق ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "فلاتر وملصقات ونصوص لتتألق صورتك.",
+    "One filter can change everything. Try a few today." to
+        "فلتر واحد قد يغيّر كل شيء. جرّب بعضها اليوم.",
+    "Your photo edit isn't finished yet" to
+        "تعديل صورتك لم يكتمل بعد",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "تعديل صورتك ما زال بانتظارك. أكمله واحفظه اليوم.",
+    "New layouts to try" to
+        "تخطيطات جديدة لتجربتها",
+    "Find your perfect layout" to
+        "اعثر على التخطيط المثالي",
+    "Pick a layout and fill it with your favourite shots." to
+        "اختر تخطيطًا واملأه بصورك المفضلة.",
+    "Grids, strips and shapes, ready for your photos." to
+        "شبكات وشرائط وأشكال جاهزة لصورك.",
+    "Your layout isn't finished yet" to
+        "التخطيط الخاص بك لم يكتمل بعد",
+    "Your layout is still waiting. Finish it and save it today." to
+        "التخطيط الخاص بك ما زال بانتظارك. أكمله واحفظه اليوم.",
 )

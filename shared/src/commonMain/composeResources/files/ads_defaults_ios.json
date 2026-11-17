@@ -380,195 +380,183 @@
   "release_ad_configuration": {
     "app_open": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/"
+      "adId": "ca-app-pub-9936075969508455/5359015643"
     },
     "app_open_resume": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/"
+      "adId": "ca-app-pub-9936075969508455/5359015643"
     },
     "splash_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/1575683300",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "splash_opt_5"
       ]
     },
     "internal_app_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/1309244947",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "settings"
       ]
     },
     "language_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "onboarding_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/1575683300",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "onboarding"
       ]
     },
     "premium_close_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/1309244947",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "backpress_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/1309244947",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "resume_app_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "splash_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/7686951032",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "splash"
       ]
     },
     "language_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/7686951032",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "language"
       ]
     },
     "onboarding_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/7686951032",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "onboarding"
       ]
     },
     "full_screen_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "full_screen"
       ]
     },
     "home_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/7686951032",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "home"
       ]
     },
     "internal_app_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/7686951032",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "settings"
       ]
     },
     "exit_app_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "list_items_native": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "splash_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/2542435569",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "language_banner": {
-      "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "enable": false,
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "onboarding_banner": {
-      "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "enable": false,
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "home_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/5574638062",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "adaptive_banner"
       ]
     },
     "internal_app_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/5574638062",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "collapsible_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/5574638062",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "collapsible_top"
       ]
     },
     "list_items_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "exit_app_banner": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": [
-        "medium_rectangle"
       ]
     },
     "premium_item_rewarded_video": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/5598688795",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "premium_item_rewarded_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "on_action_rewarded_video": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "ca-app-pub-9936075969508455/5598688795",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },
     "on_action_rewarded_interstitial": {
       "enable": true,
-      "adId": "ca-app-pub-3940256099942544/",
+      "adId": "",
       "_help_points": "Optional: call-site tokens (from the 'point' argument) that are BLOCKED for this placement while `enable` stays true elsewhere.",
       "points": []
     },

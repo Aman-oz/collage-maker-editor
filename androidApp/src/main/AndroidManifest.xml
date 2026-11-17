@@ -11,6 +11,8 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- Push notifications on Android 13+; asked for on Home. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".CollageApplication"
@@ -25,6 +27,25 @@
             android:exported="true"
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- Push notifications (FCM): see push/PushNotifications. -->
+        <service
+            android:name=".push.PushMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <!-- What FCM uses for the notifications it shows itself (app in the background). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/push_accent" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="general" />
 
         <!--
             Launcher icons. MainActivity has no launcher entry of its own: each alias below is one,

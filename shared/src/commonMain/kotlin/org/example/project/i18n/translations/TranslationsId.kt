@@ -480,8 +480,6 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Font eksklusif",
     "All Filters & Stickers" to
         "Semua filter dan stiker",
-    "LIMITED TIME OFFER!" to
-        "PENAWARAN TERBATAS!",
     "OFF" to
         "DISKON",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "Coba sekarang",
     "Close offer" to
         "Tutup penawaran",
+    "Hours" to
+        "Jam",
+    "Minutes" to
+        "Menit",
+    "Seconds" to
+        "Detik",
+    "Congratulations!" to
+        "Selamat!",
+    "You've been selected to claim this exclusive offer." to
+        "Anda terpilih untuk mendapatkan penawaran eksklusif ini.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "Langganan ditagih setelah masa uji coba berakhir dan diperpanjang otomatis.",
+    "Only {0} per month" to
+        "Hanya {0} per bulan",
+    "Only {0} for {1}" to
+        "Hanya {0} untuk {1}",
+    "Only {0}/{1} for {2}" to
+        "Hanya {0}/{1} selama {2}",
+    "1 day" to
+        "1 hari",
+    "1 week" to
+        "1 minggu",
+    "1 month" to
+        "1 bulan",
+    "1 year" to
+        "1 tahun",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "Lalu {0}/{1}. Diperpanjang otomatis hingga Anda membatalkan.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "Lalu {0} selama {1}, kemudian {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "Ditagih bulanan. Diperpanjang otomatis hingga Anda membatalkan.",
     "Weekly" to
         "Mingguan",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsId: Map<String, String> = mapOf(
         "100+ Overlay",
     "2000+ Fonts" to
         "2000+ Font",
+    "Reminders" to
+        "Pengingat",
+    "Your photos miss you 📸" to
+        "Fotomu merindukanmu 📸",
+    "Got a minute to create? ✨" to
+        "Punya waktu sebentar untuk berkreasi? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "Ubah momen hari ini menjadi kolase indah dalam hitungan detik.",
+    "Your next favourite collage is just a few taps away." to
+        "Kolase favoritmu berikutnya hanya beberapa ketukan lagi.",
+    "You were so close! Come back and save your masterpiece." to
+        "Sedikit lagi! Kembali dan simpan mahakaryamu.",
+    "Pick up where you left off and save it in one tap." to
+        "Lanjutkan dari bagian terakhir dan simpan dengan satu ketukan.",
+    "Finish what you started 💜" to
+        "Selesaikan yang sudah kamu mulai 💜",
+    "Still thinking about it? 💭" to
+        "Masih memikirkannya? 💭",
+    "Time for a new collage ✨" to
+        "Saatnya kolase baru ✨",
+    "Make a collage today 📸" to
+        "Buat kolase hari ini 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "Pilih foto favoritmu dan kami akan menatanya dengan indah.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "Ratusan tata letak siap untuk foto terbarumu.",
+    "Your collage isn't finished yet" to
+        "Kolasemu belum selesai",
+    "Your collage is still waiting. Finish it and save it today." to
+        "Kolasemu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Get creative 🎨" to
+        "Ayo berkreasi 🎨",
+    "Freestyle time ✂️" to
+        "Waktunya gaya bebas ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "Seret, putar, dan tumpuk fotomu sesukamu.",
+    "No rules, no grids: arrange your photos your way." to
+        "Tanpa aturan, tanpa kisi: atur fotomu dengan caramu.",
+    "Your freestyle collage isn't finished yet" to
+        "Kolase gaya bebasmu belum selesai",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "Kolase gaya bebasmu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Fresh templates are waiting" to
+        "Template baru sudah menunggu",
+    "Try a new template 🌟" to
+        "Coba template baru 🌟",
+    "Drop your photos into a ready-made design." to
+        "Masukkan fotomu ke desain yang sudah jadi.",
+    "Beautiful designs that only need your photos." to
+        "Desain indah yang hanya butuh fotomu.",
+    "Your template isn't finished yet" to
+        "Templatemu belum selesai",
+    "Your template is still waiting. Finish it and save it today." to
+        "Templatemu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Frame a memory 🖼️" to
+        "Bingkai sebuah kenangan 🖼️",
+    "New frames to try" to
+        "Bingkai baru untuk dicoba",
+    "Give your best shot the frame it deserves." to
+        "Beri foto terbaikmu bingkai yang layak.",
+    "Turn a favourite photo into a framed keepsake." to
+        "Jadikan foto favorit sebagai kenangan berbingkai.",
+    "Your framed photo isn't finished yet" to
+        "Foto berbingkaimu belum selesai",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "Foto berbingkaimu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Try a picture-in-picture" to
+        "Coba gambar dalam gambar",
+    "Make it pop with PIP ✨" to
+        "Buat makin menonjol dengan PIP ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "Masukkan fotomu ke dalam efek PIP yang memukau.",
+    "One photo, two layers, a striking new look." to
+        "Satu foto, dua lapisan, tampilan baru yang mencolok.",
+    "Your PIP photo isn't finished yet" to
+        "Foto PIP-mu belum selesai",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "Foto PIP-mu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Make your photo pop" to
+        "Buat fotomu menonjol",
+    "Swap your background 🪄" to
+        "Ganti latar belakangmu 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "Hapus latar belakang apa pun dengan satu ketukan dan pilih yang baru.",
+    "Cut yourself out and drop in a whole new scene." to
+        "Potong dirimu dan tempatkan di suasana yang benar-benar baru.",
+    "Your cutout isn't finished yet" to
+        "Potonganmu belum selesai",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "Potonganmu masih menunggu. Selesaikan dan simpan hari ini.",
+    "Your next edit awaits" to
+        "Editan berikutnya menantimu",
+    "Give a photo a glow-up ✨" to
+        "Buat foto makin bersinar ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "Filter, stiker, dan teks untuk membuat fotomu bersinar.",
+    "One filter can change everything. Try a few today." to
+        "Satu filter bisa mengubah segalanya. Coba beberapa hari ini.",
+    "Your photo edit isn't finished yet" to
+        "Editan fotomu belum selesai",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "Editan fotomu masih menunggu. Selesaikan dan simpan hari ini.",
+    "New layouts to try" to
+        "Tata letak baru untuk dicoba",
+    "Find your perfect layout" to
+        "Temukan tata letak sempurnamu",
+    "Pick a layout and fill it with your favourite shots." to
+        "Pilih tata letak dan isi dengan foto favoritmu.",
+    "Grids, strips and shapes, ready for your photos." to
+        "Kisi, strip, dan bentuk, siap untuk fotomu.",
+    "Your layout isn't finished yet" to
+        "Tata letakmu belum selesai",
+    "Your layout is still waiting. Finish it and save it today." to
+        "Tata letakmu masih menunggu. Selesaikan dan simpan hari ini.",
 )

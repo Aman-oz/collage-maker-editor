@@ -1,6 +1,7 @@
 package org.example.project.ui.editor
 
 import androidx.compose.runtime.mutableStateOf
+import org.example.project.ui.common.userMessage
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
 import androidx.lifecycle.ViewModel
@@ -119,7 +120,7 @@ class EditorViewModel(
                     imageLoaded = true
                     session.set(it)
                 }
-                .onFailure { _uiState.value = EditorUiState.Error(it.message ?: tr("Could not open this image")) }
+                .onFailure { _uiState.value = EditorUiState.Error(it.userMessage(tr("Could not open this image"))) }
         }
     }
 

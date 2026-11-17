@@ -480,8 +480,6 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Phông chữ độc quyền",
     "All Filters & Stickers" to
         "Tất cả bộ lọc và nhãn dán",
-    "LIMITED TIME OFFER!" to
-        "ƯU ĐÃI CÓ HẠN!",
     "OFF" to
         "GIẢM",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Dùng thử ngay",
     "Close offer" to
         "Đóng ưu đãi",
+    "Hours" to
+        "Giờ",
+    "Minutes" to
+        "Phút",
+    "Seconds" to
+        "Giây",
+    "Congratulations!" to
+        "Chúc mừng!",
+    "You've been selected to claim this exclusive offer." to
+        "Bạn đã được chọn để nhận ưu đãi độc quyền này.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "Gói đăng ký được tính phí sau khi hết thời gian dùng thử và sẽ tự động gia hạn.",
+    "Only {0} per month" to
+        "Chỉ {0} mỗi tháng",
+    "Only {0} for {1}" to
+        "Chỉ {0} cho {1}",
+    "Only {0}/{1} for {2}" to
+        "Chỉ {0}/{1} trong {2}",
+    "1 day" to
+        "1 ngày",
+    "1 week" to
+        "1 tuần",
+    "1 month" to
+        "1 tháng",
+    "1 year" to
+        "1 năm",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "Sau đó {0}/{1}. Tự động gia hạn cho đến khi bạn hủy.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "Sau đó {0} trong {1}, rồi {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "Thanh toán hàng tháng. Tự động gia hạn cho đến khi bạn hủy.",
     "Weekly" to
         "Hằng tuần",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Hơn 100 lớp phủ",
     "2000+ Fonts" to
         "Hơn 2000 phông chữ",
+    "Reminders" to
+        "Lời nhắc",
+    "Your photos miss you 📸" to
+        "Ảnh của bạn đang nhớ bạn 📸",
+    "Got a minute to create? ✨" to
+        "Có một phút để sáng tạo không? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "Biến khoảnh khắc hôm nay thành một ảnh ghép đẹp chỉ trong vài giây.",
+    "Your next favourite collage is just a few taps away." to
+        "Ảnh ghép yêu thích tiếp theo chỉ cách bạn vài lần chạm.",
+    "You were so close! Come back and save your masterpiece." to
+        "Bạn đã gần xong rồi! Quay lại và lưu kiệt tác của bạn.",
+    "Pick up where you left off and save it in one tap." to
+        "Tiếp tục từ chỗ bạn dừng lại và lưu chỉ với một lần chạm.",
+    "Finish what you started 💜" to
+        "Hoàn thành điều bạn đã bắt đầu 💜",
+    "Still thinking about it? 💭" to
+        "Vẫn đang nghĩ về nó? 💭",
+    "Time for a new collage ✨" to
+        "Đến lúc tạo ảnh ghép mới ✨",
+    "Make a collage today 📸" to
+        "Tạo ảnh ghép hôm nay 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "Chọn những bức ảnh yêu thích, chúng tôi sẽ sắp xếp thật đẹp.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "Hàng trăm bố cục đang chờ những bức ảnh mới nhất của bạn.",
+    "Your collage isn't finished yet" to
+        "Ảnh ghép của bạn chưa xong",
+    "Your collage is still waiting. Finish it and save it today." to
+        "Ảnh ghép của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Get creative 🎨" to
+        "Hãy sáng tạo 🎨",
+    "Freestyle time ✂️" to
+        "Đến giờ tự do sáng tạo ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "Kéo, xoay và xếp chồng ảnh theo bất kỳ cách nào bạn thích.",
+    "No rules, no grids: arrange your photos your way." to
+        "Không quy tắc, không lưới: sắp xếp ảnh theo cách của bạn.",
+    "Your freestyle collage isn't finished yet" to
+        "Ảnh ghép tự do của bạn chưa xong",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "Ảnh ghép tự do của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Fresh templates are waiting" to
+        "Mẫu mới đang chờ bạn",
+    "Try a new template 🌟" to
+        "Thử một mẫu mới 🌟",
+    "Drop your photos into a ready-made design." to
+        "Đặt ảnh của bạn vào một thiết kế có sẵn.",
+    "Beautiful designs that only need your photos." to
+        "Những thiết kế đẹp chỉ cần ảnh của bạn.",
+    "Your template isn't finished yet" to
+        "Mẫu của bạn chưa xong",
+    "Your template is still waiting. Finish it and save it today." to
+        "Mẫu của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Frame a memory 🖼️" to
+        "Đóng khung một kỷ niệm 🖼️",
+    "New frames to try" to
+        "Khung mới để thử",
+    "Give your best shot the frame it deserves." to
+        "Tặng bức ảnh đẹp nhất của bạn chiếc khung xứng đáng.",
+    "Turn a favourite photo into a framed keepsake." to
+        "Biến một bức ảnh yêu thích thành kỷ niệm đóng khung.",
+    "Your framed photo isn't finished yet" to
+        "Ảnh đóng khung của bạn chưa xong",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "Ảnh đóng khung của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Try a picture-in-picture" to
+        "Thử ảnh trong ảnh",
+    "Make it pop with PIP ✨" to
+        "Nổi bật hơn với PIP ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "Đặt ảnh của bạn vào một hiệu ứng PIP ấn tượng.",
+    "One photo, two layers, a striking new look." to
+        "Một ảnh, hai lớp, một diện mạo mới nổi bật.",
+    "Your PIP photo isn't finished yet" to
+        "Ảnh PIP của bạn chưa xong",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "Ảnh PIP của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Make your photo pop" to
+        "Làm ảnh của bạn nổi bật",
+    "Swap your background 🪄" to
+        "Đổi phông nền 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "Xóa mọi phông nền chỉ với một lần chạm và chọn nền mới.",
+    "Cut yourself out and drop in a whole new scene." to
+        "Tách bạn ra và đặt vào một khung cảnh hoàn toàn mới.",
+    "Your cutout isn't finished yet" to
+        "Ảnh tách nền của bạn chưa xong",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "Ảnh tách nền của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "Your next edit awaits" to
+        "Lần chỉnh sửa tiếp theo đang chờ bạn",
+    "Give a photo a glow-up ✨" to
+        "Làm mới một bức ảnh ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "Bộ lọc, nhãn dán và chữ giúp ảnh của bạn tỏa sáng.",
+    "One filter can change everything. Try a few today." to
+        "Một bộ lọc có thể thay đổi tất cả. Hãy thử vài bộ lọc hôm nay.",
+    "Your photo edit isn't finished yet" to
+        "Ảnh đang chỉnh sửa của bạn chưa xong",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "Ảnh đang chỉnh sửa của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
+    "New layouts to try" to
+        "Bố cục mới để thử",
+    "Find your perfect layout" to
+        "Tìm bố cục hoàn hảo của bạn",
+    "Pick a layout and fill it with your favourite shots." to
+        "Chọn một bố cục và lấp đầy bằng những bức ảnh yêu thích.",
+    "Grids, strips and shapes, ready for your photos." to
+        "Lưới, dải và hình dạng, sẵn sàng cho ảnh của bạn.",
+    "Your layout isn't finished yet" to
+        "Bố cục của bạn chưa xong",
+    "Your layout is still waiting. Finish it and save it today." to
+        "Bố cục của bạn vẫn đang chờ. Hoàn thành và lưu ngay hôm nay.",
 )

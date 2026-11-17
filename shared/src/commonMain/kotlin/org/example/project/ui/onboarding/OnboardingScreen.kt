@@ -17,6 +17,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,6 +93,9 @@ private val OnboardingAccent = Color(0xFF8B5CF6)
  *
  * @param animation a Lottie JSON under `composeResources/files/`, played in a loop in place of
  * [image] when set.
+ * @param contentScale how the artwork fills its page; [ContentScale.Crop] (the default) covers the
+ * whole page, edge to edge, trimming the top (or the sides) rather than leaving gaps. A phone on
+ * its side always fits instead, since cropping there would cut most of it away.
  * @param horizontalPadding the gap between the artwork and the screen edges.
  * @param scrollable the artwork is taller than the pager: it is laid out at full width and its
  * natural aspect ratio, and scrolls vertically instead of being scaled down or cropped.
@@ -98,8 +106,8 @@ private data class OnboardingPage(
     val image: DrawableResource,
     val title: String,
     val animation: String? = null,
-    val contentScale: ContentScale = ContentScale.Fit,
-    val horizontalPadding: Dp = 2.dp,
+    val contentScale: ContentScale = ContentScale.Crop,
+    val horizontalPadding: Dp = 0.dp,
     val scrollable: Boolean = false,
     val invertInDark: Boolean = false,
 )
@@ -188,75 +196,86 @@ private fun OnboardingContent(
         skipDelayElapsed = true
     }
 
+    // The artwork runs edge to edge and up under the status bar; only the controls below it keep
+    // clear of the system bars.
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(colors.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)),
     ) {
-        // Fixed height so the pager doesn't jump when the skip button appears or hides.
-        Box(modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val sideways = maxWidth > maxHeight
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { index ->
+                val page = OnboardingPages[index]
+                val painter = page.animation?.let { rememberLoopingLottiePainter(it) }
+                    ?: painterResource(page.image)
+                val imageModifier = if (page.scrollable) {
+                    // A Lottie painter has no intrinsic size until its composition has parsed.
+                    val size = painter.intrinsicSize
+                    Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (size.isSpecified && size.height > 0f) {
+                                Modifier.aspectRatio(size.width / size.height)
+                            } else {
+                                Modifier
+                            },
+                        )
+                } else {
+                    Modifier.fillMaxSize()
+                }
+                val scrollState = rememberScrollState()
+                // Hides the fade once the bottom is reached, so the last row isn't left faded out.
+                val fade by animateFloatAsState(if (scrollState.canScrollForward) 1f else 0f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (page.scrollable) {
+                                Modifier.bottomFade(height = 72.dp, strength = fade).verticalScroll(scrollState)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .padding(horizontal = page.horizontalPadding),
+                ) {
+                    Image(
+                        painter = painter,
+                        contentDescription = tr(page.title),
+                        modifier = imageModifier.clipToBounds(),
+                        // Anchored to the bottom, so any crop comes off the top, under the status bar,
+                        // and never off the controls drawn at the bottom of the artwork.
+                        alignment = Alignment.BottomCenter,
+                        contentScale = if (sideways) ContentScale.Fit else page.contentScale,
+                        colorFilter = if (page.invertInDark && isDark) InvertColorFilter else null,
+                    )
+                }
+            }
+
+            // Over the artwork, inside the safe area, on a disc so it reads on any picture.
             androidx.compose.animation.AnimatedVisibility(
                 visible = skipDelayElapsed && pagerState.currentPage != OnboardingPages.lastIndex,
                 enter = fadeIn() + scaleIn(initialScale = 0.6f),
                 exit = fadeOut() + scaleOut(targetScale = 0.6f),
-                modifier = Modifier.align(Alignment.CenterEnd),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .padding(8.dp),
             ) {
                 // Skip jumps to the last page rather than leaving, so Get Started is still the only way on.
-                IconButton(onClick = { scope.launch { pagerState.animateScrollToPage(OnboardingPages.lastIndex) } }) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = tr("Skip"),
-                        tint = colors.onBackground,
-                    )
+                IconButton(
+                    onClick = { scope.launch { pagerState.animateScrollToPage(OnboardingPages.lastIndex) } },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.35f),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(imageVector = Icons.Filled.Close, contentDescription = tr("Skip"))
                 }
-            }
-        }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth().weight(1f),
-        ) { index ->
-            val page = OnboardingPages[index]
-            val painter = page.animation?.let { rememberLoopingLottiePainter(it) }
-                ?: painterResource(page.image)
-            val imageModifier = if (page.scrollable) {
-                // A Lottie painter has no intrinsic size until its composition has parsed.
-                val size = painter.intrinsicSize
-                Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (size.isSpecified && size.height > 0f) {
-                            Modifier.aspectRatio(size.width / size.height)
-                        } else {
-                            Modifier
-                        },
-                    )
-            } else {
-                Modifier.fillMaxSize()
-            }
-            val scrollState = rememberScrollState()
-            // Hides the fade once the bottom is reached, so the last row isn't left faded out.
-            val fade by animateFloatAsState(if (scrollState.canScrollForward) 1f else 0f)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (page.scrollable) {
-                            Modifier.bottomFade(height = 72.dp, strength = fade).verticalScroll(scrollState)
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .padding(horizontal = page.horizontalPadding),
-            ) {
-                Image(
-                    painter = painter,
-                    contentDescription = tr(page.title),
-                    modifier = imageModifier,
-                    contentScale = page.contentScale,
-                    colorFilter = if (page.invertInDark && isDark) InvertColorFilter else null,
-                )
             }
         }
 

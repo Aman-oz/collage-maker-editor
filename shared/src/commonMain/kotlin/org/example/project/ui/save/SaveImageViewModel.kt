@@ -1,6 +1,7 @@
 package org.example.project.ui.save
 
 import androidx.compose.ui.graphics.ImageBitmap
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.vinceglb.filekit.FileKit
@@ -73,7 +74,7 @@ class SaveImageViewModel(
                 shareCopy.path
             }.fold(
                 onSuccess = { SaveStatus.Saved(it) },
-                onFailure = { SaveStatus.Failed(it.message ?: tr("Could not save the image")) },
+                onFailure = { SaveStatus.Failed(it.userMessage(tr("Could not save the image"))) },
             )
         }
     }

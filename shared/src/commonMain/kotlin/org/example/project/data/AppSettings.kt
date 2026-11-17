@@ -110,6 +110,14 @@ class AppSettings(private val store: KeyValueStore) {
             if (value != null) store.putString(KeySavedColors, value.joinToString(",") { (it.toLong() and 0xFFFFFFFFL).toString() })
         }
 
+    /**
+     * Whether the push notification permission has been asked for. Home asks once per install; after
+     * that the user can turn notifications on in the system settings.
+     */
+    var pushPermissionAsked: Boolean
+        get() = store.getString(KeyPushPermissionAsked).toBoolean()
+        set(value) = store.putString(KeyPushPermissionAsked, value.toString())
+
     private companion object {
         const val KeyThemeMode = "theme_mode"
         const val KeyLanguageCode = "language_code"
@@ -118,5 +126,6 @@ class AppSettings(private val store: KeyValueStore) {
         const val KeyOnboardingCompleted = "onboarding_completed"
         const val KeyLaunchOfferStartedAt = "launch_offer_started_at"
         const val KeySavedColors = "saved_colors"
+        const val KeyPushPermissionAsked = "push_permission_asked"
     }
 }

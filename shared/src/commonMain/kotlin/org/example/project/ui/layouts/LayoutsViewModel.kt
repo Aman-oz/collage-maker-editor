@@ -1,6 +1,7 @@
 package org.example.project.ui.layouts
 
 import androidx.lifecycle.ViewModel
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +41,7 @@ class LayoutsViewModel(private val repository: LayoutsRepository) : ViewModel() 
                     (categories.firstOrNull { it.id == selectedId } ?: categories.firstOrNull())?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load collage layouts")) }
+                    _uiState.update { it.copy(isLoadingCategories = false, error = e.userMessage(tr("Couldn't load collage layouts"), network = true)) }
                 }
         }
     }
@@ -59,7 +60,7 @@ class LayoutsViewModel(private val repository: LayoutsRepository) : ViewModel() 
                 }
                 .onFailure { e ->
                     if (_uiState.value.selectedCategoryId == category.id) {
-                        _uiState.update { it.copy(isLoadingLayouts = false, error = e.message ?: tr("Couldn't load collage layouts")) }
+                        _uiState.update { it.copy(isLoadingLayouts = false, error = e.userMessage(tr("Couldn't load collage layouts"), network = true)) }
                     }
                 }
         }

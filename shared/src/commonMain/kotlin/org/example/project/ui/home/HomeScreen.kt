@@ -83,6 +83,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.compose.koinInject
 import org.example.project.data.AppSettings
 import org.example.project.data.ads.AdPoints
+import org.example.project.push.RequestPushPermission
 import org.example.project.ui.common.BottomBannerAd
 import org.example.project.ui.common.remoteBannerStyle
 import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
@@ -151,6 +152,14 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val settings = koinInject<AppSettings>()
     val isPremium by settings.isPremium.collectAsStateWithLifecycle()
+    // The push notification prompt, once per install, the first time Home shows.
+    var askPush by remember { mutableStateOf(!settings.pushPermissionAsked) }
+    if (askPush) {
+        RequestPushPermission(onAsked = {
+            settings.pushPermissionAsked = true
+            askPush = false
+        })
+    }
     val openEditor = { onOpenGallery(1, GalleryTarget.Editor) }
     HomeContent(
         snackbarHostState = snackbarHostState,

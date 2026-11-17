@@ -1,6 +1,7 @@
 package org.example.project.ui.collage
 
 import androidx.compose.runtime.mutableStateOf
+import org.example.project.ui.common.userMessage
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
@@ -149,13 +150,13 @@ class CollageEditorViewModel(
                 imagePaths.map { path -> async { copyBitmap(PlatformFile(path).toImageBitmap()) } }.awaitAll()
             }
             val images = imagesResult.getOrElse {
-                _uiState.value = CollageEditorUiState.Error(it.message ?: tr("Could not open these images"))
+                _uiState.value = CollageEditorUiState.Error(it.userMessage(tr("Could not open these images")))
                 return@launch
             }
             photos = images
 
             val all = runCatching { catalog.loadAll() }.getOrElse {
-                _pickerState.value = _pickerState.value.copy(isLoading = false, error = it.message ?: tr("Couldn't load collage layouts"))
+                _pickerState.value = _pickerState.value.copy(isLoading = false, error = it.userMessage(tr("Couldn't load collage layouts"), network = true))
                 emptyList()
             }
             // Like CollageActivity: show only layouts whose slot count matches the photo count,

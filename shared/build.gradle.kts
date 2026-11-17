@@ -172,6 +172,8 @@ kotlin {
             implementation(libs.androidsvg)
             // Google Play Billing, behind the shared AppBillingWrapper.
             implementation(libs.google.billing)
+            // Schedules the usage reminders (data/reminders).
+            implementation(libs.androidx.work.runtime)
         }
         iosMain.dependencies {
             // Ktor engine backing the shared HttpClient on iOS.

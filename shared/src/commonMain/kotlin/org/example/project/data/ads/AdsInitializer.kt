@@ -2,6 +2,7 @@ package org.example.project.data.ads
 
 import com.ozi.nextgen.compose.ads_kmp.OziAds
 import com.ozi.nextgen.compose.ads_kmp.OziAdsConfig
+import com.ozi.nextgen.compose.ads_kmp.prepare
 import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.example.project.Platform
@@ -18,7 +19,15 @@ import kotlin.coroutines.resume
  * - Android: `ad_configuration_android`, defaults in `files/ads_defaults_android.json`
  * - iOS: `ad_configuration_ios`, defaults in `files/ads_defaults_ios.json`
  *
- * The iOS AdMob app ID is `GADApplicationIdentifier` in `iosApp/iosApp/Info.plist`.
+ * The AdMob app ID is per build: Google's test ID in debug builds, the app's own in release
+ * ([Platform.adMobAppId]). Android sets it in `androidApp/build.gradle.kts` (`resValue` per build
+ * type); iOS in `iosApp/Configuration/Config.xcconfig` (`ADMOB_APP_ID[config=…]`, read by Info.plist).
+ *
+ * The startup flow (splash → language / onboarding / premium / offer → Home, and the ads between
+ * them) is driven the same way by `OziAds.navigation`: `app_navigation_configuration_android` /
+ * `app_navigation_configuration_ios`, falling back to `files/app_navigation_configuration_<platform>.json`
+ * whenever the parameter can't be used (not fetched yet, fetch failed, missing, or unreadable).
+ * Its `splash.show_consent` decides whether the UMP form runs here.
  */
 class AdsInitializer(private val platform: Platform) {
 
@@ -33,26 +42,36 @@ class AdsInitializer(private val platform: Platform) {
         if (started) return true
         started = true
 
-        val androidDefaults = Res.readBytes("files/ads_defaults_android.json").decodeToString()
-        val iosDefaults = Res.readBytes("files/ads_defaults_ios.json").decodeToString()
+        val config = OziAdsConfig(
+            androidAppId = platform.adMobAppId,
+            isDebug = platform.isDebugBuild,
+            androidDefaultsJson = Res.readBytes("files/ads_defaults_android.json").decodeToString(),
+            iosDefaultsJson = Res.readBytes("files/ads_defaults_ios.json").decodeToString(),
+            androidNavigationDefaultsJson = Res.readBytes("files/app_navigation_configuration_android.json").decodeToString(),
+            iosNavigationDefaultsJson = Res.readBytes("files/app_navigation_configuration_ios.json").decodeToString(),
+        )
 
-        suspendCancellableCoroutine { cont ->
-            OziAds.consent.gather { error ->
-                if (error != null) println("Ads: consent error: $error")
-                if (cont.isActive) cont.resume(Unit)
+        // Lets show_consent be read before initialize (Remote Config's last fetch, else the bundled file).
+        OziAds.navigation.prepare(config)
+        if (OziAds.navigation.showConsentOnSplash) {
+            suspendCancellableCoroutine { cont ->
+                OziAds.consent.gather { error ->
+                    if (error != null) println("Ads: consent error: $error")
+                    if (cont.isActive) cont.resume(Unit)
+                }
             }
+        } else {
+            println("Ads: show_consent is off, skipping the consent form")
         }
         return suspendCancellableCoroutine { cont ->
-            OziAds.initialize(
-                OziAdsConfig(
-                    androidAppId = ANDROID_ADMOB_APP_ID,
-                    isDebug = platform.isDebugBuild,
-                    androidDefaultsJson = androidDefaults,
-                    iosDefaultsJson = iosDefaults,
-                ),
-            ) { fetched ->
+            OziAds.initialize(config) { fetched ->
                 val block = if (platform.isDebugBuild) "debug_ad_configuration" else "release_ad_configuration"
-                println("Ads: initialized on ${OziAds.platformName} (${OziAds.activeConfigKey} → $block), Remote Config fetched=$fetched")
+                println("Ads: initialized on ${OziAds.platformName} (${OziAds.activeConfigKey} → $block, app ID ${platform.adMobAppId}), Remote Config fetched=$fetched")
+                val flow = OziAds.navigation.config
+                println(
+                    "Ads: startup flow from ${OziAds.navigation.source} (${OziAds.navigation.activeKey}): " +
+                        "first=${flow.firstLaunch.map { it.screen.key }} second=${flow.secondLaunch.map { it.screen.key }}",
+                )
                 // What the active block resolved to, to check a console change landed (relaunch after publishing).
                 val banner = AdPlacementKeys.INTERNAL_APP_BANNER
                 println("Ads: $banner enabled=${OziAds.isEnabled(banner, AdPoints.INTERNAL_APP_BANNER_EDITOR)} adId=${OziAds.adIdFor(banner).ifEmpty { "(empty)" }}")
@@ -61,11 +80,5 @@ class AdsInitializer(private val platform: Platform) {
                 if (cont.isActive) cont.resume(fetched)
             }
         }
-    }
-
-    private companion object {
-        // TODO: Google's Android *test* app ID. Replace with this app's AdMob Android
-        //  app ID (ca-app-pub-XXXX~YYYY) before release.
-        const val ANDROID_ADMOB_APP_ID = "ca-app-pub-3940256099942544~3347511713"
     }
 }

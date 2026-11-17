@@ -480,8 +480,6 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Эксклюзивные шрифты",
     "All Filters & Stickers" to
         "Все фильтры и стикеры",
-    "LIMITED TIME OFFER!" to
-        "ОГРАНИЧЕННОЕ ПРЕДЛОЖЕНИЕ!",
     "OFF" to
         "СКИДКА",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Попробовать",
     "Close offer" to
         "Закрыть предложение",
+    "Hours" to
+        "Часы",
+    "Minutes" to
+        "Минуты",
+    "Seconds" to
+        "Секунды",
+    "Congratulations!" to
+        "Поздравляем!",
+    "You've been selected to claim this exclusive offer." to
+        "Вы получили право на это эксклюзивное предложение.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "Подписка оплачивается после окончания пробного периода и продлевается автоматически.",
+    "Only {0} per month" to
+        "Всего {0} в месяц",
+    "Only {0} for {1}" to
+        "Всего {0} за {1}",
+    "Only {0}/{1} for {2}" to
+        "Всего {0}/{1} в течение {2}",
+    "1 day" to
+        "1 день",
+    "1 week" to
+        "1 неделя",
+    "1 month" to
+        "1 месяц",
+    "1 year" to
+        "1 год",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "Затем {0}/{1}. Продлевается автоматически до отмены.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "Затем {0} в течение {1}, потом {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "Оплата ежемесячно. Продлевается автоматически, пока вы не отмените.",
     "Weekly" to
         "Еженедельно",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsRu: Map<String, String> = mapOf(
         "Более 100 наложений",
     "2000+ Fonts" to
         "Более 2000 шрифтов",
+    "Reminders" to
+        "Напоминания",
+    "Your photos miss you 📸" to
+        "Ваши фото скучают по вам 📸",
+    "Got a minute to create? ✨" to
+        "Есть минутка для творчества? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "Превратите сегодняшние моменты в красивый коллаж за секунды.",
+    "Your next favourite collage is just a few taps away." to
+        "Ваш следующий любимый коллаж всего в паре касаний.",
+    "You were so close! Come back and save your masterpiece." to
+        "Вы были так близко! Вернитесь и сохраните свой шедевр.",
+    "Pick up where you left off and save it in one tap." to
+        "Продолжите с того места, где остановились, и сохраните одним касанием.",
+    "Finish what you started 💜" to
+        "Завершите начатое 💜",
+    "Still thinking about it? 💭" to
+        "Всё ещё думаете об этом? 💭",
+    "Time for a new collage ✨" to
+        "Время для нового коллажа ✨",
+    "Make a collage today 📸" to
+        "Создайте коллаж сегодня 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "Выберите любимые фото, а мы красиво их разместим.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "Сотни макетов ждут ваших новых снимков.",
+    "Your collage isn't finished yet" to
+        "Ваш коллаж ещё не готов",
+    "Your collage is still waiting. Finish it and save it today." to
+        "Ваш коллаж всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Get creative 🎨" to
+        "Займитесь творчеством 🎨",
+    "Freestyle time ✂️" to
+        "Время свободного стиля ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "Перетаскивайте, поворачивайте и накладывайте фото как угодно.",
+    "No rules, no grids: arrange your photos your way." to
+        "Никаких правил и сеток: располагайте фото по-своему.",
+    "Your freestyle collage isn't finished yet" to
+        "Ваш свободный коллаж ещё не готов",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "Ваш свободный коллаж всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Fresh templates are waiting" to
+        "Вас ждут новые шаблоны",
+    "Try a new template 🌟" to
+        "Попробуйте новый шаблон 🌟",
+    "Drop your photos into a ready-made design." to
+        "Поместите свои фото в готовый дизайн.",
+    "Beautiful designs that only need your photos." to
+        "Красивые дизайны, которым нужны только ваши фото.",
+    "Your template isn't finished yet" to
+        "Ваш шаблон ещё не готов",
+    "Your template is still waiting. Finish it and save it today." to
+        "Ваш шаблон всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Frame a memory 🖼️" to
+        "Вставьте воспоминание в рамку 🖼️",
+    "New frames to try" to
+        "Новые рамки, которые стоит попробовать",
+    "Give your best shot the frame it deserves." to
+        "Подарите лучшему снимку рамку, которую он заслуживает.",
+    "Turn a favourite photo into a framed keepsake." to
+        "Превратите любимое фото в памятный снимок в рамке.",
+    "Your framed photo isn't finished yet" to
+        "Ваше фото в рамке ещё не готово",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "Ваше фото в рамке всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Try a picture-in-picture" to
+        "Попробуйте «картинку в картинке»",
+    "Make it pop with PIP ✨" to
+        "Сделайте ярче с PIP ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "Поместите фото в потрясающий эффект PIP.",
+    "One photo, two layers, a striking new look." to
+        "Одно фото, два слоя, яркий новый образ.",
+    "Your PIP photo isn't finished yet" to
+        "Ваше PIP-фото ещё не готово",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "Ваше PIP-фото всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Make your photo pop" to
+        "Сделайте фото ярче",
+    "Swap your background 🪄" to
+        "Смените фон 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "Удалите любой фон одним касанием и выберите новый.",
+    "Cut yourself out and drop in a whole new scene." to
+        "Вырежьте себя и перенесите в совершенно новую сцену.",
+    "Your cutout isn't finished yet" to
+        "Ваш вырезанный объект ещё не готов",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "Ваш вырезанный объект всё ещё ждёт. Завершите и сохраните его сегодня.",
+    "Your next edit awaits" to
+        "Вас ждёт новая обработка",
+    "Give a photo a glow-up ✨" to
+        "Преобразите фото ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "Фильтры, стикеры и текст, чтобы ваше фото засияло.",
+    "One filter can change everything. Try a few today." to
+        "Один фильтр может изменить всё. Попробуйте несколько сегодня.",
+    "Your photo edit isn't finished yet" to
+        "Обработка фото ещё не завершена",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "Обработка фото всё ещё ждёт. Завершите и сохраните её сегодня.",
+    "New layouts to try" to
+        "Новые макеты, которые стоит попробовать",
+    "Find your perfect layout" to
+        "Найдите идеальный макет",
+    "Pick a layout and fill it with your favourite shots." to
+        "Выберите макет и заполните его любимыми снимками.",
+    "Grids, strips and shapes, ready for your photos." to
+        "Сетки, полосы и фигуры, готовые для ваших фото.",
+    "Your layout isn't finished yet" to
+        "Ваш макет ещё не готов",
+    "Your layout is still waiting. Finish it and save it today." to
+        "Ваш макет всё ещё ждёт. Завершите и сохраните его сегодня.",
 )

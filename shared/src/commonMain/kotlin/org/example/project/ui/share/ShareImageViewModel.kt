@@ -1,6 +1,7 @@
 package org.example.project.ui.share
 
 import androidx.compose.ui.graphics.ImageBitmap
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.vinceglb.filekit.PlatformFile
@@ -42,7 +43,7 @@ class ShareImageViewModel(private val imagePath: String, handoff: SavedImageHand
     fun share(target: ShareTarget) {
         viewModelScope.launch {
             runCatching { shareImage(imagePath, target) }
-                .onFailure { _errors.tryEmit(it.message ?: tr("Could not share the image")) }
+                .onFailure { _errors.tryEmit(it.userMessage(tr("Could not share the image"))) }
         }
     }
 }

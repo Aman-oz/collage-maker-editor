@@ -1,6 +1,7 @@
 package org.example.project.ui.bgremover
 
 import androidx.compose.ui.graphics.ImageBitmap
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.vinceglb.filekit.PlatformFile
@@ -35,7 +36,7 @@ class BackgroundRemoverCropViewModel(
         viewModelScope.launch {
             _uiState.value = runCatching { PlatformFile(imagePath).toImageBitmap() }.fold(
                 onSuccess = { BackgroundRemoverCropUiState.Ready(it) },
-                onFailure = { BackgroundRemoverCropUiState.Error(it.message ?: tr("Could not open this image")) },
+                onFailure = { BackgroundRemoverCropUiState.Error(it.userMessage(tr("Could not open this image"))) },
             )
         }
     }

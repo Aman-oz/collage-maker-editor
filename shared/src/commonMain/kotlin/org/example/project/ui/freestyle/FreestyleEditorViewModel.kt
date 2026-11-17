@@ -1,6 +1,7 @@
 package org.example.project.ui.freestyle
 
 import androidx.compose.runtime.mutableStateOf
+import org.example.project.ui.common.userMessage
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.TextMeasurer
@@ -178,7 +179,7 @@ class FreestyleEditorViewModel(
                     history = EditHistory(FreestyleFrame(FreestyleState(layers = layers)), maxSize = MaxFreestyleHistory)
                     publish()
                 }
-                .onFailure { _uiState.value = FreestyleEditorUiState.Error(it.message ?: tr("Could not open these images")) }
+                .onFailure { _uiState.value = FreestyleEditorUiState.Error(it.userMessage(tr("Could not open these images"))) }
         }
     }
 

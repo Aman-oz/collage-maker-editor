@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -32,7 +33,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.example.project.data.AppSettings
+import org.example.project.data.ads.AdPoints
 import org.example.project.i18n.tr
+import org.example.project.ui.common.BottomBannerAd
+import org.example.project.ui.common.isSideBySideEditor
 import org.example.project.ui.common.NetworkImage
 import org.example.project.ui.common.rememberSpringBounce
 import org.example.project.ui.common.springBounce
@@ -42,6 +47,7 @@ import org.example.project.ui.templates.ErrorState
 import org.example.project.ui.templates.TemplateCategory
 import org.example.project.ui.templates.TemplatesTopBar
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import photocollagemaker.shared.generated.resources.Res
 import photocollagemaker.shared.generated.resources.ic_premium_icon
@@ -56,8 +62,10 @@ fun LayoutsScreen(
     viewModel: LayoutsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isPremium by koinInject<AppSettings>().isPremium.collectAsStateWithLifecycle()
     LayoutsContent(
         uiState = uiState,
+        showBanner = !isPremium,
         onBack = onBack,
         onCategorySelected = viewModel::selectCategory,
         onLayoutClick = onOpenLayout,
@@ -76,58 +84,65 @@ private fun LayoutsContent(
     onGoPro: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    showBanner: Boolean = false,
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding(),
     ) {
-        TemplatesTopBar(title = tr("Layouts"), onBack = onBack, onGoPro = onGoPro)
+        // No banner on a phone on its side: the grid would be left with too little height.
+        val bannerShown = showBanner && !isSideBySideEditor(maxWidth, maxHeight)
+        Column(modifier = Modifier.fillMaxSize()) {
+            TemplatesTopBar(title = tr("Layouts"), onBack = onBack, onGoPro = onGoPro)
 
-        if (uiState.categories.isNotEmpty()) {
-            CategoryRow(
-                categories = uiState.categories,
-                selectedId = uiState.selectedCategoryId,
-                onSelected = onCategorySelected,
-            )
-        }
+            if (uiState.categories.isNotEmpty()) {
+                CategoryRow(
+                    categories = uiState.categories,
+                    selectedId = uiState.selectedCategoryId,
+                    onSelected = onCategorySelected,
+                )
+            }
 
-        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-            when {
-                uiState.isLoadingCategories && uiState.categories.isEmpty() ->
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                when {
+                    uiState.isLoadingCategories && uiState.categories.isEmpty() ->
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 
-                uiState.error != null && uiState.layouts.isEmpty() ->
-                    ErrorState(message = uiState.error, onRetry = onRetry)
+                    uiState.error != null && uiState.layouts.isEmpty() ->
+                        ErrorState(message = uiState.error, onRetry = onRetry)
 
-                uiState.isLoadingLayouts ->
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    uiState.isLoadingLayouts ->
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 
-                uiState.layouts.isEmpty() ->
-                    Text(
-                        text = tr("No collage layouts available"),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                else -> LazyVerticalGrid(
-                    // Four columns on a phone; as many 84dp+ columns as fit on a tablet.
-                    columns = GridCells.Adaptive(84.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(uiState.layouts, key = { it.id }) { layout ->
-                        CollageLayoutCell(
-                            layout = layout,
-                            onClick = { onLayoutClick(layout) },
-                            modifier = Modifier.fillMaxWidth(),
+                    uiState.layouts.isEmpty() ->
+                        Text(
+                            text = tr("No collage layouts available"),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+
+                    else -> LazyVerticalGrid(
+                        // Four columns on a phone; as many 84dp+ columns as fit on a tablet.
+                        columns = GridCells.Adaptive(84.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        items(uiState.layouts, key = { it.id }) { layout ->
+                            CollageLayoutCell(
+                                layout = layout,
+                                onClick = { onLayoutClick(layout) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
+
+            if (bannerShown) BottomBannerAd(point = AdPoints.INTERNAL_APP_BANNER_LAYOUTS)
         }
     }
 }

@@ -480,8 +480,6 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Caratteri esclusivi",
     "All Filters & Stickers" to
         "Tutti i filtri e gli adesivi",
-    "LIMITED TIME OFFER!" to
-        "OFFERTA A TEMPO LIMITATO!",
     "OFF" to
         "DI SCONTO",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Prova ora",
     "Close offer" to
         "Chiudi offerta",
+    "Hours" to
+        "Ore",
+    "Minutes" to
+        "Minuti",
+    "Seconds" to
+        "Secondi",
+    "Congratulations!" to
+        "Congratulazioni!",
+    "You've been selected to claim this exclusive offer." to
+        "Sei stato selezionato per ottenere questa offerta esclusiva.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "L'abbonamento viene addebitato al termine della prova e si rinnova automaticamente.",
+    "Only {0} per month" to
+        "Solo {0} al mese",
+    "Only {0} for {1}" to
+        "Solo {0} per {1}",
+    "Only {0}/{1} for {2}" to
+        "Solo {0}/{1} per {2}",
+    "1 day" to
+        "1 giorno",
+    "1 week" to
+        "1 settimana",
+    "1 month" to
+        "1 mese",
+    "1 year" to
+        "1 anno",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "Poi {0}/{1}. Si rinnova automaticamente fino alla disdetta.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "Poi {0} per {1}, quindi {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "Addebito mensile. Si rinnova automaticamente fino alla disdetta.",
     "Weekly" to
         "Settimanale",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Oltre 100 sovrapposizioni",
     "2000+ Fonts" to
         "Oltre 2000 font",
+    "Reminders" to
+        "Promemoria",
+    "Your photos miss you 📸" to
+        "Le tue foto ti aspettano 📸",
+    "Got a minute to create? ✨" to
+        "Hai un minuto per creare? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "Trasforma i momenti di oggi in un bel collage in pochi secondi.",
+    "Your next favourite collage is just a few taps away." to
+        "Il tuo prossimo collage preferito è a pochi tocchi di distanza.",
+    "You were so close! Come back and save your masterpiece." to
+        "Eri quasi alla fine! Torna e salva il tuo capolavoro.",
+    "Pick up where you left off and save it in one tap." to
+        "Riprendi da dove eri rimasto e salva con un tocco.",
+    "Finish what you started 💜" to
+        "Finisci ciò che hai iniziato 💜",
+    "Still thinking about it? 💭" to
+        "Ci stai ancora pensando? 💭",
+    "Time for a new collage ✨" to
+        "È ora di un nuovo collage ✨",
+    "Make a collage today 📸" to
+        "Crea un collage oggi 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "Scegli le tue foto preferite e le disporremo in modo splendido.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "Centinaia di layout aspettano i tuoi ultimi scatti.",
+    "Your collage isn't finished yet" to
+        "Il tuo collage non è ancora finito",
+    "Your collage is still waiting. Finish it and save it today." to
+        "Il tuo collage ti aspetta. Finiscilo e salvalo oggi.",
+    "Get creative 🎨" to
+        "Dai sfogo alla creatività 🎨",
+    "Freestyle time ✂️" to
+        "È l'ora dello stile libero ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "Trascina, ruota e sovrapponi le tue foto come preferisci.",
+    "No rules, no grids: arrange your photos your way." to
+        "Niente regole, niente griglie: disponi le foto a modo tuo.",
+    "Your freestyle collage isn't finished yet" to
+        "Il tuo collage libero non è ancora finito",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "Il tuo collage libero ti aspetta. Finiscilo e salvalo oggi.",
+    "Fresh templates are waiting" to
+        "Nuovi modelli ti aspettano",
+    "Try a new template 🌟" to
+        "Prova un nuovo modello 🌟",
+    "Drop your photos into a ready-made design." to
+        "Inserisci le tue foto in un design già pronto.",
+    "Beautiful designs that only need your photos." to
+        "Design bellissimi che aspettano solo le tue foto.",
+    "Your template isn't finished yet" to
+        "Il tuo modello non è ancora finito",
+    "Your template is still waiting. Finish it and save it today." to
+        "Il tuo modello ti aspetta. Finiscilo e salvalo oggi.",
+    "Frame a memory 🖼️" to
+        "Incornicia un ricordo 🖼️",
+    "New frames to try" to
+        "Nuove cornici da provare",
+    "Give your best shot the frame it deserves." to
+        "Dai al tuo scatto migliore la cornice che merita.",
+    "Turn a favourite photo into a framed keepsake." to
+        "Trasforma una foto preferita in un ricordo incorniciato.",
+    "Your framed photo isn't finished yet" to
+        "La tua foto con cornice non è ancora finita",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "La tua foto con cornice ti aspetta. Finiscila e salvala oggi.",
+    "Try a picture-in-picture" to
+        "Prova l'immagine nell'immagine",
+    "Make it pop with PIP ✨" to
+        "Falla risaltare con PIP ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "Inserisci la tua foto in uno straordinario effetto PIP.",
+    "One photo, two layers, a striking new look." to
+        "Una foto, due livelli, un nuovo look d'impatto.",
+    "Your PIP photo isn't finished yet" to
+        "La tua foto PIP non è ancora finita",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "La tua foto PIP ti aspetta. Finiscila e salvala oggi.",
+    "Make your photo pop" to
+        "Fai risaltare la tua foto",
+    "Swap your background 🪄" to
+        "Cambia lo sfondo 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "Rimuovi qualsiasi sfondo con un tocco e scegline uno nuovo.",
+    "Cut yourself out and drop in a whole new scene." to
+        "Scontornati e inserisciti in una scena tutta nuova.",
+    "Your cutout isn't finished yet" to
+        "Il tuo scontorno non è ancora finito",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "Il tuo scontorno ti aspetta. Finiscilo e salvalo oggi.",
+    "Your next edit awaits" to
+        "La tua prossima modifica ti aspetta",
+    "Give a photo a glow-up ✨" to
+        "Dai nuova luce a una foto ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "Filtri, sticker e testo per far brillare la tua foto.",
+    "One filter can change everything. Try a few today." to
+        "Un filtro può cambiare tutto. Provane qualcuno oggi.",
+    "Your photo edit isn't finished yet" to
+        "La tua modifica non è ancora finita",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "La tua modifica ti aspetta. Finiscila e salvala oggi.",
+    "New layouts to try" to
+        "Nuovi layout da provare",
+    "Find your perfect layout" to
+        "Trova il layout perfetto",
+    "Pick a layout and fill it with your favourite shots." to
+        "Scegli un layout e riempilo con i tuoi scatti preferiti.",
+    "Grids, strips and shapes, ready for your photos." to
+        "Griglie, strisce e forme, pronte per le tue foto.",
+    "Your layout isn't finished yet" to
+        "Il tuo layout non è ancora finito",
+    "Your layout is still waiting. Finish it and save it today." to
+        "Il tuo layout ti aspetta. Finiscilo e salvalo oggi.",
 )

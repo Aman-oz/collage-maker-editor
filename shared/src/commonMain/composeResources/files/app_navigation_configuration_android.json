@@ -1,0 +1,65 @@
+{
+"app_navigation_configuration": {
+"_readme": "Flow logic only — NO ad IDs here (ads come from remote_config_json). Fields starting with _ are documentation and are ignored by the parser; keep or delete them freely.",
+"config_version": 2,
+
+"splash": {
+"show_consent": true,
+"_show_consent_help": "true = show Google UMP consent form on splash before continuing; false = skip it.",
+
+"first_launch_get_started_variant": 1,
+"second_launch_get_started_variant": 0,
+"_get_started_variant_help": "0 = direct flow, no button (navigate immediately) | 1 = 'Get Started' button + Banner ad | 2 = button + Native ad | 3 = button only. Set independently for a first-time vs a returning user."
+},
+
+"flows": {
+"_flows_help": "Ordered screens visited AFTER splash, per launch type. When a screen finishes, the next applicable step in the same list opens; 'main' ends the journey (and is implied if the list runs out). To move Premium, move it in the list. Screens: language | onboarding | premium | offer | main. A step is a screen name, or { \"screen\": ..., \"ad_before\": ..., \"enabled\": true, \"skip_if_done\": true }. ad_before: none | interstitial | app_open | app_open_then_interstitial (app-open, and an interstitial if it could not be shown). language/onboarding are skipped when already done unless skip_if_done is false; premium and offer are skipped for premium users; offer (the limited-time deal) is also skipped once its two-hour clock has run out.",
+
+  "first_launch": [
+    {
+      "screen": "premium",
+      "ad_before": "none",
+      "enabled": true
+    },
+    {
+      "screen": "offer",
+      "ad_before": "none",
+      "enabled": true
+    },
+    {
+      "screen": "language",
+      "ad_before": "interstitial",
+      "enabled": true
+    },
+    {
+      "screen": "onboarding",
+      "ad_before": "none",
+      "enabled": true
+    },
+    {
+      "screen": "main",
+      "ad_before": "interstitial"
+    }
+  ],
+"_first_launch_help": "New user (language not selected OR onboarding not done). Examples: Premium right after splash = [\"premium\",\"language\",\"onboarding\",\"main\"] | after language = [\"language\",\"premium\",\"onboarding\",\"main\"] | after onboarding = [\"language\",\"onboarding\",\"premium\",\"main\"]. An interstitial before language = [{\"screen\":\"language\",\"ad_before\":\"interstitial\"},\"onboarding\",\"main\"].",
+
+  "second_launch": [
+    "premium",
+    "offer",
+    {
+      "screen": "main",
+      "ad_before": "interstitial"
+    }
+  ],
+"_second_launch_help": "Returning user (language selected AND onboarding done). Examples: Premium first = [\"premium\",\"main\"] | App-open then Main = [{\"screen\":\"main\",\"ad_before\":\"app_open\"}] | Interstitial then Premium then Main = [{\"screen\":\"premium\",\"ad_before\":\"interstitial\"},\"main\"]."
+},
+
+"screens": {
+"_screens_help": "Optional per-screen, per-launch refinements (keys: screen name, then first_launch / second_launch). enabled:false skips that screen for that launch type. ad_before applies when the step itself sets none. ad_on_close = ad shown when the screen is closed back to where it came from (e.g. Premium opened from Settings, Language opened from Settings).",
+"premium": {
+"first_launch": { "enabled": true },
+"second_launch": { "enabled": true, "ad_on_close": "none" }
+}
+}
+}
+}

@@ -1,6 +1,7 @@
 package org.example.project.ui.templates
 
 import androidx.lifecycle.ViewModel
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +58,7 @@ class TemplatesViewModel(
                     (categories.firstOrNull { it.id == selectedId } ?: categories.firstOrNull())?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load templates")) }
+                    _uiState.update { it.copy(isLoadingCategories = false, error = e.userMessage(tr("Couldn't load templates"), network = true)) }
                 }
         }
     }
@@ -76,7 +77,7 @@ class TemplatesViewModel(
                 }
                 .onFailure { e ->
                     if (_uiState.value.selectedCategoryId == category.id) {
-                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: tr("Couldn't load these templates")) }
+                        _uiState.update { it.copy(isLoadingFrames = false, error = e.userMessage(tr("Couldn't load these templates"), network = true)) }
                     }
                 }
         }

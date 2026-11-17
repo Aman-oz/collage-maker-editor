@@ -6,6 +6,15 @@ PRODUCT_BUNDLE_IDENTIFIER=com.piccollagemaker.photoeditor
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
 
+// AdMob app ID, read by Info.plist (GADApplicationIdentifier). Debug uses Google's test app ID so
+// development never serves live ads; Release (Archive / TestFlight / App Store) uses the app's own.
+ADMOB_APP_ID[config=Debug] = ca-app-pub-3940256099942544~1458002511
+ADMOB_APP_ID[config=Release] = ca-app-pub-9936075969508455~3732053299
+
 // Bundles every app icon set in Assets.xcassets (the app_icon_* ones) as alternate icons,
 // which the app switches between at runtime from Remote Config (app_icon_ios).
 ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS=YES
+
+// Push notifications (APNs, used by Firebase Messaging). Xcode switches aps-environment to
+// production when the app is signed for distribution.
+CODE_SIGN_ENTITLEMENTS=iosApp/iosApp.entitlements

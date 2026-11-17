@@ -2,6 +2,7 @@ package org.example.project
 
 import android.app.Application
 import org.example.project.di.initKoin
+import org.example.project.push.PushNotifications
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 
@@ -12,5 +13,6 @@ class CollageApplication : Application() {
             androidLogger()
             androidContext(this@CollageApplication)
         }
+        PushNotifications.init(this)
     }
 }

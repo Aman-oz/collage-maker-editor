@@ -4,6 +4,7 @@ import org.example.project.Platform
 import org.example.project.data.AppSettings
 import org.example.project.data.ImageEditSession
 import org.example.project.data.SavedImageHandoff
+import org.example.project.data.reminders.UsageTracker
 import org.example.project.data.ProjectsRepository
 import org.example.project.data.bgremover.BackgroundRemoverApi
 import org.example.project.data.billing.AppBillingWrapper
@@ -80,6 +81,8 @@ val coreModule: Module = module {
     single { SavedImageHandoff() }
     // Persisted user preferences (theme, language); App observes the theme from here.
     single { AppSettings(createKeyValueStore()) }
+    // Usage-based reminder notifications; fed by App and AppNavDisplay.
+    single { UsageTracker(createKeyValueStore()) }
     // Ktor client + loader for the remote collage layout thumbnails (collage preview URLs).
     single { createHttpClient() }
     // The disk cache of the fonts and stickers downloaded on demand.

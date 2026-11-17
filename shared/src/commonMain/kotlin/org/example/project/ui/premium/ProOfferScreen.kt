@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.example.project.data.billing.BillingStatus
+import org.example.project.data.billing.IntroPrice
 import org.example.project.data.billing.PremiumPack
 import org.example.project.data.billing.SubscriptionPlan
 import org.example.project.data.billing.SubscriptionProduct
@@ -87,11 +88,13 @@ import photocollagemaker.shared.generated.resources.img_premium_template_christm
 internal val LocalOpenProOffer = staticCompositionLocalOf<(PremiumPack?) -> Unit> { {} }
 
 /**
- * The one plan this paywall sells. Its price, period and any free trial come from the store, and the
- * copy follows them (a trial gets "Try for Rs 0", a plain plan "Continue"), so switching to the
- * monthly plan, or adding a trial in Play Console / App Store Connect, needs no other change here.
+ * The one plan this paywall sells: its own weekly product, apart from the main paywall's Weekly so
+ * it can carry its own trial or intro price. Its price, period, trial and intro price come from the
+ * store, and the copy follows them (a trial gets "Try for Rs 0", an intro price "Only Rs 50 for 1
+ * week", a plain plan "Continue"), so changing them in Play Console / App Store Connect needs no
+ * change here. Until it is set up in the store, the main Weekly is sold instead.
  */
-internal val ProOfferPlan = SubscriptionPlan.Weekly
+internal val ProOfferPlan = SubscriptionPlan.WeeklyPro
 
 /** The hero pictures, swiped through in this order. */
 private val ProOfferImages: List<DrawableResource> = listOf(
@@ -143,7 +146,7 @@ fun ProOfferScreen(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         onClose = onClose,
-        onStart = { viewModel.purchase(ProOfferPlan) },
+        onStart = { viewModel.purchase(uiState.billing.productFor(ProOfferPlan)?.plan ?: ProOfferPlan) },
         onRestore = viewModel::restore,
         onTermsAndPrivacy = {
             val url = SettingsLinks.PrivacyPolicyUrl.ifBlank { SettingsLinks.TermsOfUseUrl }
@@ -288,7 +291,7 @@ private fun OfferPanel(
     onStart: () -> Unit,
     onTermsAndPrivacy: () -> Unit,
 ) {
-    val product = uiState.billing.products[ProOfferPlan]
+    val product = uiState.billing.productFor(ProOfferPlan)
     val subscribed = uiState.billing.activePlan != null
     val copy = offerCopy(product, loading = uiState.billing.status == BillingStatus.Connecting, subscribed = subscribed)
     val subtext = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
@@ -381,18 +384,34 @@ private fun offerCopy(product: SubscriptionProduct?, loading: Boolean, subscribe
     val unit = product.billingPeriod.localizedUnitLabel()
     val price = product.formattedPrice
     val trial = product.freeTrial
+    val intro = product.introPrice
     return when {
         subscribed -> OfferCopy("$price/$unit", null, tr("Current Plan"), highlight = true)
         trial != null -> OfferCopy(
             headline = trial.localizedTrialLabel(),
-            chargeLine = tr("Then {0}/{1} will be charged.", price, unit),
+            // A trial followed by an intro price (Play allows both) says both steps.
+            chargeLine = if (intro != null) {
+                tr("Then {0} for {1}, then {2}/{3}.", introCharge(intro), intro.totalPeriod.localizedDurationLabel(), price, unit)
+            } else {
+                tr("Then {0}/{1} will be charged.", price, unit)
+            },
             // "Try for Rs 0": nothing is charged today, in the store's own currency format.
             button = formatPriceLike(price, 0)?.let { tr("Try for {0}", it) } ?: tr("Start Free Trial"),
+            highlight = true,
+        )
+        intro != null -> OfferCopy(
+            headline = offerPriceLine(product),
+            chargeLine = tr("Then {0}/{1} will be charged.", price, unit),
+            button = tr("Continue"),
             highlight = true,
         )
         else -> OfferCopy("$price/$unit", tr("Auto Renewable. Cancel Anytime"), tr("Continue"), highlight = true)
     }
 }
+
+/** An intro price as charged: "Rs 190" once, or "Rs 50/week" when it repeats. */
+private fun introCharge(intro: IntroPrice): String =
+    if (intro.cycles <= 1) intro.formattedPrice else "${intro.formattedPrice}/${intro.period.localizedUnitLabel()}"
 
 @Preview
 @Composable

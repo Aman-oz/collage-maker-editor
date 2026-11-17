@@ -9,8 +9,16 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import com.ozi.nextgen.compose.ads_manager.remote_config.model.AdPlacementKeys
+import org.example.project.data.ads.AdPoints
+import org.example.project.ui.common.BottomNativeAd
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -37,6 +45,7 @@ import org.example.project.ui.onboarding.OnboardingScreen
 import org.example.project.ui.pip.PipEditorScreen
 import org.example.project.ui.pip.PipScreen
 import org.example.project.ui.premium.PremiumScreen
+import org.example.project.ui.premium.LaunchOfferScreen
 import org.example.project.ui.premium.LocalOpenProOffer
 import org.example.project.ui.premium.ProOfferScreen
 import org.example.project.ui.projects.PreviewScreen
@@ -56,12 +65,19 @@ import org.example.project.ui.shop.ShopScreen
 import org.example.project.ui.shop.ShopTab
 import org.example.project.ui.share.ShareSuggestion
 import org.example.project.ui.settings.SettingsScreen
-import org.example.project.ui.splash.SplashNext
+import com.ozi.nextgen.compose.ads_kmp.OziAds
+import com.ozi.nextgen.compose.ads_manager.navigation.NavScreen
+import org.example.project.data.AppSettings
+import org.example.project.data.ads.destination
+import org.example.project.data.ads.startupState
 import org.example.project.ui.splash.SplashScreen
 import org.example.project.ui.templates.TemplatesEditorScreen
 import org.example.project.ui.templates.TemplatesScreen
 import org.koin.compose.koinInject
 import org.example.project.data.ads.BackInterstitial
+import org.example.project.data.reminders.ReminderFeature
+import org.example.project.data.reminders.ReminderTaps
+import org.example.project.data.reminders.UsageTracker
 
 /** How long a slide-up screen (gallery, save, paywall, ...) takes to slide up over / down off what is underneath. */
 private const val ToolScreenTransitionMillis = 320
@@ -113,6 +129,55 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
         }
     }
 
+    // The startup flow (OziAds.navigation, from Remote Config): each startup screen moves on through
+    // it, which shows the configured ad first. The finished step is replaced, so Back never
+    // returns to it.
+    val settings = koinInject<AppSettings>()
+    val startupStep: (NavKey, NavScreen) -> Unit = remember(backStack) {
+        { current, screen ->
+            backStack.add(screen.destination())
+            backStack.remove(current)
+        }
+    }
+    /** [current] (one of the flow's own screens) is done: on to the next step. */
+    fun nextStartupStep(current: NavKey, screen: NavScreen) {
+        OziAds.navigation.next(screen, settings.startupState()) { next -> startupStep(current, next) }
+    }
+    /** [current] was opened from inside the app: its `ad_on_close`, then back to where it came from. */
+    fun closeStartupScreen(current: NavKey, screen: NavScreen) {
+        OziAds.navigation.close(screen, settings.startupState()) {
+            if (backStack.lastOrNull() === current) backStack.removeLastOrNull()
+        }
+    }
+
+    // Usage reminders (data/reminders): a feature counts as started the first time its editor is on
+    // top, and a reminder tap opens its feature once Home is showing.
+    val usage = koinInject<UsageTracker>()
+    val top = backStack.lastOrNull()
+    val countedStarts = remember(backStack) { mutableListOf<NavKey>() }
+    LaunchedEffect(top) {
+        countedStarts.retainAll { counted -> backStack.any { it === counted } }
+        val feature = ReminderFeature.startedBy(top) ?: return@LaunchedEffect
+        if (top != null && countedStarts.none { it === top }) {
+            countedStarts += top
+            usage.onFeatureStarted(feature)
+        }
+    }
+    val tappedReminder by ReminderTaps.tapped.collectAsState()
+    LaunchedEffect(tappedReminder, top) {
+        val feature = tappedReminder ?: return@LaunchedEffect
+        when (top) {
+            is Destination.Home -> {
+                ReminderTaps.consume()
+                backStack.add(feature.destination())
+            }
+            // Still on the way in (cold start): wait for Home.
+            is Destination.Splash, is Destination.Language, is Destination.Onboarding, is Destination.Premium, is Destination.LaunchOffer -> Unit
+            // Already somewhere in the app (often the unfinished editor itself): leave it as it is.
+            else -> ReminderTaps.consume()
+        }
+    }
+
     // One scope around the whole NavDisplay so an element can morph between two entries (the
     // Projects grid thumbnail into the full-screen Preview, a Templates grid cell into its editor).
     SharedTransitionLayout(modifier = modifier) {
@@ -129,42 +194,35 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                 ),
                 entryProvider = entryProvider {
                     entry<Destination.Splash> {
-                        SplashScreen(
-                            onFinished = { next ->
-                                backStack.add(
-                                    when (next) {
-                                        SplashNext.FirstRun -> Destination.Language()
-                                        SplashNext.Premium -> Destination.Premium(fromSplash = true)
-                                        SplashNext.Home -> Destination.Home
-                                    },
-                                )
-                                backStack.remove(Destination.Splash)
-                            },
-                        )
+                        SplashScreen(onNavigate = { screen -> startupStep(Destination.Splash, screen) })
                     }
 
                     entry<Destination.Language> { key ->
+                        if (key.fromSettings) {
+                            LaunchedEffect(Unit) { OziAds.navigation.preloadClose(NavScreen.LANGUAGE, settings.startupState()) }
+                        }
                         LanguageScreen(
                             showBack = key.fromSettings,
                             onBack = goBack,
+                            bottomAd = {
+                                BottomNativeAd(
+                                    placementKey = AdPlacementKeys.LANGUAGE_NATIVE,
+                                    point = if (key.fromSettings) AdPoints.LANGUAGE_NATIVE_SETTINGS else AdPoints.LANGUAGE_NATIVE_LANGUAGE,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            },
                             onDone = {
                                 if (key.fromSettings) {
-                                    backStack.removeLastOrNull()
+                                    closeStartupScreen(key, NavScreen.LANGUAGE)
                                 } else {
-                                    backStack.add(Destination.Onboarding)
-                                    backStack.remove(key)
+                                    nextStartupStep(key, NavScreen.LANGUAGE)
                                 }
                             },
                         )
                     }
 
                     entry<Destination.Onboarding> {
-                        OnboardingScreen(
-                            onFinish = {
-                                backStack.add(Destination.Premium(fromSplash = true))
-                                backStack.remove(Destination.Onboarding)
-                            },
-                        )
+                        OnboardingScreen(onFinish = { nextStartupStep(Destination.Onboarding, NavScreen.ONBOARDING) })
                     }
 
                     entry<Destination.Home> {
@@ -211,15 +269,25 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                     entry<Destination.Premium>(metadata = slideUpMetadata()) { key ->
                         // Scoped to this entry: popping it without subscribing offers the pack.
                         key.pack?.let { pack -> koinViewModel<PremiumPackOfferOnLeave>(key = pack.name) { parametersOf(pack) } }
+                        if (!key.fromSplash) {
+                            LaunchedEffect(Unit) { OziAds.navigation.preloadClose(NavScreen.PREMIUM, settings.startupState()) }
+                        }
                         PremiumScreen(
                             fromSplash = key.fromSplash,
-                            onClose = { backStack.closePremium(key) },
+                            onClose = {
+                                if (key.fromSplash) nextStartupStep(key, NavScreen.PREMIUM)
+                                else closeStartupScreen(key, NavScreen.PREMIUM)
+                            },
                         )
                     }
 
                     entry<Destination.ProOffer>(metadata = slideUpMetadata()) { key ->
                         key.pack?.let { pack -> koinViewModel<PremiumPackOfferOnLeave>(key = pack.name) { parametersOf(pack) } }
                         ProOfferScreen(onClose = goBack)
+                    }
+
+                    entry<Destination.LaunchOffer>(metadata = slideUpMetadata()) { key ->
+                        LaunchOfferScreen(onClose = { nextStartupStep(key, NavScreen.OFFER) })
                     }
 
                     entry<Destination.ProEditor>(metadata = slideUpMetadata()) {
@@ -377,7 +445,10 @@ fun AppNavDisplay(modifier: Modifier = Modifier) {
                         WithNavAnimatedScope {
                             SaveImageScreen(
                                 onBack = goBack,
-                                onSaved = { imagePath -> backStack.add(Destination.ShareImage(imagePath)) },
+                                onSaved = { imagePath ->
+                                    usage.onImageSaved()
+                                    backStack.add(Destination.ShareImage(imagePath))
+                                },
                                 onOpenPremium = { backStack.add(Destination.Premium()) },
                             )
                         }
@@ -473,15 +544,3 @@ private fun MutableList<NavKey>.popToHome() {
     }
 }
 
-/**
- * Leaves [premium]. In the launch flow ([Destination.Premium.fromSplash]) it is replaced by
- * [Destination.Home], since there is nothing under it; anywhere else it is just popped.
- */
-private fun MutableList<NavKey>.closePremium(premium: Destination.Premium) {
-    if (premium.fromSplash) {
-        add(Destination.Home)
-        remove(premium)
-    } else {
-        removeLastOrNull()
-    }
-}

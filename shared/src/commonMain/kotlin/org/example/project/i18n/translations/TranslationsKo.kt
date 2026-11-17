@@ -480,8 +480,6 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "전용 글꼴",
     "All Filters & Stickers" to
         "모든 필터와 스티커",
-    "LIMITED TIME OFFER!" to
-        "기간 한정 혜택!",
     "OFF" to
         "할인",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "지금 체험",
     "Close offer" to
         "혜택 닫기",
+    "Hours" to
+        "시간",
+    "Minutes" to
+        "분",
+    "Seconds" to
+        "초",
+    "Congratulations!" to
+        "축하합니다!",
+    "You've been selected to claim this exclusive offer." to
+        "이 특별 혜택을 받을 대상으로 선정되었습니다.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "체험 기간이 끝나면 요금이 청구되며 자동으로 갱신됩니다.",
+    "Only {0} per month" to
+        "월 {0}",
+    "Only {0} for {1}" to
+        "{1} 동안 단 {0}",
+    "Only {0}/{1} for {2}" to
+        "{2} 동안 단 {0}/{1}",
+    "1 day" to
+        "1일",
+    "1 week" to
+        "1주",
+    "1 month" to
+        "1개월",
+    "1 year" to
+        "1년",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "이후 {0}/{1}. 취소할 때까지 자동 갱신됩니다.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "이후 {1} 동안 {0}, 그다음 {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "매월 청구됩니다. 해지할 때까지 자동으로 갱신됩니다.",
     "Weekly" to
         "주간",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "100개 이상의 오버레이",
     "2000+ Fonts" to
         "2000개 이상의 글꼴",
+    "Reminders" to
+        "알림",
+    "Your photos miss you 📸" to
+        "사진들이 당신을 기다려요 📸",
+    "Got a minute to create? ✨" to
+        "잠깐 만들어 볼 시간 있나요? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "오늘의 순간을 몇 초 만에 멋진 콜라주로 만들어 보세요.",
+    "Your next favourite collage is just a few taps away." to
+        "다음 최애 콜라주까지 몇 번의 탭이면 충분해요.",
+    "You were so close! Come back and save your masterpiece." to
+        "거의 다 왔어요! 돌아와서 걸작을 저장하세요.",
+    "Pick up where you left off and save it in one tap." to
+        "멈춘 곳부터 이어서 한 번의 탭으로 저장하세요.",
+    "Finish what you started 💜" to
+        "시작한 작품을 완성해 보세요 💜",
+    "Still thinking about it? 💭" to
+        "아직 고민 중이세요? 💭",
+    "Time for a new collage ✨" to
+        "새 콜라주를 만들 시간이에요 ✨",
+    "Make a collage today 📸" to
+        "오늘 콜라주를 만들어 보세요 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "좋아하는 사진을 고르면 멋지게 배치해 드려요.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "수백 개의 레이아웃이 최신 사진을 기다리고 있어요.",
+    "Your collage isn't finished yet" to
+        "콜라주가 아직 완성되지 않았어요",
+    "Your collage is still waiting. Finish it and save it today." to
+        "콜라주가 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Get creative 🎨" to
+        "창의력을 발휘해 보세요 🎨",
+    "Freestyle time ✂️" to
+        "프리스타일 시간이에요 ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "사진을 원하는 대로 끌고, 돌리고, 겹쳐 보세요.",
+    "No rules, no grids: arrange your photos your way." to
+        "규칙도 격자도 없이 내 방식대로 사진을 배치하세요.",
+    "Your freestyle collage isn't finished yet" to
+        "프리스타일 콜라주가 아직 완성되지 않았어요",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "프리스타일 콜라주가 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Fresh templates are waiting" to
+        "새 템플릿이 기다리고 있어요",
+    "Try a new template 🌟" to
+        "새 템플릿을 사용해 보세요 🌟",
+    "Drop your photos into a ready-made design." to
+        "완성된 디자인에 사진만 넣어 보세요.",
+    "Beautiful designs that only need your photos." to
+        "사진만 있으면 되는 멋진 디자인.",
+    "Your template isn't finished yet" to
+        "템플릿이 아직 완성되지 않았어요",
+    "Your template is still waiting. Finish it and save it today." to
+        "템플릿이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Frame a memory 🖼️" to
+        "추억을 액자에 담아 보세요 🖼️",
+    "New frames to try" to
+        "새로운 프레임을 사용해 보세요",
+    "Give your best shot the frame it deserves." to
+        "최고의 사진에 어울리는 프레임을 선물하세요.",
+    "Turn a favourite photo into a framed keepsake." to
+        "좋아하는 사진을 액자 속 기념품으로 만들어 보세요.",
+    "Your framed photo isn't finished yet" to
+        "프레임 사진이 아직 완성되지 않았어요",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "프레임 사진이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Try a picture-in-picture" to
+        "PIP 효과를 사용해 보세요",
+    "Make it pop with PIP ✨" to
+        "PIP로 돋보이게 ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "사진을 멋진 PIP 효과 안에 넣어 보세요.",
+    "One photo, two layers, a striking new look." to
+        "사진 한 장, 레이어 두 개, 강렬한 새 스타일.",
+    "Your PIP photo isn't finished yet" to
+        "PIP 사진이 아직 완성되지 않았어요",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "PIP 사진이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Make your photo pop" to
+        "사진을 돋보이게 만드세요",
+    "Swap your background 🪄" to
+        "배경을 바꿔 보세요 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "한 번의 탭으로 배경을 지우고 새 배경을 고르세요.",
+    "Cut yourself out and drop in a whole new scene." to
+        "나를 오려내서 완전히 새로운 장면에 넣어 보세요.",
+    "Your cutout isn't finished yet" to
+        "누끼 작업이 아직 완성되지 않았어요",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "누끼 작업이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "Your next edit awaits" to
+        "다음 편집이 기다리고 있어요",
+    "Give a photo a glow-up ✨" to
+        "사진을 더 빛나게 ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "필터, 스티커, 텍스트로 사진을 빛나게 하세요.",
+    "One filter can change everything. Try a few today." to
+        "필터 하나로 모든 게 달라져요. 오늘 몇 가지 사용해 보세요.",
+    "Your photo edit isn't finished yet" to
+        "사진 편집이 아직 완성되지 않았어요",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "사진 편집이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
+    "New layouts to try" to
+        "새 레이아웃을 사용해 보세요",
+    "Find your perfect layout" to
+        "완벽한 레이아웃을 찾아보세요",
+    "Pick a layout and fill it with your favourite shots." to
+        "레이아웃을 고르고 좋아하는 사진으로 채우세요.",
+    "Grids, strips and shapes, ready for your photos." to
+        "격자, 스트립, 도형이 사진을 기다리고 있어요.",
+    "Your layout isn't finished yet" to
+        "레이아웃이 아직 완성되지 않았어요",
+    "Your layout is still waiting. Finish it and save it today." to
+        "레이아웃이 아직 기다리고 있어요. 오늘 완성해서 저장하세요.",
 )

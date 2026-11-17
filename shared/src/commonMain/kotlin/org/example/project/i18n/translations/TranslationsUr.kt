@@ -480,8 +480,6 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "خصوصی فونٹس",
     "All Filters & Stickers" to
         "تمام فلٹرز اور اسٹیکرز",
-    "LIMITED TIME OFFER!" to
-        "محدود وقت کی پیشکش!",
     "OFF" to
         "رعایت",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "ابھی آزمائیں",
     "Close offer" to
         "پیشکش بند کریں",
+    "Hours" to
+        "گھنٹے",
+    "Minutes" to
+        "منٹ",
+    "Seconds" to
+        "سیکنڈ",
+    "Congratulations!" to
+        "مبارک ہو!",
+    "You've been selected to claim this exclusive offer." to
+        "آپ کو اس خصوصی پیشکش کے لیے منتخب کیا گیا ہے۔",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "ٹرائل ختم ہونے کے بعد سبسکرپشن کا بل لیا جائے گا اور یہ خود بخود تجدید ہوگی۔",
+    "Only {0} per month" to
+        "صرف {0} ماہانہ",
+    "Only {0} for {1}" to
+        "صرف {0} میں {1} کے لیے",
+    "Only {0}/{1} for {2}" to
+        "صرف {0}/{1}، {2} کے لیے",
+    "1 day" to
+        "1 دن",
+    "1 week" to
+        "1 ہفتہ",
+    "1 month" to
+        "1 مہینہ",
+    "1 year" to
+        "1 سال",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "اس کے بعد {0}/{1}۔ منسوخ کرنے تک خودکار طور پر تجدید ہوتی ہے۔",
+    "Then {0} for {1}, then {2}/{3}." to
+        "اس کے بعد {1} کے لیے {0}، پھر {2}/{3}۔",
+    "Billed monthly. Renews automatically until you cancel." to
+        "ماہانہ بل کیا جاتا ہے۔ منسوخ کرنے تک خود بخود تجدید ہوتی ہے۔",
     "Weekly" to
         "ہفتہ وار",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsUr: Map<String, String> = mapOf(
         "100+ اوورلیز",
     "2000+ Fonts" to
         "2000+ فونٹس",
+    "Reminders" to
+        "یاد دہانیاں",
+    "Your photos miss you 📸" to
+        "آپ کی تصاویر آپ کو یاد کر رہی ہیں 📸",
+    "Got a minute to create? ✨" to
+        "کچھ بنانے کے لیے ایک منٹ ہے؟ ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "آج کے لمحات کو سیکنڈوں میں ایک خوبصورت کولاج میں بدلیں۔",
+    "Your next favourite collage is just a few taps away." to
+        "آپ کا اگلا پسندیدہ کولاج بس چند ٹیپ کی دوری پر ہے۔",
+    "You were so close! Come back and save your masterpiece." to
+        "آپ بس مکمل کرنے ہی والے تھے! واپس آئیں اور اپنا شاہکار محفوظ کریں۔",
+    "Pick up where you left off and save it in one tap." to
+        "جہاں چھوڑا تھا وہیں سے شروع کریں اور ایک ٹیپ میں محفوظ کریں۔",
+    "Finish what you started 💜" to
+        "جو شروع کیا تھا اسے مکمل کریں 💜",
+    "Still thinking about it? 💭" to
+        "ابھی بھی سوچ رہے ہیں؟ 💭",
+    "Time for a new collage ✨" to
+        "نئے کولاج کا وقت ✨",
+    "Make a collage today 📸" to
+        "آج ایک کولاج بنائیں 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "اپنی پسندیدہ تصاویر چنیں، ہم انہیں خوبصورتی سے ترتیب دیں گے۔",
+    "Hundreds of layouts are ready for your latest shots." to
+        "سینکڑوں لے آؤٹ آپ کی تازہ تصاویر کے منتظر ہیں۔",
+    "Your collage isn't finished yet" to
+        "آپ کا کولاج ابھی مکمل نہیں ہوا",
+    "Your collage is still waiting. Finish it and save it today." to
+        "آپ کا کولاج ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Get creative 🎨" to
+        "تخلیقی بنیں 🎨",
+    "Freestyle time ✂️" to
+        "فری اسٹائل کا وقت ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "اپنی تصاویر کو جیسے چاہیں کھینچیں، گھمائیں اور اوپر نیچے رکھیں۔",
+    "No rules, no grids: arrange your photos your way." to
+        "نہ کوئی اصول، نہ گرڈ: اپنی تصاویر اپنے انداز میں ترتیب دیں۔",
+    "Your freestyle collage isn't finished yet" to
+        "آپ کا فری اسٹائل کولاج ابھی مکمل نہیں ہوا",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "آپ کا فری اسٹائل کولاج ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Fresh templates are waiting" to
+        "نئے ٹیمپلیٹس منتظر ہیں",
+    "Try a new template 🌟" to
+        "ایک نیا ٹیمپلیٹ آزمائیں 🌟",
+    "Drop your photos into a ready-made design." to
+        "اپنی تصاویر ایک تیار ڈیزائن میں ڈالیں۔",
+    "Beautiful designs that only need your photos." to
+        "خوبصورت ڈیزائن جنہیں بس آپ کی تصاویر چاہییں۔",
+    "Your template isn't finished yet" to
+        "آپ کا ٹیمپلیٹ ابھی مکمل نہیں ہوا",
+    "Your template is still waiting. Finish it and save it today." to
+        "آپ کا ٹیمپلیٹ ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Frame a memory 🖼️" to
+        "ایک یاد کو فریم کریں 🖼️",
+    "New frames to try" to
+        "آزمانے کے لیے نئے فریم",
+    "Give your best shot the frame it deserves." to
+        "اپنی بہترین تصویر کو وہ فریم دیں جس کی وہ حقدار ہے۔",
+    "Turn a favourite photo into a framed keepsake." to
+        "کسی پسندیدہ تصویر کو فریم شدہ یادگار میں بدلیں۔",
+    "Your framed photo isn't finished yet" to
+        "آپ کی فریم شدہ تصویر ابھی مکمل نہیں ہوئی",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "آپ کی فریم شدہ تصویر ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Try a picture-in-picture" to
+        "تصویر میں تصویر آزمائیں",
+    "Make it pop with PIP ✨" to
+        "PIP سے اسے نمایاں کریں ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "اپنی تصویر کو ایک شاندار PIP ایفیکٹ میں ڈالیں۔",
+    "One photo, two layers, a striking new look." to
+        "ایک تصویر، دو تہیں، ایک دلکش نیا انداز۔",
+    "Your PIP photo isn't finished yet" to
+        "آپ کی PIP تصویر ابھی مکمل نہیں ہوئی",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "آپ کی PIP تصویر ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Make your photo pop" to
+        "اپنی تصویر کو نمایاں بنائیں",
+    "Swap your background 🪄" to
+        "اپنا پس منظر بدلیں 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "ایک ٹیپ میں کوئی بھی پس منظر ہٹائیں اور نیا چنیں۔",
+    "Cut yourself out and drop in a whole new scene." to
+        "خود کو کاٹ کر ایک بالکل نئے منظر میں رکھیں۔",
+    "Your cutout isn't finished yet" to
+        "آپ کا کٹ آؤٹ ابھی مکمل نہیں ہوا",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "آپ کا کٹ آؤٹ ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "Your next edit awaits" to
+        "آپ کی اگلی ایڈیٹنگ منتظر ہے",
+    "Give a photo a glow-up ✨" to
+        "کسی تصویر کو نئی چمک دیں ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "آپ کی تصویر کو چمکانے کے لیے فلٹرز، اسٹیکرز اور ٹیکسٹ۔",
+    "One filter can change everything. Try a few today." to
+        "ایک فلٹر سب کچھ بدل سکتا ہے۔ آج چند آزمائیں۔",
+    "Your photo edit isn't finished yet" to
+        "آپ کی تصویر کی ایڈیٹنگ ابھی مکمل نہیں ہوئی",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "آپ کی تصویر کی ایڈیٹنگ ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
+    "New layouts to try" to
+        "آزمانے کے لیے نئے لے آؤٹ",
+    "Find your perfect layout" to
+        "اپنا بہترین لے آؤٹ تلاش کریں",
+    "Pick a layout and fill it with your favourite shots." to
+        "ایک لے آؤٹ چنیں اور اسے اپنی پسندیدہ تصاویر سے بھریں۔",
+    "Grids, strips and shapes, ready for your photos." to
+        "گرڈ، پٹیاں اور شکلیں، آپ کی تصاویر کے لیے تیار۔",
+    "Your layout isn't finished yet" to
+        "آپ کا لے آؤٹ ابھی مکمل نہیں ہوا",
+    "Your layout is still waiting. Finish it and save it today." to
+        "آپ کا لے آؤٹ ابھی بھی منتظر ہے۔ آج ہی مکمل کر کے محفوظ کریں۔",
 )

@@ -8,6 +8,8 @@ package org.example.project.data.billing
  * @param billingPeriod how often [formattedPrice] is charged.
  * @param freeTrial the free trial this user is still eligible for, or null — the stores only offer
  *   an introductory trial once per subscription group, so it is resolved per user, never assumed.
+ * @param introPrice a paid introductory price this user is eligible for ("Rs 190 for 3 days"), or
+ *   null. Like [freeTrial], resolved per user by the store.
  */
 data class SubscriptionProduct(
     val plan: SubscriptionPlan,
@@ -16,7 +18,26 @@ data class SubscriptionProduct(
     val currencyCode: String,
     val billingPeriod: BillingPeriod,
     val freeTrial: BillingPeriod? = null,
-)
+    val introPrice: IntroPrice? = null,
+) {
+    /** What the first charge is: the intro price when there is one, else the recurring price. */
+    val firstPriceMicros: Long get() = introPrice?.priceMicros ?: priceMicros
+    val firstFormattedPrice: String get() = introPrice?.formattedPrice ?: formattedPrice
+}
+
+/**
+ * A paid introductory price: [formattedPrice] charged every [period], [cycles] times, before the
+ * recurring price starts. A pay-up-front intro is one cycle covering the whole intro length.
+ */
+data class IntroPrice(
+    val formattedPrice: String,
+    val priceMicros: Long,
+    val period: BillingPeriod,
+    val cycles: Int = 1,
+) {
+    /** The whole intro length: "3 days" for 3 × 1 day as for 1 × 3 days. */
+    val totalPeriod: BillingPeriod get() = BillingPeriod(period.count * cycles.coerceAtLeast(1), period.unit)
+}
 
 /** Outcome of a purchase attempt. */
 sealed interface PurchaseResult {
@@ -51,6 +72,12 @@ data class BillingState(
 ) {
     /** The full plan the user is on; if the store reports several, the longest one. Packs don't count. */
     val activePlan: SubscriptionPlan? get() = SubscriptionPlan.FullPlans.lastOrNull { it in activePlans }
+
+    /**
+     * The product to sell for [plan], falling back to the main plan it is a variant of while the
+     * variant isn't set up in the store yet, so an offer screen never sells nothing.
+     */
+    fun productFor(plan: SubscriptionPlan): SubscriptionProduct? = products[plan] ?: plan.variantOf?.let(products::get)
 }
 
 /** A store call that failed (no connection, store error); [message] is safe to show the user. */

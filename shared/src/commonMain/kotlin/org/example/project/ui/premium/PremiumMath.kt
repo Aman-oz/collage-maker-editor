@@ -30,6 +30,51 @@ internal fun savingsOverWeeklyPercent(weekly: SubscriptionProduct?, longer: Subs
 
 private const val WeeksPerYear = 52
 
+/**
+ * The launch offer's "95% OFF": how much less [offer]'s first charge (its intro price, or its
+ * recurring price when it has none) is than [regular]'s recurring price — the main paywall's
+ * Monthly. Rounded down, so it never promises more than the store gives. Null when either price is
+ * missing, the currencies differ, or there is no saving.
+ */
+internal fun offerDiscountPercent(regular: SubscriptionProduct?, offer: SubscriptionProduct?): Int? {
+    if (regular == null || offer == null) return null
+    if (regular.currencyCode != offer.currencyCode || regular.priceMicros <= 0) return null
+    val percent = ((1.0 - offer.firstPriceMicros.toDouble() / regular.priceMicros) * 100).toInt()
+    return percent.takeIf { it in 1..99 }
+}
+
+/**
+ * The offer line for [product], in the app's language: "Only Rs 190 for 3 days" for a one-off intro
+ * price, "Only Rs 50/week for 4 weeks" for a repeating one, "Only Rs 820 per month" without one.
+ */
+internal fun offerPriceLine(product: SubscriptionProduct): String {
+    val intro = product.introPrice
+    return when {
+        intro == null && product.billingPeriod == BillingPeriod(1, PeriodUnit.Month) ->
+            tr("Only {0} per month", product.formattedPrice)
+        intro == null -> "${product.formattedPrice}/${product.billingPeriod.localizedUnitLabel()}"
+        intro.cycles <= 1 -> tr("Only {0} for {1}", intro.formattedPrice, intro.totalPeriod.localizedDurationLabel())
+        else -> tr(
+            "Only {0}/{1} for {2}",
+            intro.formattedPrice,
+            intro.period.localizedUnitLabel(),
+            intro.totalPeriod.localizedDurationLabel(),
+        )
+    }
+}
+
+/** A length of time in the app's language, always with its number: "1 day", "3 days". */
+internal fun BillingPeriod.localizedDurationLabel(): String = if (count == 1) {
+    when (unit) {
+        PeriodUnit.Day -> tr("1 day")
+        PeriodUnit.Week -> tr("1 week")
+        PeriodUnit.Month -> tr("1 month")
+        PeriodUnit.Year -> tr("1 year")
+    }
+} else {
+    localizedUnitLabel()
+}
+
 /** How long the launch-flow limited-time offer stays available after it is first shown. */
 internal const val LaunchOfferDurationMillis = 2 * 60 * 60 * 1000L
 

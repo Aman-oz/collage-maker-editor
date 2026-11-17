@@ -66,6 +66,11 @@ internal class StoreKitBillingAdapter(private val bridge: StoreKitBridge) : Bill
             currencyCode = currencyCode,
             billingPeriod = BillingPeriod.parse(billingPeriod) ?: return null,
             freeTrial = freeTrialPeriod?.let(BillingPeriod::parse),
+            introPrice = introDisplayPrice?.let { price ->
+                introPeriod?.let(BillingPeriod::parse)?.let { period ->
+                    IntroPrice(price, introPriceMicros, period, introCycles.coerceAtLeast(1))
+                }
+            },
         )
     }
 }

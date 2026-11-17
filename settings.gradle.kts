@@ -26,6 +26,12 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // The ads SDK from this Mac's Maven Local (`./gradlew publishToMavenLocal` in
+        // AdmobComposeSdk_Nextgen), checked first so an unpublished SDK version can be tried.
+        // Only the SDK's group is looked up here.
+        mavenLocal {
+            mavenContent { includeGroupAndSubgroups("com.ozi.admob.nextgen.compose") }
+        }
         // Internal Maven repo for the OZI ads SDK (com.ozi.admob.nextgen.compose:
         // ads-kmp, ads, ads-core). Needs the office network / VPN.
         maven {

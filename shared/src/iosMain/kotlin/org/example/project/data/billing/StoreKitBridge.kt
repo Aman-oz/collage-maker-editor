@@ -30,6 +30,8 @@ interface StoreKitBridge {
  *
  * @param billingPeriod the subscription period as an ISO 8601 duration ("P1W"), like Play reports.
  * @param freeTrialPeriod the introductory free trial, only when this user is eligible for it.
+ * @param introDisplayPrice a paid introductory price (pay as you go / pay up front), only when this
+ *   user is eligible for it; [introPriceMicros], [introPeriod] (ISO 8601) and [introCycles] go with it.
  */
 data class StoreKitProduct(
     val productId: String,
@@ -38,6 +40,10 @@ data class StoreKitProduct(
     val currencyCode: String,
     val billingPeriod: String,
     val freeTrialPeriod: String?,
+    val introDisplayPrice: String?,
+    val introPriceMicros: Long,
+    val introPeriod: String?,
+    val introCycles: Int,
 )
 
 enum class StoreKitPurchaseOutcome { Purchased, Pending, Cancelled, Failed }

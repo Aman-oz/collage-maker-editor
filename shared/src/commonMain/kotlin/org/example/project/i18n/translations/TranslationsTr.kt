@@ -480,8 +480,6 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Özel yazı tipleri",
     "All Filters & Stickers" to
         "Tüm filtreler ve çıkartmalar",
-    "LIMITED TIME OFFER!" to
-        "SINIRLI SÜRELİ TEKLİF!",
     "OFF" to
         "İNDİRİM",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "Şimdi dene",
     "Close offer" to
         "Teklifi kapat",
+    "Hours" to
+        "Saat",
+    "Minutes" to
+        "Dakika",
+    "Seconds" to
+        "Saniye",
+    "Congratulations!" to
+        "Tebrikler!",
+    "You've been selected to claim this exclusive offer." to
+        "Bu özel teklif için seçildiniz.",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "Abonelik ücreti deneme süresi bittikten sonra alınır ve otomatik olarak yenilenir.",
+    "Only {0} per month" to
+        "Ayda sadece {0}",
+    "Only {0} for {1}" to
+        "{1} için yalnızca {0}",
+    "Only {0}/{1} for {2}" to
+        "{2} boyunca yalnızca {0}/{1}",
+    "1 day" to
+        "1 gün",
+    "1 week" to
+        "1 hafta",
+    "1 month" to
+        "1 ay",
+    "1 year" to
+        "1 yıl",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "Ardından {0}/{1}. İptal edene kadar otomatik yenilenir.",
+    "Then {0} for {1}, then {2}/{3}." to
+        "Ardından {1} boyunca {0}, sonra {2}/{3}.",
+    "Billed monthly. Renews automatically until you cancel." to
+        "Aylık faturalandırılır. İptal edene kadar otomatik olarak yenilenir.",
     "Weekly" to
         "Haftalık",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsTr: Map<String, String> = mapOf(
         "100+ Kaplama",
     "2000+ Fonts" to
         "2000+ Yazı Tipi",
+    "Reminders" to
+        "Hatırlatıcılar",
+    "Your photos miss you 📸" to
+        "Fotoğrafların seni özledi 📸",
+    "Got a minute to create? ✨" to
+        "Bir şeyler yaratmaya bir dakikan var mı? ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "Bugünün anlarını saniyeler içinde güzel bir kolaja dönüştür.",
+    "Your next favourite collage is just a few taps away." to
+        "Bir sonraki favori kolajın sadece birkaç dokunuş uzakta.",
+    "You were so close! Come back and save your masterpiece." to
+        "Çok yaklaşmıştın! Geri dön ve şaheserini kaydet.",
+    "Pick up where you left off and save it in one tap." to
+        "Kaldığın yerden devam et ve tek dokunuşla kaydet.",
+    "Finish what you started 💜" to
+        "Başladığını bitir 💜",
+    "Still thinking about it? 💭" to
+        "Hâlâ düşünüyor musun? 💭",
+    "Time for a new collage ✨" to
+        "Yeni bir kolaj zamanı ✨",
+    "Make a collage today 📸" to
+        "Bugün bir kolaj yap 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "Favori fotoğraflarını seç, onları güzelce yerleştirelim.",
+    "Hundreds of layouts are ready for your latest shots." to
+        "Yüzlerce düzen son fotoğraflarını bekliyor.",
+    "Your collage isn't finished yet" to
+        "Kolajın henüz bitmedi",
+    "Your collage is still waiting. Finish it and save it today." to
+        "Kolajın hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Get creative 🎨" to
+        "Yaratıcılığını konuştur 🎨",
+    "Freestyle time ✂️" to
+        "Serbest stil zamanı ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "Fotoğraflarını istediğin gibi sürükle, döndür ve üst üste koy.",
+    "No rules, no grids: arrange your photos your way." to
+        "Kural yok, ızgara yok: fotoğraflarını kendi tarzında yerleştir.",
+    "Your freestyle collage isn't finished yet" to
+        "Serbest kolajın henüz bitmedi",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "Serbest kolajın hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Fresh templates are waiting" to
+        "Yeni şablonlar seni bekliyor",
+    "Try a new template 🌟" to
+        "Yeni bir şablon dene 🌟",
+    "Drop your photos into a ready-made design." to
+        "Fotoğraflarını hazır bir tasarıma yerleştir.",
+    "Beautiful designs that only need your photos." to
+        "Sadece fotoğraflarına ihtiyaç duyan güzel tasarımlar.",
+    "Your template isn't finished yet" to
+        "Şablonun henüz bitmedi",
+    "Your template is still waiting. Finish it and save it today." to
+        "Şablonun hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Frame a memory 🖼️" to
+        "Bir anıyı çerçevele 🖼️",
+    "New frames to try" to
+        "Denenecek yeni çerçeveler",
+    "Give your best shot the frame it deserves." to
+        "En iyi fotoğrafına hak ettiği çerçeveyi ver.",
+    "Turn a favourite photo into a framed keepsake." to
+        "Favori bir fotoğrafı çerçeveli bir hatıraya dönüştür.",
+    "Your framed photo isn't finished yet" to
+        "Çerçeveli fotoğrafın henüz bitmedi",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "Çerçeveli fotoğrafın hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Try a picture-in-picture" to
+        "Resim içinde resmi dene",
+    "Make it pop with PIP ✨" to
+        "PIP ile öne çıkar ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "Fotoğrafını etkileyici bir PIP efektinin içine yerleştir.",
+    "One photo, two layers, a striking new look." to
+        "Bir fotoğraf, iki katman, çarpıcı yeni bir görünüm.",
+    "Your PIP photo isn't finished yet" to
+        "PIP fotoğrafın henüz bitmedi",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "PIP fotoğrafın hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Make your photo pop" to
+        "Fotoğrafını öne çıkar",
+    "Swap your background 🪄" to
+        "Arka planını değiştir 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "Herhangi bir arka planı tek dokunuşla kaldır ve yenisini seç.",
+    "Cut yourself out and drop in a whole new scene." to
+        "Kendini kes ve bambaşka bir sahneye yerleştir.",
+    "Your cutout isn't finished yet" to
+        "Kesimin henüz bitmedi",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "Kesimin hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "Your next edit awaits" to
+        "Bir sonraki düzenlemen seni bekliyor",
+    "Give a photo a glow-up ✨" to
+        "Bir fotoğrafa ışıltı kat ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "Fotoğrafını parlatacak filtreler, çıkartmalar ve yazılar.",
+    "One filter can change everything. Try a few today." to
+        "Bir filtre her şeyi değiştirebilir. Bugün birkaçını dene.",
+    "Your photo edit isn't finished yet" to
+        "Fotoğraf düzenlemen henüz bitmedi",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "Fotoğraf düzenlemen hâlâ seni bekliyor. Bugün bitir ve kaydet.",
+    "New layouts to try" to
+        "Denenecek yeni düzenler",
+    "Find your perfect layout" to
+        "Mükemmel düzenini bul",
+    "Pick a layout and fill it with your favourite shots." to
+        "Bir düzen seç ve favori fotoğraflarınla doldur.",
+    "Grids, strips and shapes, ready for your photos." to
+        "Fotoğrafların için hazır ızgaralar, şeritler ve şekiller.",
+    "Your layout isn't finished yet" to
+        "Düzenin henüz bitmedi",
+    "Your layout is still waiting. Finish it and save it today." to
+        "Düzenin hâlâ seni bekliyor. Bugün bitir ve kaydet.",
 )

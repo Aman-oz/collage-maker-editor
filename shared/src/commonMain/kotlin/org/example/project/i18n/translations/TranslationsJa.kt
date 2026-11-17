@@ -480,8 +480,6 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "限定フォント",
     "All Filters & Stickers" to
         "すべてのフィルターとスタンプ",
-    "LIMITED TIME OFFER!" to
-        "期間限定オファー！",
     "OFF" to
         "オフ",
     "BEST VALUE" to
@@ -494,6 +492,38 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "今すぐ試す",
     "Close offer" to
         "オファーを閉じる",
+    "Hours" to
+        "時間",
+    "Minutes" to
+        "分",
+    "Seconds" to
+        "秒",
+    "Congratulations!" to
+        "おめでとうございます！",
+    "You've been selected to claim this exclusive offer." to
+        "この限定オファーの対象に選ばれました。",
+    "Subscription is billed after the trial ends and will auto-renew." to
+        "トライアル終了後に請求され、自動更新されます。",
+    "Only {0} per month" to
+        "月額わずか{0}",
+    "Only {0} for {1}" to
+        "{1}わずか{0}",
+    "Only {0}/{1} for {2}" to
+        "{2}の間わずか{0}/{1}",
+    "1 day" to
+        "1日",
+    "1 week" to
+        "1週間",
+    "1 month" to
+        "1か月",
+    "1 year" to
+        "1年",
+    "Then {0}/{1}. Renews automatically until you cancel." to
+        "その後{0}/{1}。解約するまで自動更新されます。",
+    "Then {0} for {1}, then {2}/{3}." to
+        "その後{1}は{0}、以降は{2}/{3}。",
+    "Billed monthly. Renews automatically until you cancel." to
+        "毎月請求されます。解約するまで自動更新されます。",
     "Weekly" to
         "週額",
     "Monthly" to
@@ -1008,4 +1038,118 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "100以上のオーバーレイ",
     "2000+ Fonts" to
         "2000以上のフォント",
+    "Reminders" to
+        "リマインダー",
+    "Your photos miss you 📸" to
+        "写真があなたを待っています 📸",
+    "Got a minute to create? ✨" to
+        "少しだけ作ってみませんか？ ✨",
+    "Turn today's moments into a beautiful collage in seconds." to
+        "今日の思い出を数秒で素敵なコラージュに。",
+    "Your next favourite collage is just a few taps away." to
+        "次のお気に入りのコラージュまで、あと数タップ。",
+    "You were so close! Come back and save your masterpiece." to
+        "あと少しでした！戻って傑作を保存しましょう。",
+    "Pick up where you left off and save it in one tap." to
+        "続きから再開して、ワンタップで保存できます。",
+    "Finish what you started 💜" to
+        "始めたことを仕上げましょう 💜",
+    "Still thinking about it? 💭" to
+        "まだ迷っていますか？ 💭",
+    "Time for a new collage ✨" to
+        "新しいコラージュを作る時間です ✨",
+    "Make a collage today 📸" to
+        "今日はコラージュを作りましょう 📸",
+    "Pick your favourite photos and we'll lay them out beautifully." to
+        "お気に入りの写真を選ぶだけで、きれいに配置します。",
+    "Hundreds of layouts are ready for your latest shots." to
+        "何百ものレイアウトが最新の写真を待っています。",
+    "Your collage isn't finished yet" to
+        "コラージュがまだ完成していません",
+    "Your collage is still waiting. Finish it and save it today." to
+        "コラージュがまだ待っています。今日仕上げて保存しましょう。",
+    "Get creative 🎨" to
+        "クリエイティブに楽しもう 🎨",
+    "Freestyle time ✂️" to
+        "フリースタイルの時間です ✂️",
+    "Drag, rotate and stack your photos any way you like." to
+        "写真を自由にドラッグ、回転、重ねられます。",
+    "No rules, no grids: arrange your photos your way." to
+        "ルールもグリッドもなし。写真を自分らしく並べましょう。",
+    "Your freestyle collage isn't finished yet" to
+        "フリースタイルコラージュがまだ完成していません",
+    "Your freestyle collage is still waiting. Finish it and save it today." to
+        "フリースタイルコラージュがまだ待っています。今日仕上げて保存しましょう。",
+    "Fresh templates are waiting" to
+        "新しいテンプレートが待っています",
+    "Try a new template 🌟" to
+        "新しいテンプレートを試そう 🌟",
+    "Drop your photos into a ready-made design." to
+        "完成済みのデザインに写真を入れるだけ。",
+    "Beautiful designs that only need your photos." to
+        "あなたの写真を待つ素敵なデザイン。",
+    "Your template isn't finished yet" to
+        "テンプレートがまだ完成していません",
+    "Your template is still waiting. Finish it and save it today." to
+        "テンプレートがまだ待っています。今日仕上げて保存しましょう。",
+    "Frame a memory 🖼️" to
+        "思い出をフレームに 🖼️",
+    "New frames to try" to
+        "新しいフレームを試そう",
+    "Give your best shot the frame it deserves." to
+        "とっておきの一枚にふさわしいフレームを。",
+    "Turn a favourite photo into a framed keepsake." to
+        "お気に入りの写真をフレーム付きの記念に。",
+    "Your framed photo isn't finished yet" to
+        "フレーム写真がまだ完成していません",
+    "Your framed photo is still waiting. Finish it and save it today." to
+        "フレーム写真がまだ待っています。今日仕上げて保存しましょう。",
+    "Try a picture-in-picture" to
+        "ピクチャーインピクチャーを試そう",
+    "Make it pop with PIP ✨" to
+        "PIPで目を引く一枚に ✨",
+    "Put your photo inside a stunning PIP effect." to
+        "写真を印象的なPIPエフェクトの中に。",
+    "One photo, two layers, a striking new look." to
+        "1枚の写真、2つのレイヤー、印象的な新しい見た目。",
+    "Your PIP photo isn't finished yet" to
+        "PIP写真がまだ完成していません",
+    "Your PIP photo is still waiting. Finish it and save it today." to
+        "PIP写真がまだ待っています。今日仕上げて保存しましょう。",
+    "Make your photo pop" to
+        "写真を際立たせよう",
+    "Swap your background 🪄" to
+        "背景を入れ替えよう 🪄",
+    "Remove any background in one tap and pick a new one." to
+        "ワンタップで背景を消して、新しい背景を選べます。",
+    "Cut yourself out and drop in a whole new scene." to
+        "自分を切り抜いて、まったく新しいシーンへ。",
+    "Your cutout isn't finished yet" to
+        "切り抜きがまだ完成していません",
+    "Your cutout is still waiting. Finish it and save it today." to
+        "切り抜きがまだ待っています。今日仕上げて保存しましょう。",
+    "Your next edit awaits" to
+        "次の編集が待っています",
+    "Give a photo a glow-up ✨" to
+        "写真をもっと輝かせよう ✨",
+    "Filters, stickers and text to make your photo shine." to
+        "フィルター、ステッカー、テキストで写真を輝かせましょう。",
+    "One filter can change everything. Try a few today." to
+        "フィルターひとつで印象が変わります。今日いくつか試してみましょう。",
+    "Your photo edit isn't finished yet" to
+        "写真の編集がまだ完成していません",
+    "Your photo edit is still waiting. Finish it and save it today." to
+        "写真の編集がまだ待っています。今日仕上げて保存しましょう。",
+    "New layouts to try" to
+        "新しいレイアウトを試そう",
+    "Find your perfect layout" to
+        "ぴったりのレイアウトを見つけよう",
+    "Pick a layout and fill it with your favourite shots." to
+        "レイアウトを選んで、お気に入りの写真で埋めましょう。",
+    "Grids, strips and shapes, ready for your photos." to
+        "グリッド、ストリップ、シェイプが写真を待っています。",
+    "Your layout isn't finished yet" to
+        "レイアウトがまだ完成していません",
+    "Your layout is still waiting. Finish it and save it today." to
+        "レイアウトがまだ待っています。今日仕上げて保存しましょう。",
 )

@@ -105,9 +105,11 @@ internal class PlayBillingClientAdapter(application: Application) : BillingClien
             val plan = SubscriptionPlan.fromProductId(productDetails.productId) ?: return@mapNotNull null
             val offer = productDetails.preferredOffer() ?: return@mapNotNull null
             val phases = offer.pricingPhases.pricingPhaseList
-            // The last phase is the open-ended recurring price; a free phase before it is the trial.
+            // The last phase is the open-ended recurring price; before it, a free phase is the
+            // trial and a paid one the introductory price.
             val recurring = phases.lastOrNull() ?: return@mapNotNull null
             val period = BillingPeriod.parse(recurring.billingPeriod) ?: return@mapNotNull null
+            val leading = phases.dropLast(1)
             offers[plan] = productDetails to offer.offerToken
             SubscriptionProduct(
                 plan = plan,
@@ -115,8 +117,19 @@ internal class PlayBillingClientAdapter(application: Application) : BillingClien
                 priceMicros = recurring.priceAmountMicros,
                 currencyCode = recurring.priceCurrencyCode,
                 billingPeriod = period,
-                freeTrial = phases.dropLast(1).firstOrNull { it.priceAmountMicros == 0L }
+                freeTrial = leading.firstOrNull { it.priceAmountMicros == 0L }
                     ?.let { BillingPeriod.parse(it.billingPeriod) },
+                introPrice = leading.firstOrNull { it.priceAmountMicros > 0L }?.let { phase ->
+                    BillingPeriod.parse(phase.billingPeriod)?.let { introPeriod ->
+                        IntroPrice(
+                            formattedPrice = phase.formattedPrice,
+                            priceMicros = phase.priceAmountMicros,
+                            period = introPeriod,
+                            // A one-off (non-recurring) phase reports 0 cycles; it is one charge.
+                            cycles = phase.billingCycleCount.coerceAtLeast(1),
+                        )
+                    }
+                },
             )
         }
     }
@@ -231,14 +244,17 @@ internal class PlayBillingClientAdapter(application: Application) : BillingClien
 }
 
 /**
- * The offer to sell a plan under: a free-trial offer when Play lists one — it only lists offers the
- * user is eligible for, so this is how an already-used trial drops out — otherwise the base plan.
+ * The offer to sell a plan under: a free-trial offer when Play lists one, else an introductory-price
+ * offer, else the base plan. Play only lists offers the user is eligible for, so this is how an
+ * already-used trial or intro price drops out.
  */
 private fun ProductDetails.preferredOffer(): ProductDetails.SubscriptionOfferDetails? {
     val offers = subscriptionOfferDetails.orEmpty()
-    return offers.firstOrNull { offer ->
-        offer.offerId != null && offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L }
-    } ?: offers.firstOrNull { it.offerId == null } ?: offers.firstOrNull()
+    val discounted = offers.filter { it.offerId != null && it.pricingPhases.pricingPhaseList.size > 1 }
+    return discounted.firstOrNull { offer -> offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L } }
+        ?: discounted.firstOrNull()
+        ?: offers.firstOrNull { it.offerId == null }
+        ?: offers.firstOrNull()
 }
 
 /** Remembers the foreground activity, which Play needs to show its purchase sheet over. */

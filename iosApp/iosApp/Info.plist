@@ -4,7 +4,7 @@
 <dict>
 	<!-- TODO: Google's iOS *test* AdMob app ID; replace with this app's iOS AdMob app ID before release. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>$(ADMOB_APP_ID)</string>
 	<!-- Google's own SKAdNetwork ID; add the full list from the Google Mobile Ads iOS quick-start for release. -->
 	<key>SKAdNetworkItems</key>
 	<array>
@@ -12,6 +12,11 @@
 			<key>SKAdNetworkIdentifier</key>
 			<string>cstr6suwn9.skadnetwork</string>
 		</dict>
+	</array>
+	<!-- Lets a push wake the app in the background (Firebase Messaging, data messages). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>

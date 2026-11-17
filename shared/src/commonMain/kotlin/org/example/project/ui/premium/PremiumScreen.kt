@@ -103,8 +103,6 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
-import io.github.fletchmckee.liquid.liquefiable
-import io.github.fletchmckee.liquid.rememberLiquidState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlin.math.absoluteValue
@@ -200,8 +198,11 @@ internal enum class PremiumPlan(
     val fallbackUnit: String get() = tr(englishFallbackUnit)
 
     companion object {
-        /** Null for a store plan no longer on sale here (an old Monthly subscriber). */
-        fun of(plan: SubscriptionPlan): PremiumPlan? = entries.firstOrNull { it.plan == plan }
+        /**
+         * The listed plan [plan] counts as: an offer-screen variant shows as its main plan. Null for
+         * a store plan not on sale here (an old Yearly subscriber).
+         */
+        fun of(plan: SubscriptionPlan): PremiumPlan? = entries.firstOrNull { it.plan == plan.basePlan }
     }
 }
 
@@ -243,9 +244,8 @@ private val FeatureCardShape = RoundedCornerShape(percent = 7)
 internal val FeatureCardShadowRoom = 10.dp
 
 /**
- * @param fromSplash the paywall is part of the launch flow: closing it the first time offers the
- *   limited-time launch deal ([LaunchOfferDialog]) while its two hours last. Opened from inside the
- *   app, it just closes.
+ * @param fromSplash the paywall is part of the launch flow, which shows the plans without the
+ *   feature cards. The limited-time deal is its own step of that flow ([LaunchOfferScreen]).
  */
 @Composable
 fun PremiumScreen(
@@ -265,28 +265,11 @@ fun PremiumScreen(
         }
     }
 
-    // When the launch offer ends, while it is showing; null when it isn't.
-    var offerEndsAt by rememberSaveable { mutableStateOf<Long?>(null) }
-    // The offer is made once per paywall: closing past it (or on a second close) really closes.
-    var offerMade by rememberSaveable { mutableStateOf(false) }
-    val requestClose: () -> Unit = {
-        when {
-            offerEndsAt != null -> onClose()
-            fromSplash && !offerMade -> {
-                offerMade = true
-                val endsAt = viewModel.claimLaunchOffer()
-                if (endsAt != null) offerEndsAt = endsAt else onClose()
-            }
-            else -> onClose()
-        }
-    }
-
-    // Back does exactly what the close button does (and, over the offer, what its close does).
-    // NavDisplay only handles back while there is an entry to pop, so without this the launch
+    // Back does exactly what the close button does. NavDisplay only handles back while there is an entry to pop, so without this the launch
     // paywall (alone on the stack) would close the app.
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        onBackCompleted = requestClose,
+        onBackCompleted = onClose,
     )
 
     val currentOnClose by rememberUpdatedState(onClose)
@@ -302,13 +285,9 @@ fun PremiumScreen(
     PremiumContent(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
-        onClose = requestClose,
+        onClose = onClose,
         featureCards = !fromSplash,
         onStart = { plan -> viewModel.purchase(plan.plan) },
-        offerEndsAt = offerEndsAt,
-        onOfferTryNow = { viewModel.purchase(SubscriptionPlan.Monthly) },
-        // Leaving the offer (its close, or the clock running out) leaves the paywall too.
-        onOfferClose = onClose,
         onRestore = viewModel::restore,
         onTermsAndPrivacy = {
             val url = SettingsLinks.PrivacyPolicyUrl.ifBlank { SettingsLinks.TermsOfUseUrl }
@@ -328,9 +307,6 @@ private fun PremiumContent(
     onTermsAndPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
     featureCards: Boolean = false,
-    offerEndsAt: Long? = null,
-    onOfferTryNow: () -> Unit = {},
-    onOfferClose: () -> Unit = {},
 ) {
     // Saved by name: an enum is not saveable on every platform, a String is.
     var selectedName by rememberSaveable { mutableStateOf(PremiumPlan.Weekly.name) }
@@ -344,7 +320,6 @@ private fun PremiumContent(
     val products = uiState.billing.products
     val savings = savingsOverWeeklyPercent(products[SubscriptionPlan.Weekly], products[SubscriptionPlan.Monthly])
 
-    val liquidState = rememberLiquidState()
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -352,7 +327,7 @@ private fun PremiumContent(
     ) {
         // A phone on its side: stacked, the hero alone is taller than the screen, so it takes the
         // left side with the features card over its faded bottom, and the plans and button sit
-        // beside it, all on the first screen. The launch offer goes wide there for the same reason.
+        // beside it, all on the first screen.
         val landscape = isSideBySideEditor(maxWidth, maxHeight)
         val plans: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -391,8 +366,7 @@ private fun PremiumContent(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .liquefiable(liquidState),
+                    .background(MaterialTheme.colorScheme.background),
             ) {
                 PremiumSideHero(
                     onClose = onClose,
@@ -425,7 +399,6 @@ private fun PremiumContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
-                    .liquefiable(liquidState)
                     .navigationBarsPadding(),
             ) {
                 Column(
@@ -442,17 +415,6 @@ private fun PremiumContent(
                 footer()
             }
         }
-
-        LaunchOfferHost(
-            endsAt = offerEndsAt,
-            liquidState = liquidState,
-            monthly = products[SubscriptionPlan.Monthly],
-            weekly = products[SubscriptionPlan.Weekly],
-            busy = uiState.busy,
-            onTryNow = onOfferTryNow,
-            onClose = onOfferClose,
-            wide = landscape,
-        )
 
         SnackbarHost(
             hostState = snackbarHostState,

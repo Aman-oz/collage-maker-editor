@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The notification channel's name in the system's app notification settings. -->
+    <string name="push_channel_name">Updates and offers</string>
+    <!-- Tints the notification's small icon (the app's purple). -->
+    <color name="push_accent">#8B5CF6</color>
+</resources>

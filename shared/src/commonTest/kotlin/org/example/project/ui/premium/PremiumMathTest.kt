@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.example.project.data.billing.BillingPeriod
+import org.example.project.data.billing.BillingState
+import org.example.project.data.billing.IntroPrice
 import org.example.project.data.billing.PeriodUnit
 import org.example.project.data.billing.SubscriptionPlan
 import org.example.project.data.billing.SubscriptionProduct
@@ -79,5 +81,42 @@ class LaunchOfferMathTest {
         assertEquals("46.800,00 €", formatPriceLike("900,00 €", 46_800_000_000))
         assertEquals("PKR 62,400", formatPriceLike("PKR 1,200", 62_400_000_000))
         assertNull(formatPriceLike("Free", 1))
+    }
+
+    private fun product(plan: SubscriptionPlan, micros: Long, period: BillingPeriod, currency: String = "PKR") =
+        SubscriptionProduct(plan, "", micros, currency, period)
+
+    private val monthly = product(SubscriptionPlan.Monthly, 820_000_000, BillingPeriod(1, PeriodUnit.Month))
+
+    @Test
+    fun offerDiscount_comparesTheOffersFirstChargeWithMainMonthly() {
+        val plain = product(SubscriptionPlan.MonthlyOffer, 410_000_000, BillingPeriod(1, PeriodUnit.Month))
+        assertEquals(50, offerDiscountPercent(monthly, plain))
+        val intro = plain.copy(introPrice = IntroPrice("Rs 41", 41_000_000, BillingPeriod(3, PeriodUnit.Day)))
+        assertEquals(95, offerDiscountPercent(monthly, intro))
+        // Rounded down: 190.71 of 820 is 76.7% off, shown as 76.
+        val rs190 = plain.copy(introPrice = IntroPrice("Rs 190.71", 190_710_000, BillingPeriod(3, PeriodUnit.Day)))
+        assertEquals(76, offerDiscountPercent(monthly, rs190))
+    }
+
+    @Test
+    fun offerDiscount_isNullWithoutARealSaving() {
+        assertNull(offerDiscountPercent(monthly, monthly))
+        assertNull(offerDiscountPercent(null, monthly))
+        assertNull(offerDiscountPercent(monthly, product(SubscriptionPlan.MonthlyOffer, 1, BillingPeriod(1, PeriodUnit.Month), "USD")))
+    }
+
+    @Test
+    fun introPrice_totalPeriodMultipliesCycles() {
+        assertEquals(BillingPeriod(4, PeriodUnit.Week), IntroPrice("", 1, BillingPeriod(1, PeriodUnit.Week), cycles = 4).totalPeriod)
+        assertEquals(BillingPeriod(3, PeriodUnit.Day), IntroPrice("", 1, BillingPeriod(3, PeriodUnit.Day)).totalPeriod)
+    }
+
+    @Test
+    fun productFor_fallsBackToTheMainPlanUntilTheVariantIsInTheStore() {
+        val state = BillingState(products = mapOf<SubscriptionPlan, SubscriptionProduct>(SubscriptionPlan.Monthly to monthly))
+        assertEquals(monthly, state.productFor(SubscriptionPlan.MonthlyOffer))
+        assertNull(state.productFor(SubscriptionPlan.WeeklyPro))
+        assertEquals(SubscriptionPlan.Monthly, SubscriptionPlan.MonthlyOffer.basePlan)
     }
 }

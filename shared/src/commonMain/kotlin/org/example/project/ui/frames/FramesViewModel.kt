@@ -1,6 +1,7 @@
 package org.example.project.ui.frames
 
 import androidx.lifecycle.ViewModel
+import org.example.project.ui.common.userMessage
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +47,7 @@ class FramesViewModel(
                     (categories.firstOrNull { it.id == selectedId } ?: categories.firstOrNull())?.let { selectCategory(it) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingCategories = false, error = e.message ?: tr("Couldn't load frames")) }
+                    _uiState.update { it.copy(isLoadingCategories = false, error = e.userMessage(tr("Couldn't load frames"), network = true)) }
                 }
         }
     }
@@ -65,7 +66,7 @@ class FramesViewModel(
                 }
                 .onFailure { e ->
                     if (_uiState.value.selectedCategoryId == category.id) {
-                        _uiState.update { it.copy(isLoadingFrames = false, error = e.message ?: tr("Couldn't load these frames")) }
+                        _uiState.update { it.copy(isLoadingFrames = false, error = e.userMessage(tr("Couldn't load these frames"), network = true)) }
                     }
                 }
         }

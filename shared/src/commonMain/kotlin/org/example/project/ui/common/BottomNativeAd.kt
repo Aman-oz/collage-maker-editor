@@ -13,17 +13,21 @@ import org.example.project.data.AppSettings
 import org.koin.compose.koinInject
 
 /**
- * The `internal_app_native` ad at the bottom of a screen, in the compact media-left layout
+ * A native ad at the bottom of a screen ([placementKey], `internal_app_native` unless given), in the compact media-left layout
  * (media left, headline / "Ad" / body right, full-width CTA under both), with a matching shimmer
  * while it loads. Nothing at all for premium users, or when the placement or [point] is disabled
  * in Remote Config, or the load fails. Colours follow the app's theme, not the system's.
  */
 @Composable
-internal fun BottomNativeAd(point: String, modifier: Modifier = Modifier) {
+internal fun BottomNativeAd(
+    point: String,
+    modifier: Modifier = Modifier,
+    placementKey: String = AdPlacementKeys.INTERNAL_APP_NATIVE,
+) {
     val isPremium by koinInject<AppSettings>().isPremium.collectAsStateWithLifecycle()
     if (isPremium) return
     NativeAdCard(
-        placementKey = AdPlacementKeys.INTERNAL_APP_NATIVE,
+        placementKey = placementKey,
         point = point,
         layout = NativeAdLayout.MEDIA_LEFT,
         isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f,

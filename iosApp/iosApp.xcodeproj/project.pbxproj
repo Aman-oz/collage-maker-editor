@@ -10,6 +10,7 @@
 		A1C0DE0000000000000000C1 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B1 /* GoogleMobileAds */; };
 		A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */; };
 		A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B3 /* FirebaseAnalytics */; };
+		A1C0DE0000000000000000C4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B4 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -21,6 +22,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				iosApp.entitlements,
 			);
 			target = 58F419CB48D59F490B1207C1 /* iosApp */;
 		};
@@ -50,6 +52,7 @@
 				A1C0DE0000000000000000C1 /* GoogleMobileAds in Frameworks */,
 				A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */,
 				A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */,
+				A1C0DE0000000000000000C4 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +100,7 @@
 				A1C0DE0000000000000000B1 /* GoogleMobileAds */,
 				A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */,
 				A1C0DE0000000000000000B3 /* FirebaseAnalytics */,
+				A1C0DE0000000000000000B4 /* FirebaseMessaging */,
 			);
 			productName = iosApp;
 			productReference = 253494A8C22BA1D8517DFE66 /* Photo Collage Maker.app */;
@@ -433,6 +437,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAnalytics;
+		};
+		A1C0DE0000000000000000B4 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

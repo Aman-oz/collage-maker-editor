@@ -30,9 +30,9 @@ enum class GalleryTarget {
 sealed interface Destination : NavKey {
 
     /**
-     * First screen shown on launch: a short loading screen that replaces itself with [Language] on
-     * the first run (until onboarding is finished), and afterwards with [Premium] (or [Home] for a
-     * premium user).
+     * First screen shown on launch: a short loading screen that hands over to the startup flow
+     * (`OziAds.navigation`, from Remote Config), which picks the screens that follow: [Language],
+     * [Onboarding], [Premium], [ProOffer] and finally [Home], in the configured order.
      */
     @Serializable
     data object Splash : Destination
@@ -82,6 +82,13 @@ sealed interface Destination : NavKey {
      */
     @Serializable
     data class ProOffer(val pack: org.example.project.data.billing.PremiumPack? = null) : Destination
+
+    /**
+     * The limited-time launch deal ([org.example.project.ui.premium.LaunchOfferScreen]): the startup
+     * flow's `offer` step. Closing it moves on along the flow.
+     */
+    @Serializable
+    data object LaunchOffer : Destination
 
     /**
      * In-app photo library picker, gated behind an explicit permission request.
