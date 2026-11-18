@@ -12,8 +12,11 @@ data class FontEntry(
     val isPremium: Boolean = false,
 )
 
-/** A sub-category of a [FontSection] (Active, Artistic, …): one chip of the Font panel's bar. */
-data class FontSubcategory(val id: String, val categoryId: String, val name: String)
+/**
+ * A sub-category of a [FontSection] (Active, Artistic, …): one chip of the Font panel's bar.
+ * [isPremium] is set when the server flags it or its main category: every font in it is premium.
+ */
+data class FontSubcategory(val id: String, val categoryId: String, val name: String, val isPremium: Boolean = false)
 
 /** A main font category (Feeling, Appearance, …), as the server names it, with its sub-categories. */
 data class FontSection(val title: String, val subcategories: List<FontSubcategory>)
@@ -23,14 +26,14 @@ class FontCatalog(val sections: List<FontSection>, val featured: List<FontEntry>
 
 /**
  * Enabled fonts with a file, in server order. A family listed twice keeps its first entry, since the
- * grid is keyed by family.
+ * grid is keyed by family. [allPremium] (a premium category or sub-category) makes every one premium.
  */
-internal fun List<CentralFontAssetDto>.toFonts(): List<FontEntry> =
+internal fun List<CentralFontAssetDto>.toFonts(allPremium: Boolean = false): List<FontEntry> =
     filter { it.isEnabled && it.name.isNotBlank() }
         .sortedBy { it.sequence }
         .mapNotNull { asset ->
             val url = asset.moreFields.url?.file?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            FontEntry(family = asset.name, fileUrl = url, isPremium = asset.isPremium)
+            FontEntry(family = asset.name, fileUrl = url, isPremium = allPremium || asset.isPremium)
         }
         .distinctBy { it.family }
 

@@ -64,7 +64,8 @@ class LayoutArtLibrary(private val api: CentralDataApi) {
                         .sortedBy { it.sequence }
                         .map { sub ->
                             async {
-                                val items = api.assets(category.id, sub.id).toLayoutArts(api::absoluteUrl)
+                                val items = api.assets(category.id, sub.id)
+                                    .toLayoutArts(allPremium = category.isPremium || sub.isPremium, absoluteUrl = api::absoluteUrl)
                                 LayoutArtSubcategory(sub.id, sub.name, items)
                             }
                         }
@@ -78,8 +79,12 @@ class LayoutArtLibrary(private val api: CentralDataApi) {
     }
 }
 
-/** Enabled pictures, in server order. [absoluteUrl] resolves the server's relative paths. */
-internal fun List<CentralAssetDto>.toLayoutArts(absoluteUrl: (String) -> String): List<LayoutArt> =
+/**
+ * Enabled pictures, in server order. [absoluteUrl] resolves the server's relative paths. [allPremium]
+ * is set when the server marks the category or sub-category premium: every picture in it is then
+ * premium, so the Shop crowns the pack and the editors gate them, as if each asset were flagged.
+ */
+internal fun List<CentralAssetDto>.toLayoutArts(allPremium: Boolean = false, absoluteUrl: (String) -> String): List<LayoutArt> =
     filter { it.isEnabled }
         .sortedBy { it.sequence }
         .mapNotNull { asset ->
@@ -90,7 +95,7 @@ internal fun List<CentralAssetDto>.toLayoutArts(absoluteUrl: (String) -> String)
                 thumbnailUrl = absoluteUrl(asset.thumbnailUrl?.takeIf { it.isNotBlank() } ?: file.url),
                 imageUrl = absoluteUrl(file.url),
                 aspectRatio = if (file.width > 0f && file.height > 0f) file.width / file.height else 1f,
-                isPremium = asset.isPremium,
+                isPremium = allPremium || asset.isPremium,
             )
         }
 

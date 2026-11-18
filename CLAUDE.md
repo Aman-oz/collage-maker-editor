@@ -464,7 +464,9 @@ full plan (on iOS each pack needs its own subscription group). It is offered by 
 `AppNavDisplay` from the `PremiumPackOffers` singleton, when a non-subscriber leaves a paywall that a
 premium item sent them to without subscribing: the Shop's Premium tab (for another tab, or out of
 the Shop: `ShopViewModel.offerPack`), or a `Destination.Premium(pack = …)` (the template and frame
-editors' Done, both the Templates pack: Home's frames are templates, `PremiumPack.Frames` is the borders; `PremiumPackOfferOnLeave` makes the offer as that entry is cleared).
+editors' Done, both the Templates pack: Home's frames are templates, `PremiumPack.Frames` is the borders; `PremiumPackOfferOnLeave` makes the offer as that entry is cleared). The sheet only shows while Remote Config's
+`show_packs_premium_dialog_ios` / `show_packs_premium_dialog_android` is true (default false),
+checked in `PremiumPackOffers.show`.
 
 There is no server-side receipt verification yet.
 

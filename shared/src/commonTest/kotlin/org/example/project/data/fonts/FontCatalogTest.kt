@@ -42,6 +42,13 @@ class FontCatalogTest {
     }
 
     @Test
+    fun toFonts_premiumSubcategoryMakesEveryFontPremium() {
+        val assets = listOf(asset("Roboto", 1), asset("Lobster", 2, premium = true))
+        assertEquals(listOf(false, true), assets.toFonts().map { it.isPremium })
+        assertEquals(listOf(true, true), assets.toFonts(allPremium = true).map { it.isPremium })
+    }
+
+    @Test
     fun knownFonts_roundTripWithTheirCrown() {
         val fonts = listOf(FontEntry("Open Sans", "https://f/open.ttf"), FontEntry("Lobster", "https://f/lobster.ttf", isPremium = true))
         assertEquals(fonts.associateBy { it.family }, decodeKnownFonts(encodeKnownFonts(fonts)))

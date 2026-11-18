@@ -6,11 +6,17 @@ import org.example.project.data.centraldata.CentralAssetDto
 import org.example.project.data.centraldata.CentralDataApi
 import org.example.project.data.centraldata.CentralDataConfig
 
-/** A sticker category pill (Baby, Animal, …), under the stickers super-category. */
-internal data class StickerCategory(val id: String, val name: String)
+/**
+ * A sticker category pill (Baby, Animal, …), under the stickers super-category. [isPremium] is the
+ * server's flag on the category: it makes every sticker under it premium.
+ */
+internal data class StickerCategory(val id: String, val name: String, val isPremium: Boolean = false)
 
-/** A sub-category tile of a [StickerCategory] (Newborn, Baby Boy, …). */
-internal data class StickerSubcategory(val id: String, val categoryId: String, val name: String)
+/**
+ * A sub-category tile of a [StickerCategory] (Newborn, Baby Boy, …). [isPremium] is set when the
+ * server flags it or its category: every sticker in it is then premium.
+ */
+internal data class StickerSubcategory(val id: String, val categoryId: String, val name: String, val isPremium: Boolean = false)
 
 /**
  * One sticker of the library. [imageUrl] is its SVG, [thumbnailUrl] the picture for the grid;
@@ -46,24 +52,31 @@ class StickersRepository(private val api: CentralDataApi) {
         mutex.withLock { categories } ?: api.categories(CentralDataConfig.STICKERS_SUPER_CATEGORY_ID)
             .filter { it.isEnabled && it.id.isNotBlank() }
             .sortedBy { it.sequence }
-            .map { StickerCategory(id = it.id, name = it.name) }
+            .map { StickerCategory(id = it.id, name = it.name, isPremium = it.isPremium) }
             .also { mutex.withLock { categories = it } }
 
     internal suspend fun getSubcategories(categoryId: String): List<StickerSubcategory> =
-        mutex.withLock { subcategories[categoryId] } ?: api.subcategories(categoryId)
-            .filter { it.isEnabled && it.id.isNotBlank() }
-            .sortedBy { it.sequence }
-            .map { StickerSubcategory(id = it.id, categoryId = categoryId, name = it.name) }
-            .also { mutex.withLock { subcategories[categoryId] = it } }
+        mutex.withLock { subcategories[categoryId] } ?: run {
+            val categoryPremium = getCategories().firstOrNull { it.id == categoryId }?.isPremium == true
+            api.subcategories(categoryId)
+                .filter { it.isEnabled && it.id.isNotBlank() }
+                .sortedBy { it.sequence }
+                .map { StickerSubcategory(id = it.id, categoryId = categoryId, name = it.name, isPremium = categoryPremium || it.isPremium) }
+                .also { mutex.withLock { subcategories[categoryId] = it } }
+        }
 
     internal suspend fun getStickers(subcategory: StickerSubcategory): List<StickerAsset> =
         mutex.withLock { stickers[subcategory.id] } ?: api.assets(subcategory.categoryId, subcategory.id)
-            .toStickers(api::absoluteUrl)
+            .toStickers(allPremium = subcategory.isPremium, absoluteUrl = api::absoluteUrl)
             .also { mutex.withLock { stickers[subcategory.id] = it } }
 }
 
-/** Enabled stickers with a picture, in server order. [absoluteUrl] resolves the server's relative paths. */
-internal fun List<CentralAssetDto>.toStickers(absoluteUrl: (String) -> String): List<StickerAsset> =
+/**
+ * Enabled stickers with a picture, in server order. [absoluteUrl] resolves the server's relative
+ * paths. [allPremium] (a premium category or sub-category) makes every one premium, so the Shop
+ * crowns the pack and the Stickers tool gates them, as if each asset were flagged.
+ */
+internal fun List<CentralAssetDto>.toStickers(allPremium: Boolean = false, absoluteUrl: (String) -> String): List<StickerAsset> =
     filter { it.isEnabled }
         .sortedBy { it.sequence }
         .mapNotNull { asset ->
@@ -76,6 +89,6 @@ internal fun List<CentralAssetDto>.toStickers(absoluteUrl: (String) -> String): 
                 thumbnailUrl = absoluteUrl(asset.thumbnailUrl?.takeIf { it.isNotBlank() } ?: file.url),
                 imageUrl = absoluteUrl(file.url),
                 aspectRatio = if (file.width > 0f && file.height > 0f) file.width / file.height else 1f,
-                isPremium = asset.isPremium,
+                isPremium = allPremium || asset.isPremium,
             )
         }

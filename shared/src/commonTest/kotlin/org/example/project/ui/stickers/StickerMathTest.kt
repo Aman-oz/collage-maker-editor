@@ -85,6 +85,16 @@ class StickerMathTest {
         assertEquals("https://host/thumb2.svg", stickers[1].thumbnailUrl)
         assertEquals(2f, stickers[1].aspectRatio)
     }
+
+    @Test
+    fun toStickers_premiumSubcategoryMakesEveryStickerPremium() {
+        val assets = listOf(
+            CentralAssetDto(id = "1", sequence = 1, moreFields = CentralAssetFieldsDto(svg = listOf(CentralImageDto("/a.svg")))),
+            CentralAssetDto(id = "2", sequence = 2, isPremium = true, moreFields = CentralAssetFieldsDto(svg = listOf(CentralImageDto("/b.svg")))),
+        )
+        assertEquals(listOf(false, true), assets.toStickers { it }.map { it.isPremium })
+        assertEquals(listOf(true, true), assets.toStickers(allPremium = true) { it }.map { it.isPremium })
+    }
 }
 
 class StickerEditMathTest {

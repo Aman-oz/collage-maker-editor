@@ -10,8 +10,8 @@ import photocollagemaker.shared.generated.resources.Res
 import kotlin.coroutines.resume
 
 /**
- * Starts the ads SDK (ads-kmp) once per launch: UMP consent first, then
- * [OziAds.initialize], which applies the bundled defaults, initializes Google
+ * Starts the ads SDK (ads-kmp) once per launch: UMP consent first, then the iOS tracking prompt
+ * ([requestAdTrackingAuthorization]), then [OziAds.initialize], which applies the bundled defaults, initializes Google
  * Mobile Ads and fetches Firebase Remote Config.
  *
  * Each platform reads only its own Remote Config parameter, both in the
@@ -63,6 +63,8 @@ class AdsInitializer(private val platform: Platform) {
         } else {
             println("Ads: show_consent is off, skipping the consent form")
         }
+        // iOS: App Tracking Transparency after consent, before ads load (Google's recommended order).
+        requestAdTrackingAuthorization()
         return suspendCancellableCoroutine { cont ->
             OziAds.initialize(config) { fetched ->
                 val block = if (platform.isDebugBuild) "debug_ad_configuration" else "release_ad_configuration"

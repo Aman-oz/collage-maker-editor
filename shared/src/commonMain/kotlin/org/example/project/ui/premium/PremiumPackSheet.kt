@@ -1,5 +1,6 @@
 package org.example.project.ui.premium
 
+import com.ozi.nextgen.compose.ads_kmp.OziAds
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,9 +94,16 @@ class PremiumPackOffers(private val settings: AppSettings) {
     private val _shown = MutableStateFlow<PremiumPack?>(null)
     val shown: StateFlow<PremiumPack?> = _shown.asStateFlow()
 
-    /** Offers [pack], unless it is already the user's (subscribed, or the pack bought). */
+    /**
+     * Offers [pack], unless it is already the user's (subscribed, or the pack bought) or Remote Config
+     * has the pack sheets off on this platform (`show_packs_premium_dialog_ios` / `_android`, off by
+     * default). Read on each offer, so a console change applies from the next one.
+     */
     fun show(pack: PremiumPack) {
-        if (!settings.hasUnlocked(pack)) _shown.value = pack
+        if (settings.hasUnlocked(pack)) return
+        val suffix = if (OziAds.platformName == "ios") "ios" else "android"
+        if (!OziAds.remoteBoolean("show_packs_premium_dialog_$suffix", default = false)) return
+        _shown.value = pack
     }
 
     fun dismiss() {

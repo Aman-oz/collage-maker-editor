@@ -563,7 +563,7 @@ private fun UseButton(onClick: () -> Unit) {
 /**
  * One item of a pack: a sticker fitted in a grey tile, a background filling it, a frame fitted on
  * white (frames are transparent in the middle), or a filter or overlay rendered over [sample]. The
- * Fonts tab has its own cards ([FontsLibraryTab]).
+ * Fonts tab has its own cards ([FontsLibraryTab]). No crown here: the pack's title carries it.
  */
 @Composable
 private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp, sampleThumbnails: FilterThumbnails, sample: ImageBitmap?) {
@@ -604,7 +604,6 @@ private fun ItemCell(tab: ShopTab, item: ShopItem, width: Dp, sampleThumbnails: 
                     .padding(if (tab == ShopTab.Backgrounds) 0.dp else 6.dp),
             )
         }
-        if (item.isPremium) PremiumBadge(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp), size = 18.dp)
     }
 }
 

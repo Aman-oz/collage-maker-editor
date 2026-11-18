@@ -18,6 +18,8 @@ internal data class CentralCategoryDto(
     val id: String = "",
     val name: String = "",
     @SerialName("is_enabled") val isEnabled: Boolean = true,
+    /** Makes everything under it premium, whatever its assets say. */
+    @SerialName("is_premium") val isPremium: Boolean = false,
     val sequence: Int = 0,
 )
 
@@ -27,6 +29,8 @@ internal data class CentralSubcategoryDto(
     val id: String = "",
     val name: String = "",
     @SerialName("is_enabled") val isEnabled: Boolean = true,
+    /** Makes every asset in it premium, whatever their own flags say. */
+    @SerialName("is_premium") val isPremium: Boolean = false,
     val sequence: Int = 0,
 )
 

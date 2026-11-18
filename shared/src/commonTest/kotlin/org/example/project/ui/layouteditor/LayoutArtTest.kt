@@ -42,6 +42,13 @@ class LayoutArtTest {
     }
 
     @Test
+    fun toLayoutArts_premiumSubcategoryMakesEveryPicturePremium() {
+        val assets = listOf(asset("a", 1), asset("b", 2).copy(isPremium = true))
+        assertEquals(listOf(false, true), assets.toLayoutArts { it }.map { it.isPremium })
+        assertEquals(listOf(true, true), assets.toLayoutArts(allPremium = true) { it }.map { it.isPremium })
+    }
+
+    @Test
     fun opaqueBounds_cutsTheClearMargin() {
         val w = 5
         val h = 4

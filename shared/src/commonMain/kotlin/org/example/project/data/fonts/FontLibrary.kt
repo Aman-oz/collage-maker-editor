@@ -42,6 +42,12 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
      */
     private var premiumFamilies: Set<String> = emptySet()
 
+    /**
+     * The sub-categories the server flags premium, or whose main category it does: all their fonts
+     * are premium. Kept by id, since a [FontSubcategory] restored from saved state has lost its flag.
+     */
+    private var premiumSubcategoryIds: Set<String> = emptySet()
+
     suspend fun catalog(): FontCatalog {
         mutex.withLock { catalog }?.let { return it }
         val categories = api.categories(CentralDataConfig.FONTS_SUPER_CATEGORY_ID)
@@ -53,11 +59,15 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
                     val subcategories = api.subcategories(category.id)
                         .filter { it.isEnabled && it.id.isNotBlank() }
                         .sortedBy { it.sequence }
-                        .map { FontSubcategory(id = it.id, categoryId = category.id, name = it.name) }
+                        .map { FontSubcategory(id = it.id, categoryId = category.id, name = it.name, isPremium = category.isPremium || it.isPremium) }
                     FontSection(category.name, subcategories)
                 }
             }.awaitAll()
         }.filter { it.subcategories.isNotEmpty() } // a main category with no chips would open an empty bar
+        // Before featured(), which lists fonts through them.
+        mutex.withLock {
+            premiumSubcategoryIds = premiumSubcategoryIds + sections.flatMap { it.subcategories }.filter { it.isPremium }.map { it.id }
+        }
         return FontCatalog(sections, featured(sections)).also { mutex.withLock { catalog = it } }
     }
 
@@ -66,7 +76,8 @@ class FontLibrary(private val api: CentralDataApi, private val store: KeyValueSt
         mutex.withLock { fontsBySubcategory[subcategory.id] }?.let { cached ->
             return mutex.withLock { withPremiumFlags(cached, premiumFamilies) }
         }
-        val fonts = api.fontAssets(subcategory.categoryId, subcategory.id).toFonts()
+        val allPremium = subcategory.isPremium || mutex.withLock { subcategory.id in premiumSubcategoryIds }
+        val fonts = api.fontAssets(subcategory.categoryId, subcategory.id).toFonts(allPremium)
         return mutex.withLock {
             fontsBySubcategory[subcategory.id] = fonts
             premiumFamilies = premiumFamilies + fonts.filter { it.isPremium }.map { it.family }
