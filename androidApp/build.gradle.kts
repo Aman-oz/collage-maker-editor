@@ -23,8 +23,27 @@ dependencies {
     implementation(project.dependencies.platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 
+    // AdMob mediation adapters. Each network is switched on in the AdMob console (mediation
+    // groups); an adapter with no ad source there stays idle.
+    implementation(libs.mediation.meta)
+    implementation(libs.mediation.applovin)
+    implementation(libs.mediation.unity)
+    implementation(libs.mediation.mintegral)
+    implementation(libs.mediation.liftoff)
+    implementation(libs.mediation.pangle)
+    implementation(libs.mediation.dtexchange)
+    implementation(libs.mediation.moloco)
+    implementation(libs.mediation.inmobi)
+
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+}
+
+// The adapters depend on the legacy Google Mobile Ads SDK, which can't be in the same APK as the
+// GMA Next-Gen SDK (from ads-kmp). Next-Gen includes every class the adapters need.
+configurations.configureEach {
+    exclude(group = "com.google.android.gms", module = "play-services-ads")
+    exclude(group = "com.google.android.gms", module = "play-services-ads-lite")
 }
 
 android {

@@ -26,6 +26,15 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // Network SDKs behind the AdMob mediation adapters that aren't on Google Maven or Maven Central.
+        maven {
+            url = uri("https://artifact.bytedance.com/repository/pangle/")
+            mavenContent { includeGroupAndSubgroups("com.pangle.global") }
+        }
+        maven {
+            url = uri("https://dl-maven-android.mintegral.com/repository/mbridge_android_sdk_oversea")
+            mavenContent { includeGroupAndSubgroups("com.mbridge.msdk") }
+        }
         // The ads SDK from this Mac's Maven Local (`./gradlew publishToMavenLocal` in
         // AdmobComposeSdk_Nextgen), checked first so an unpublished SDK version can be tried.
         // Only the SDK's group is looked up here.

@@ -11,6 +11,15 @@
 		A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */; };
 		A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B3 /* FirebaseAnalytics */; };
 		A1C0DE0000000000000000C4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000000B4 /* FirebaseMessaging */; };
+		A1C0DE0000000000000001C1 /* MetaAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000001B1 /* MetaAdapterTarget */; };
+		A1C0DE0000000000000002C1 /* AppLovinAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000002B1 /* AppLovinAdapterTarget */; };
+		A1C0DE0000000000000003C1 /* UnityAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000003B1 /* UnityAdapterTarget */; };
+		A1C0DE0000000000000004C1 /* MintegralAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000004B1 /* MintegralAdapterTarget */; };
+		A1C0DE0000000000000005C1 /* LiftoffMonetizeAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000005B1 /* LiftoffMonetizeAdapterTarget */; };
+		A1C0DE0000000000000006C1 /* PangleAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000006B1 /* PangleAdapterTarget */; };
+		A1C0DE0000000000000007C1 /* DTExchangeAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000007B1 /* DTExchangeAdapterTarget */; };
+		A1C0DE0000000000000008C1 /* MolocoAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000008B1 /* MolocoAdapterTarget */; };
+		A1C0DE0000000000000009C1 /* InMobiAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000009B1 /* InMobiAdapterTarget */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +61,15 @@
 				A1C0DE0000000000000000C2 /* FirebaseRemoteConfig in Frameworks */,
 				A1C0DE0000000000000000C3 /* FirebaseAnalytics in Frameworks */,
 				A1C0DE0000000000000000C4 /* FirebaseMessaging in Frameworks */,
+				A1C0DE0000000000000001C1 /* MetaAdapterTarget in Frameworks */,
+				A1C0DE0000000000000002C1 /* AppLovinAdapterTarget in Frameworks */,
+				A1C0DE0000000000000003C1 /* UnityAdapterTarget in Frameworks */,
+				A1C0DE0000000000000004C1 /* MintegralAdapterTarget in Frameworks */,
+				A1C0DE0000000000000005C1 /* LiftoffMonetizeAdapterTarget in Frameworks */,
+				A1C0DE0000000000000006C1 /* PangleAdapterTarget in Frameworks */,
+				A1C0DE0000000000000007C1 /* DTExchangeAdapterTarget in Frameworks */,
+				A1C0DE0000000000000008C1 /* MolocoAdapterTarget in Frameworks */,
+				A1C0DE0000000000000009C1 /* InMobiAdapterTarget in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,6 +118,15 @@
 				A1C0DE0000000000000000B2 /* FirebaseRemoteConfig */,
 				A1C0DE0000000000000000B3 /* FirebaseAnalytics */,
 				A1C0DE0000000000000000B4 /* FirebaseMessaging */,
+				A1C0DE0000000000000001B1 /* MetaAdapterTarget */,
+				A1C0DE0000000000000002B1 /* AppLovinAdapterTarget */,
+				A1C0DE0000000000000003B1 /* UnityAdapterTarget */,
+				A1C0DE0000000000000004B1 /* MintegralAdapterTarget */,
+				A1C0DE0000000000000005B1 /* LiftoffMonetizeAdapterTarget */,
+				A1C0DE0000000000000006B1 /* PangleAdapterTarget */,
+				A1C0DE0000000000000007B1 /* DTExchangeAdapterTarget */,
+				A1C0DE0000000000000008B1 /* MolocoAdapterTarget */,
+				A1C0DE0000000000000009B1 /* InMobiAdapterTarget */,
 			);
 			productName = iosApp;
 			productReference = 253494A8C22BA1D8517DFE66 /* Photo Collage Maker.app */;
@@ -132,6 +159,15 @@
 			packageReferences = (
 				A1C0DE0000000000000000A1 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				A1C0DE0000000000000001A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-meta" */,
+				A1C0DE0000000000000002A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */,
+				A1C0DE0000000000000003A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-unity" */,
+				A1C0DE0000000000000004A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-mintegral" */,
+				A1C0DE0000000000000005A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-liftoffmonetize" */,
+				A1C0DE0000000000000006A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-pangle" */,
+				A1C0DE0000000000000007A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-dtexchange" */,
+				A1C0DE0000000000000008A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-moloco" */,
+				A1C0DE0000000000000009A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-inmobi" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 382323829912E7916407A528 /* Products */;
@@ -412,7 +448,7 @@
 			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 12.0.0;
+				minimumVersion = 13.4.0;
 			};
 		};
 		A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
@@ -421,6 +457,78 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 11.0.0;
+			};
+		};
+		A1C0DE0000000000000001A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-meta" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-meta.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.22.100;
+			};
+		};
+		A1C0DE0000000000000002A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-applovin.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.7.000;
+			};
+		};
+		A1C0DE0000000000000003A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-unity" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-unity.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.21.000;
+			};
+		};
+		A1C0DE0000000000000004A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-mintegral" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-mintegral.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.1.900;
+			};
+		};
+		A1C0DE0000000000000005A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-liftoffmonetize" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-liftoffmonetize.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.8.000;
+			};
+		};
+		A1C0DE0000000000000006A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-pangle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-pangle.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.4.00800;
+			};
+		};
+		A1C0DE0000000000000007A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-dtexchange" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-dtexchange.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.5.200;
+			};
+		};
+		A1C0DE0000000000000008A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-moloco" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-moloco.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.12.000;
+			};
+		};
+		A1C0DE0000000000000009A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-inmobi" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-inmobi.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.5.000;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -445,6 +553,51 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1C0DE0000000000000000A2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		A1C0DE0000000000000001B1 /* MetaAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000001A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-meta" */;
+			productName = MetaAdapterTarget;
+		};
+		A1C0DE0000000000000002B1 /* AppLovinAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000002A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */;
+			productName = AppLovinAdapterTarget;
+		};
+		A1C0DE0000000000000003B1 /* UnityAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000003A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-unity" */;
+			productName = UnityAdapterTarget;
+		};
+		A1C0DE0000000000000004B1 /* MintegralAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000004A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-mintegral" */;
+			productName = MintegralAdapterTarget;
+		};
+		A1C0DE0000000000000005B1 /* LiftoffMonetizeAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000005A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-liftoffmonetize" */;
+			productName = LiftoffMonetizeAdapterTarget;
+		};
+		A1C0DE0000000000000006B1 /* PangleAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000006A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-pangle" */;
+			productName = PangleAdapterTarget;
+		};
+		A1C0DE0000000000000007B1 /* DTExchangeAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000007A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-dtexchange" */;
+			productName = DTExchangeAdapterTarget;
+		};
+		A1C0DE0000000000000008B1 /* MolocoAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000008A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-moloco" */;
+			productName = MolocoAdapterTarget;
+		};
+		A1C0DE0000000000000009B1 /* InMobiAdapterTarget */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE0000000000000009A1 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-inmobi" */;
+			productName = InMobiAdapterTarget;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,5 +1,5 @@
 {
-  "originHash" : "f485fb75b59651d1d5e1bfe15bfd2a2b6dd9737b87cd29eaaa02288efe4fe401",
+  "originHash" : "2db62430b834f05a84635304c8a25b2ce8d45e594bd6f25fe8a0fa4c34c2f744",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -11,12 +11,48 @@
       }
     },
     {
+      "identity" : "adsglobalpackage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bytedance/AdsGlobalPackage.git",
+      "state" : {
+        "revision" : "dfb8331e5d98a09fb702ec96184d7b3d70961e2e",
+        "version" : "8.4.0-release.8"
+      }
+    },
+    {
       "identity" : "app-check",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/app-check.git",
       "state" : {
         "revision" : "97f7d74dd0e8f3d0fe5fc75cc8957aa73bdc948a",
         "version" : "11.3.2"
+      }
+    },
+    {
+      "identity" : "applovin-max-swift-package",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AppLovin/AppLovin-MAX-Swift-Package.git",
+      "state" : {
+        "revision" : "ddf923e9b9de295d1c2425053cf14b32735246a8",
+        "version" : "13.7.0"
+      }
+    },
+    {
+      "identity" : "dtexchangesdk-ios-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/inner-active/DTExchangeSDK-iOS-SPM.git",
+      "state" : {
+        "revision" : "0b90114681ddf636c4575aa6b2d50f82a97e2172",
+        "version" : "8.5.2"
+      }
+    },
+    {
+      "identity" : "fbaudiencenetwork",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/facebook/FBAudienceNetwork.git",
+      "state" : {
+        "revision" : "4a7051592f50bb276c7346d5751967cdbbd64ac6",
+        "version" : "6.22.1"
       }
     },
     {
@@ -35,6 +71,87 @@
       "state" : {
         "revision" : "a2d0f1f1666de591eb1a811f40b1706f5c63a2ed",
         "version" : "2.3.0"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-applovin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-applovin.git",
+      "state" : {
+        "revision" : "5a50776a706e62006135c6ee2dcc70b90c669aee",
+        "version" : "13.7.0"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-dtexchange",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-dtexchange.git",
+      "state" : {
+        "revision" : "48868c6d0dd6c5b7f243995e75a43c6f5ba94f10",
+        "version" : "8.5.200"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-inmobi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-inmobi.git",
+      "state" : {
+        "revision" : "23665bf94bbba44b19a9072e3d1f4519b0e32cd2",
+        "version" : "11.5.0"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-liftoffmonetize",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-liftoffmonetize.git",
+      "state" : {
+        "revision" : "1419a7037b2d18b0b49901edf19b08bdc9297bbf",
+        "version" : "7.8.0"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-meta",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-meta.git",
+      "state" : {
+        "revision" : "1b27e078d5bbce9ee28ab102af6a113b2e95942d",
+        "version" : "6.22.100"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-mintegral",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-mintegral.git",
+      "state" : {
+        "revision" : "948e215f89de2d0984c2176eef6d691bab438358",
+        "version" : "8.1.900"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-moloco",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-moloco.git",
+      "state" : {
+        "revision" : "2bd064165ddcf6dd821c083ebfb6cd172d76eda0",
+        "version" : "4.12.0"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-pangle",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-pangle.git",
+      "state" : {
+        "revision" : "e2575c68eb62409ec9dba4a6f8950134c6f10256",
+        "version" : "8.4.800"
+      }
+    },
+    {
+      "identity" : "googleads-mobile-ios-mediation-unity",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/googleads-mobile-ios-mediation-unity.git",
+      "state" : {
+        "revision" : "188967a5c062987496cd276b83dc25e84f87d9a6",
+        "version" : "4.21.0"
       }
     },
     {
@@ -83,6 +200,15 @@
       }
     },
     {
+      "identity" : "inmobisdk-swift-package",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/InMobi/InMobiSDK-Swift-Package.git",
+      "state" : {
+        "revision" : "5f05204ee19eb85625727cba50f47d9bd48f376e",
+        "version" : "11.5.0"
+      }
+    },
+    {
       "identity" : "interop-ios-for-google-sdks",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/interop-ios-for-google-sdks.git",
@@ -98,6 +224,24 @@
       "state" : {
         "revision" : "a0bc79961d7be727d258d33d5a6b2f1023270ba1",
         "version" : "1.22.5"
+      }
+    },
+    {
+      "identity" : "mintegraladsdk-swift-package",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Mintegral-official/MintegralAdSDK-Swift-Package.git",
+      "state" : {
+        "revision" : "854da268cce5032d4f0124ab3b266a060b721e8f",
+        "version" : "8.1.9"
+      }
+    },
+    {
+      "identity" : "moloco-sdk-ios-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/moloco/moloco-sdk-ios-spm.git",
+      "state" : {
+        "revision" : "49348786ed662d2ce9463b764c05f810c4b1a934",
+        "version" : "4.12.0"
       }
     },
     {
@@ -123,8 +267,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/googleads/swift-package-manager-google-mobile-ads.git",
       "state" : {
-        "revision" : "1239c23464503053c17d37ee5daa70de3455e9c8",
-        "version" : "12.14.0"
+        "revision" : "1e305d74a0edcc8d74f7f2cae7a267e36d722ca2",
+        "version" : "13.13.0"
       }
     },
     {
@@ -143,6 +287,24 @@
       "state" : {
         "revision" : "3d537cb81aef272a03cb3be815439e9bf0eb3bd3",
         "version" : "1.39.0"
+      }
+    },
+    {
+      "identity" : "unity-ads-swift-package",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Unity-Technologies/Unity-Ads-Swift-Package.git",
+      "state" : {
+        "revision" : "09bdf0e27186667f381196f57ceece714c8917a2",
+        "version" : "4.21.0"
+      }
+    },
+    {
+      "identity" : "vungleadssdk-swiftpackagemanager",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Vungle/VungleAdsSDK-SwiftPackageManager.git",
+      "state" : {
+        "revision" : "12cc48e6d8145948a61cbc43dc9ea8fac6faf458",
+        "version" : "7.8.0"
       }
     }
   ],

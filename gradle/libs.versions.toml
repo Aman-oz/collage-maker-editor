@@ -1,5 +1,5 @@
 [versions]
-adsKmp = "1.0.14"
+adsKmp = "1.0.15"
 agp = "9.0.1"
 androidsvg = "1.4"
 android-compileSdk = "36"
@@ -31,8 +31,27 @@ kotlinx-io = "0.9.1"
 liquid = "1.1.1"
 material3 = "1.11.0-alpha07"
 navigation3 = "1.1.1"
+# AdMob mediation adapters (Android). Google's adapter versions: <network SDK version>.<adapter patch>.
+mediationMeta = "6.22.0.1"
+mediationApplovin = "13.7.0.0"
+mediationUnity = "4.21.0.0"
+mediationMintegral = "17.2.21.0"
+mediationLiftoff = "7.8.0.0"
+mediationPangle = "8.4.0.5.0"
+mediationDtExchange = "8.5.1.0"
+mediationMoloco = "4.14.1.0"
+mediationInmobi = "11.5.1.0"
 
 [libraries]
+mediation-meta = { module = "com.google.ads.mediation:facebook", version.ref = "mediationMeta" }
+mediation-applovin = { module = "com.google.ads.mediation:applovin", version.ref = "mediationApplovin" }
+mediation-unity = { module = "com.google.ads.mediation:unity", version.ref = "mediationUnity" }
+mediation-mintegral = { module = "com.google.ads.mediation:mintegral", version.ref = "mediationMintegral" }
+mediation-liftoff = { module = "com.google.ads.mediation:vungle", version.ref = "mediationLiftoff" }
+mediation-pangle = { module = "com.google.ads.mediation:pangle", version.ref = "mediationPangle" }
+mediation-dtexchange = { module = "com.google.ads.mediation:fyber", version.ref = "mediationDtExchange" }
+mediation-moloco = { module = "com.google.ads.mediation:moloco", version.ref = "mediationMoloco" }
+mediation-inmobi = { module = "com.google.ads.mediation:inmobi", version.ref = "mediationInmobi" }
 ads-kmp = { module = "com.ozi.admob.nextgen.compose:ads-kmp", version.ref = "adsKmp" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
