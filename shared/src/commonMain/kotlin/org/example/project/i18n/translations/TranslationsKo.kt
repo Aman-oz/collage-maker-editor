@@ -658,8 +658,8 @@ internal val TranslationsKo: Map<String, String> = mapOf(
         "나중에",
     "{0} of {1}" to
         "{1}점 중 {0}점",
-    "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
-        "Pic Collage Maker로 멋진 사진 콜라주를 만들고 있어요 📸✨ 다양한 레이아웃, 템플릿, 필터, 스티커가 있고 무료예요. 한번 써 보세요:\n{0}",
+    "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
+        "Collage Maker: Pic Editor로 멋진 사진 콜라주를 만들고 있어요 📸✨ 다양한 레이아웃, 템플릿, 필터, 스티커가 있고 무료예요. 한번 써 보세요:\n{0}",
     "{0} is coming soon" to
         "{0}은(는) 곧 제공됩니다",
     "Thanks for your feedback!" to

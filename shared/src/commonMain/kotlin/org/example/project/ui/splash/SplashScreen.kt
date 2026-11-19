@@ -129,7 +129,7 @@ private fun SplashContent(modifier: Modifier = Modifier, bottom: @Composable () 
                     .clip(RoundedCornerShape(22.dp)),
             )
             Text(
-                text = "Pic Collage Maker",
+                text = "Collage Maker: Pic Editor",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = SplashPrimary,

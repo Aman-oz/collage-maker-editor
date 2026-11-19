@@ -658,8 +658,8 @@ internal val TranslationsJa: Map<String, String> = mapOf(
         "あとで",
     "{0} of {1}" to
         "{1}段階中{0}",
-    "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
-        "Pic Collage Makerで素敵な写真コラージュを作っています 📸✨ レイアウト、テンプレート、フィルター、スタンプが豊富で、しかも無料。ぜひ試してみて：\n{0}",
+    "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
+        "Collage Maker: Pic Editorで素敵な写真コラージュを作っています 📸✨ レイアウト、テンプレート、フィルター、スタンプが豊富で、しかも無料。ぜひ試してみて：\n{0}",
     "{0} is coming soon" to
         "{0}は近日公開です",
     "Thanks for your feedback!" to

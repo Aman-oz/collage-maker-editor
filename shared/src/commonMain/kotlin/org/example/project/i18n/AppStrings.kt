@@ -333,7 +333,7 @@ internal val AppStrings: List<String> = listOf(
     "Rate Us",
     "Maybe later",
     "{0} of {1}",
-    "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}",
+    "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}",
     "{0} is coming soon",
     "Thanks for your feedback!",
     "About Us",

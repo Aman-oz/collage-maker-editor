@@ -334,7 +334,7 @@ private fun PremiumCard(onClick: () -> Unit) {
                 .padding(start = 16.dp, bottom = 18.dp),
         ) {
             Text(
-                text = "Pic Collage Maker",
+                text = "Collage Maker: Pic Editor",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -376,10 +376,10 @@ private fun LandscapePremiumCard(onClick: () -> Unit) {
             contentScale = ContentScale.Crop,
         )
         Text(
-            text = "Photo Collage Maker",
+            text = "Collage Maker: Pic Editor",
             modifier = Modifier.align(Alignment.TopCenter).padding(top = unit * 22),
             color = Color.White,
-            fontSize = with(LocalDensity.current) { (unit * 6.4f).toSp() },
+            fontSize = with(LocalDensity.current) { (unit * 4.9f).toSp() },
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )

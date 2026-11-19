@@ -658,8 +658,8 @@ internal val TranslationsVi: Map<String, String> = mapOf(
         "Để sau",
     "{0} of {1}" to
         "{0} trên {1}",
-    "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
-        "Mình đang tạo những bức ảnh ghép tuyệt đẹp với Pic Collage Maker 📸✨ Rất nhiều bố cục, mẫu, bộ lọc và nhãn dán — lại còn miễn phí. Thử ngay:\n{0}",
+    "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
+        "Mình đang tạo những bức ảnh ghép tuyệt đẹp với Collage Maker: Pic Editor 📸✨ Rất nhiều bố cục, mẫu, bộ lọc và nhãn dán — lại còn miễn phí. Thử ngay:\n{0}",
     "{0} is coming soon" to
         "{0} sắp ra mắt",
     "Thanks for your feedback!" to

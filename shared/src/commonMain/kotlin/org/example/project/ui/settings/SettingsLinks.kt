@@ -13,7 +13,7 @@ internal object SettingsLinks {
      * its store links are built from the package name.
      */
     const val AppStoreId = "6831080271"
-    const val PrivacyPolicyUrl = "http://deltagamesstudio.com/privacypolicy.html"
+    const val PrivacyPolicyUrl = "https://gamemaxstudio.com/privacy-policy/"
 
     /**
      * Terms of Use. iOS: Apple's standard EULA, which App Review accepts as the terms for
@@ -34,7 +34,7 @@ internal const val StoreRatingThreshold = 4
 /** Share App text; the store link is appended on its own line so it stays tappable everywhere. */
 internal fun shareAppMessage(storeUrl: String): String =
     tr(
-        "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}",
+        "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}",
         storeUrl,
     )
 

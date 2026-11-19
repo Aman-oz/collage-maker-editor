@@ -1,6 +1,9 @@
 TEAM_ID=45DAG69ACW
 
 PRODUCT_NAME=Photo Collage Maker
+// The name under the icon and in Settings. PRODUCT_NAME stays colon-free: it names the .app bundle
+// and its executable on disk.
+INFOPLIST_KEY_CFBundleDisplayName=Collage Maker: Pic Editor
 PRODUCT_BUNDLE_IDENTIFIER=com.piccollagemaker.photoeditor
 
 CURRENT_PROJECT_VERSION=1

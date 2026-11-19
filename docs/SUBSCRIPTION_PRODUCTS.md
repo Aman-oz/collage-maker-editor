@@ -1,4 +1,4 @@
-# Subscription products — Photo Collage Maker (KMP)
+# Subscription products — Collage Maker: Pic Editor (KMP)
 
 Every premium screen, the store product ID it sells, how its price text is built, and how to
 create the products in Google Play Console and App Store Connect.

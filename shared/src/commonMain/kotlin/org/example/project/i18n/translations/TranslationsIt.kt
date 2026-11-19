@@ -658,8 +658,8 @@ internal val TranslationsIt: Map<String, String> = mapOf(
         "Forse più tardi",
     "{0} of {1}" to
         "{0} di {1}",
-    "I've been making gorgeous photo collages with Pic Collage Maker 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
-        "Sto creando splendidi collage di foto con Pic Collage Maker 📸✨ Tantissimi layout, modelli, filtri e adesivi — ed è gratis. Provalo:\n{0}",
+    "I've been making gorgeous photo collages with Collage Maker: Pic Editor 📸✨ Tons of layouts, templates, filters and stickers — and it's free. Try it out:\n{0}" to
+        "Sto creando splendidi collage di foto con Collage Maker: Pic Editor 📸✨ Tantissimi layout, modelli, filtri e adesivi — ed è gratis. Provalo:\n{0}",
     "{0} is coming soon" to
         "{0} in arrivo",
     "Thanks for your feedback!" to

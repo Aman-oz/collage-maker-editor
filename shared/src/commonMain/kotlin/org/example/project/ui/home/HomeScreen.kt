@@ -325,7 +325,7 @@ private fun HomeTopBar(onPremium: () -> Unit, onSettings: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Pic Collage Maker",
+            text = "Collage Maker: Pic Editor",
             color = MaterialTheme.colorScheme.onBackground,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
